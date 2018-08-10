@@ -1,0 +1,85 @@
+service: replay-bot-api
+
+provider:
+  name: aws
+  runtime: python3.6
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:Scan
+      Resource: "arn:aws:dynamodb:us-east-1:*:*"
+
+package:
+  exclude:
+    - '.serverless/**'
+    - 'venv/**'
+
+functions:
+  poll:
+    handler: api.poll.handler
+    events:
+      - http:
+          path: poll
+          method: post
+  jobs_new:
+    handler: api.jobs.new.handler
+    events:
+      - http:
+          path: jobs/new
+          method: post
+  jobs_status:
+    handler: api.jobs.status.handler
+    events:
+      - http:
+          path: jobs/status
+          method: post
+
+resources:
+  Resources:
+    WorkerTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: replay-bot-workers
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 3
+          WriteCapacityUnits: 3
+    ActiveJobTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: replay-bot-jobs-active
+        AttributeDefinitions:
+          - AttributeName: worker
+            AttributeType: S
+        KeySchema:
+          - AttributeName: worker
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 3
+          WriteCapacityUnits: 3
+    CompletedJobTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: replay-bot-jobs-complete
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 3
+          WriteCapacityUnits: 3
+
+plugins:
+  - serverless-python-requirements
