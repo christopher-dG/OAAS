@@ -1,8 +1,8 @@
 import json
 from typing import Optional
 
-from api.ddb import active_job_table, complete_job_table
-from api.utils import check_ddb_response, nowstamp, response
+from api import ddb
+from api.utils import response
 from api.reddit import comment_link
 from api.jobs import PENDING, SUCCEEDED, FAILED
 
@@ -27,7 +27,7 @@ def handler(event, context):
 
     if status < PENDING or status > FAILED:
         print(f"invalid status {status}")
-        return response(400, f"inalid status {status}")
+        return response(400, f"invalid status {status}")
 
     if status < SUCCEEDED:
         try:
@@ -47,21 +47,8 @@ def _update(worker: str, status: int) -> None:
     """
     Update an active job's status.
     """
-    resp = check_ddb_response(
-        active_job_table.get_item(Key={"worker": worker}), f"get active job by {worker}"
-    )
-    if not resp or "Item" not in resp:
-        raise Exception(f"active job by {worker} not found")
-
-    if not check_ddb_response(
-        active_job_table.update_item(
-            Key={"worker": worker},
-            UpdateExpression="SET job_status = :status, updated_at = :now",
-            ExpressionAttributeValues={":status": status, ":now": nowstamp()},
-        ),
-        f"update active job by {worker} to {status}",
-    ):
-        raise Exception("DynamoDB error: update active -> active failed")
+    ddb.get_active_job(worker)  # Just ensure that it exists.
+    ddb.update_active_job(worker, status)
 
 
 def _finalize(worker: str, status: int, url: Optional[str]) -> None:
@@ -69,26 +56,9 @@ def _finalize(worker: str, status: int, url: Optional[str]) -> None:
     Mark a job as complete and move it from the active job table.
     Also comment on the job's Reddit post.
     """
-    resp = check_ddb_response(
-        active_job_table.get_item(Key={"worker": worker}), f"get active job by {worker}"
-    )
-    if not resp or "Item" not in resp:
-        raise (f"active job by {worker} not found")
+    job = ddb.get_active_job(worker)
 
     if status == SUCCEEDED and url:
-        reddit.comment_link(resp["Item"], url)
+        comment_link(job, url)
 
-    resp = check_ddb_response(
-        complete_job_table.put_item(
-            Item={**resp["Item"], "job_status": status, "updated_at": nowstamp()}
-        ),
-        f"copy active job by {worker} to completed table",
-    )
-    if not resp:
-        raise Exception("DynamoDB error: copy active -> complete failed")
-
-    if not check_ddb_response(
-        active_job_table.delete_item(Key={"worker": worker}),
-        f"delete active job by {worker}",
-    ):
-        raise Exception("DynamoDB error: delete active failed")
+    ddb.move_active_completed(job, status == SUCCEEDED)

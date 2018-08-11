@@ -5,7 +5,7 @@ from typing import Optional, Union
 
 
 def response(
-    code: int, body: Union[dict, str], quiet: bool = False, ddb: bool = False
+    code: int, body: Union[dict, str, None], quiet: bool = False, ddb: bool = False
 ) -> dict:
     """
     Return a response suitable for API Gateway.
@@ -14,6 +14,8 @@ def response(
         if ddb:
             body = ddb_json.loads(ddb_json.dumps(body))
         body = json.dumps(body)
+    elif body is None:
+        body = json.dumps(None)
     else:
         if isinstance(body, Exception):
             print("warning: an exception was raised during request handling")
@@ -23,27 +25,6 @@ def response(
     resp = {"statusCode": code, "body": body}
     if not quiet:
         print(f"returning response: {json.dumps(resp, indent=2)}")
-    return resp
-
-
-def check_ddb_response(resp: dict, ctx: str) -> Optional[dict]:
-    """
-    Check the status code of a DynamoDB response.
-    The response is returned only if the request was successful.
-    """
-    if "ResponseMetadata" not in resp:
-        print("response is missing 'ResponseMetadata' key")
-        return None
-    if "HTTPStatusCode" not in resp["ResponseMetadata"]:
-        print("response metadata is missing 'HTTPStatusCode' key")
-        return None
-
-    code = resp["ResponseMetadata"]["HTTPStatusCode"]
-    if code not in range(200, 300):
-        print(f"[{ctx}] DynamoDB request returned {code}")
-        return None
-
-    print(f"[{ctx}] response:\n{ddb_json.dumps(resp, indent=2)}")
     return resp
 
 

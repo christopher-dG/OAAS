@@ -27,40 +27,36 @@ package:
 
 functions:
   poll:
+    description: "Register worker presence and check for assigned jobs"
     handler: api.poll.handler
     events:
       - http:
           path: poll
           method: post
   jobs_new:
+    description: "Create a new job and assign it to a worker if possible"
     handler: api.jobs.new.handler
     events:
       - http:
           path: jobs/new
           method: post
   jobs_status:
+    description: "Update the status of a running job"
     handler: api.jobs.status.handler
     events:
       - http:
           path: jobs/status
           method: post
+  jobs_cleanup:
+    description: "Clear frozen jobs from the active table"
+    handler: api.jobs.cleanup.handler
+    events:
+      - schedule:
+          rate: rate(30 minutes)
 
 resources:
   Resources:
-    WorkerTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: replay-bot-workers
-        AttributeDefinitions:
-          - AttributeName: id
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-    ActiveJobTable:
+    ActiveTable:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: replay-bot-jobs-active
@@ -73,10 +69,36 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
-    CompletedJobTable:
+    BackloggedTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: replay-bot-jobs-complete
+        TableName: replay-bot-jobs-backlogged
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+    CompletedTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: replay-bot-jobs-completed
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+    WorkerTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: replay-bot-workers
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S

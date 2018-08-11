@@ -15,7 +15,7 @@ import (
 )
 
 const reaction = "👍"
-const nReactions = 2 // TODO: Make 3.
+const nReactions = 3
 
 var (
 	dBot         *discordgo.Session

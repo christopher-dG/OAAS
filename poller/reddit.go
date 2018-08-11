@@ -58,9 +58,6 @@ func startReddit() (chan error, error) {
 		return nil, err
 	}
 
-	// TODO: Delete me.
-	go func() { postChan <- reddit.Post{ID: "96979n", Title: "title here", Author: "author_here"} }()
-
 	done := make(chan error)
 	go func() { done <- wait() }()
 	return done, nil

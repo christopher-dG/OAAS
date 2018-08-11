@@ -2,8 +2,8 @@ import json
 from boto3.dynamodb.conditions import Attr
 from typing import Optional
 
-from api.ddb import active_job_table, worker_table
-from api.utils import check_ddb_response, nowstamp, response
+from api import ddb
+from api.utils import nowstamp, response
 
 NO_JOB_FOUND = Exception("no job found")
 NO_JOB = response(204, None, quiet=True)
@@ -26,15 +26,17 @@ def handler(event, context):
         print(f"{event['body']} is invalid")
         return response(400, "invalid request body")
 
-    resp = check_ddb_response(
-        worker_table.get_item(Key={"id": worker}), f"get worker {worker} by ID"
-    )
-    if not resp:
-        return response(500, "DynamoDB error")
+    try:
+        ddb.get_worker(worker)
+        exists = True
+    except Exception as e:
+        if not ddb.is_not_found(e):
+            return response(500, e)
+        exists = False
 
-    if "Item" in resp and resp["Item"]:  # The worker exists.
+    if exists:
         try:
-            _update(worker)
+            ddb.update_worker(worker)
         except Exception as e:
             return response(500, e)
 
@@ -48,50 +50,22 @@ def handler(event, context):
 
         return response(200, job, ddb=True)
 
+    # The worker does not exist.
     try:
-        _create(worker)  # The worker does not exist, so create it.
+        ddb.create_worker(worker)
     except Exception as e:
         return response(500, e)
     return NO_JOB
-
-
-def _create(worker: str) -> None:
-    """
-    Register a new worker.
-    """
-    if not check_ddb_response(
-        worker_table.put_item(Item={"id": worker, "last_poll": nowstamp()}),
-        f"create new worker {worker}",
-    ):
-        raise Exception("registering worker failed")
-
-
-def _update(worker: str) -> None:
-    """
-    Update a worker with the current polling time.
-    """
-    if not check_ddb_response(
-        worker_table.update_item(
-            Key={"id": worker},
-            UpdateExpression="SET last_poll = :now",
-            ExpressionAttributeValues={":now": nowstamp()},
-        ),
-        f"update worker {worker} last poll time",
-    ):
-        raise Exception("updating worker failed")
 
 
 def _get_job(worker: str) -> dict:
     """
     Get a worker's assigned job. Returns None if there is no job.
     """
-    resp = check_ddb_response(
-        active_job_table.get_item(Key={"worker": worker}),
-        f"get active job for {worker}",
-    )
-    if not resp:
-        raise Exception("DynamoDB error: getting active job failed")
-    if "Item" not in resp:
-        raise NO_JOB_FOUND
-
-    return resp["Item"]
+    try:
+        job = ddb.get_active_job(worker)
+    except Exception as e:
+        if ddb.is_not_found(e):
+            raise NO_JOB_FOUND
+        raise e
+    return job
