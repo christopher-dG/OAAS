@@ -3,6 +3,12 @@ service: replay-bot-api
 provider:
   name: aws
   runtime: python3.6
+  environment:
+    REDDIT_CLIENT_ID: ${env:REDDIT_CLIENT_ID}
+    REDDIT_CLIENT_SECRET: ${env:REDDIT_CLIENT_SECRET}
+    REDDIT_USERNAME: ${env:REDDIT_USERNAME}
+    REDDIT_PASSWORD: ${env:REDDIT_PASSWORD}
+    REDDIT_USER_AGENT: ${env:REDDIT_USER_AGENT}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -52,8 +58,8 @@ resources:
           - AttributeName: id
             KeyType: HASH
         ProvisionedThroughput:
-          ReadCapacityUnits: 3
-          WriteCapacityUnits: 3
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
     ActiveJobTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -65,8 +71,8 @@ resources:
           - AttributeName: worker
             KeyType: HASH
         ProvisionedThroughput:
-          ReadCapacityUnits: 3
-          WriteCapacityUnits: 3
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
     CompletedJobTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -78,8 +84,8 @@ resources:
           - AttributeName: id
             KeyType: HASH
         ProvisionedThroughput:
-          ReadCapacityUnits: 3
-          WriteCapacityUnits: 3
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
 
 plugins:
   - serverless-python-requirements
