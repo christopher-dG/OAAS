@@ -1,1 +1,3 @@
 # boto3  # Installed by default in Lambda.
+dynamodb_json
+praw

@@ -4,7 +4,7 @@ from boto3.dynamodb.conditions import Attr, Key
 from typing import List, Optional
 
 from api.ddb import active_job_table, worker_table
-from api.utils import check_ddb_response, nowstamp
+from api.utils import check_ddb_response, nowstamp, response
 from api.jobs import PENDING
 
 ONLINE_THRESHOLD = 30  # Seconds.
@@ -23,32 +23,45 @@ def handler(event, context):
     except Exception as e:
         print(e)
         print(f"body {event['body']} is invalid")
-        return {"statusCode": 400}
+        return response(400, "invalid request body")
 
-    worker = _get_worker()
-    if not worker:
-        return {"statusCode": 500}
+    job_id = body["id"]
 
-    print(f"assigning job {body['id']} to worker {worker}")
+    # DynamoDB doesn't allow inserting empty strings.
+    body = {k: v if v != "" else None for k, v in body.items()}
+
+    resp = check_ddb_response(
+        active_job_table.scan(FilterExpression=Attr("id").eq(job_id)),
+        f"get existing job {job_id}",
+    )
+    if not resp:
+        return response(500, f"DynamoDB error: checking for existing job failed")
+    if "Items" in resp and resp["Items"]:
+        return response(400, f"job {job_id} is already active")
+
+    try:
+        worker = _get_worker()
+    except Exception as e:
+        return response(500, e)
+
+    print(f"assigning job {job_id} to worker {worker}")
 
     now = nowstamp()
-    if not bool(
-        check_ddb_response(
-            active_job_table.put_item(
-                Item={
-                    **body,
-                    "worker": worker,
-                    "job_status": PENDING,
-                    "created_at": now,
-                    "updated_at": now,
-                }
-            ),
-            f"create new job {body['id']} for {worker}",
-        )
+    if not check_ddb_response(
+        active_job_table.put_item(
+            Item={
+                **body,
+                "worker": worker,
+                "job_status": PENDING,
+                "created_at": now,
+                "updated_at": now,
+            }
+        ),
+        f"create new job {job_id} for {worker}",
     ):
-        return {"statusCode": 500}
+        return response(500, "DynamoDB error: inserting new job failed")
 
-    return {"statusCode": 200}
+    return response(200, None)
 
 
 def _get_worker() -> Optional[str]:
@@ -57,27 +70,25 @@ def _get_worker() -> Optional[str]:
     We scan through the workers, find an online one without a job,
     then make a choice from those.
     """
-    min_stamp = int(nowstamp()) - ONLINE_THRESHOLD
+    min_stamp = nowstamp() - ONLINE_THRESHOLD
     resp = check_ddb_response(
         worker_table.scan(FilterExpression=Attr("last_poll").gt(min_stamp)),
         "get online workers",
     )
     if not resp or "Items" not in resp or not resp["Items"]:
-        print("no workers are available (all offline)")
-        return None
+        raise Exception("no workers are available (all offline)")
 
     eligible = [i["id"] for i in resp["Items"]]
 
     # TODO: Do we have to scan here?
     resp = check_ddb_response(active_job_table.scan(), "get active jobs")
     if not resp:
-        return None
+        raise Exception("DynamoDB error: getting active jobs failed")
 
     busy = [i["worker"] for i in resp["Items"]]
     eligible = [w for w in eligible if w not in busy]
     if not eligible:
-        print("no workers are available (all busy)")
-        return None
+        raise Exception("no workers are available (all busy)")
 
     return _choose(eligible)
 

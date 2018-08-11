@@ -1,7 +1,9 @@
 import json
+from typing import Optional
 
 from api.ddb import active_job_table, complete_job_table
-from api.utils import check_ddb_response, nowstamp
+from api.utils import check_ddb_response, nowstamp, response
+from api.reddit import comment_link
 from api.jobs import PENDING, SUCCEEDED, FAILED
 
 
@@ -16,25 +18,32 @@ def handler(event, context):
         status = int(body["status"])
         worker = body["worker"]
     except Exception as e:
-        print(e)
+        if isinstance(e, KeyError):
+            print(f"KeyError: {e}")
+        else:
+            print(e)
         print(f"body {event['body']} is invalid")
-        return {"statusCode": 400}
+        return response(400, "invalid request body")
 
     if status < PENDING or status > FAILED:
         print(f"invalid status {status}")
-        return {"statusCode": 400}
+        return response(400, f"inalid status {status}")
 
     if status < SUCCEEDED:
-        if _update(worker, status):
-            return {"statusCode": 200}
+        try:
+            _update(worker, status)
+        except Exception as e:
+            return response(500, e)
+        return response(200, "update active -> active")
     else:
-        if _finalize(worker, status):
-            return {"statusCode": 200}
+        try:
+            _finalize(worker, status, body.get("url"))
+        except Exception as e:
+            return response(500, e)
+        return response(200, "update active -> complete")
 
-    return {"statusCode": 500}
 
-
-def _update(worker: str, status: int) -> bool:
+def _update(worker: str, status: int) -> None:
     """
     Update an active job's status.
     """
@@ -42,31 +51,32 @@ def _update(worker: str, status: int) -> bool:
         active_job_table.get_item(Key={"worker": worker}), f"get active job by {worker}"
     )
     if not resp or "Item" not in resp:
-        print(f"active job by {worker} not found")
-        return False
+        raise Exception(f"active job by {worker} not found")
 
-    return bool(
-        check_ddb_response(
-            active_job_table.update_item(
-                Key={"worker": worker},
-                UpdateExpression="SET job_status = :status, updated_at = :now",
-                ExpressionAttributeValues={":status": status, ":now": nowstamp()},
-            ),
-            f"update active job by {worker} to {status}",
-        )
-    )
+    if not check_ddb_response(
+        active_job_table.update_item(
+            Key={"worker": worker},
+            UpdateExpression="SET job_status = :status, updated_at = :now",
+            ExpressionAttributeValues={":status": status, ":now": nowstamp()},
+        ),
+        f"update active job by {worker} to {status}",
+    ):
+        raise Exception("DynamoDB error: update active -> active failed")
 
 
-def _finalize(worker: str, status: int) -> bool:
+def _finalize(worker: str, status: int, url: Optional[str]) -> None:
     """
     Mark a job as complete and move it from the active job table.
+    Also comment on the job's Reddit post.
     """
     resp = check_ddb_response(
         active_job_table.get_item(Key={"worker": worker}), f"get active job by {worker}"
     )
     if not resp or "Item" not in resp:
-        print(f"active job by {worker} not found")
-        return False
+        raise (f"active job by {worker} not found")
+
+    if status == SUCCEEDED and url:
+        reddit.comment_link(resp["Item"], url)
 
     resp = check_ddb_response(
         complete_job_table.put_item(
@@ -75,11 +85,10 @@ def _finalize(worker: str, status: int) -> bool:
         f"copy active job by {worker} to completed table",
     )
     if not resp:
-        return False
+        raise Exception("DynamoDB error: copy active -> complete failed")
 
-    return bool(
-        check_ddb_response(
-            active_job_table.delete_item(Key={"worker": worker}),
-            f"delete active job by {worker}",
-        )
-    )
+    if not check_ddb_response(
+        active_job_table.delete_item(Key={"worker": worker}),
+        f"delete active job by {worker}",
+    ):
+        raise Exception("DynamoDB error: delete active failed")
