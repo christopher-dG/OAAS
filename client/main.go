@@ -233,7 +233,7 @@ func fail() error {
 
 // httpPOST makes an HTTP POST request to the API.
 func httpPOST(route string, body interface{}) (*http.Response, error) {
-	log.Println("request destination", route)
+	log.Println("request destination:", apiURL+route)
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, err

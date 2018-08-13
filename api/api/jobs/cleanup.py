@@ -11,28 +11,37 @@ def handler(event, context):
     to the completed table with failed status.
     It also moves jobs from the backlog onto unused workers.
     """
-    cleanup_active()
-    process_backlog()
+    print(f"cleaned up {cleanup_active()} active jobs")
+    print(f"started {process_backlog()} backlogged jobs")
 
 
-def cleanup_active() -> None:
+def cleanup_active() -> int:
+    """
+    Cleans up active jobs whose workers are offline or stalled.
+    Returns the number of cleaned up jobs.
+    """
     try:
         active = ddb.get_active_jobs()
     except Exception as e:
         print(e)
-        return
+        return 0
 
     if not active:
         print("no jobs to clean up")
-        return
+        return 0
 
     try:
         workers = {w["id"]: w for w in ddb.get_workers()}
     except Exception as e:
         print(e)
-        return
+        return 0
 
-    for job in jobs:
+    if not any(is_online(w) for w in workers.values()):
+        print("no workers online, nothing to do")
+        return 0
+
+    cleaned = 0
+    for job in active:
         worker_id = job["worker"]
         worker = workers[worker_id]
         job_id = job["id"]
@@ -41,6 +50,7 @@ def cleanup_active() -> None:
             print(f"worker {worker_id} for job {job_id} is offline")
             try:
                 ddb.move_active_completed(job, False)
+                cleaned += 1
             except Exception as e:
                 print(e)
             else:
@@ -52,23 +62,27 @@ def cleanup_active() -> None:
             )
             try:
                 move_active_completed(job, False)
+                cleaned += 1
             except Exception as e:
                 print(e)
 
+    return cleaned
 
-def process_backlog() -> None:
+
+def process_backlog() -> int:
     """
     Go through the backlog and assign free workers to jobs.
+    Returns the number of assigned jobs.
     """
     try:
         backlog = ddb.get_backlogged()
     except Exception as e:
         print(e)
-        return
+        return 0
 
     if not backlog:
         print("no backlog to process")
-        return
+        return 0
 
     backlog = sorted(backlog, key=lambda j: j["created_at"], reverse=True)
 
@@ -76,28 +90,33 @@ def process_backlog() -> None:
         jobs = ddb.get_active_jobs()
     except Exception as e:
         print(e)
-        return
+        return 0
 
     try:
         workers = ddb.get_workers()
     except Exception as e:
         print(e)
-        return
+        return 0
 
-    if not workers:
-        print("no workers found")
-        return
+    if not any(is_online(w) for w in workers):
+        print("no workers online, nothing to do")
+        return 0
 
     active = [j["worker"] for j in jobs]
-    workers = [w for w in workers if is_online(w) and w["id"] not in active]
+    available = [w["id"] for w in workers if is_online(w) and w["id"] not in active]
 
-    for w in workers:
-        if not backlogged:
+    assigned = 0
+    for w in available:
+        if not backlog:
             break
 
+        job = backlog.pop()
+
         try:
-            job = backlog.pop()
-            assign_job(job, w)
+            ddb.assign_job(job, w)
+            assigned += 1
         except Exception as e:
             print(e)
             backlog.append(job)
+
+    return assigned
