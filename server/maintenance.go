@@ -14,18 +14,23 @@ func doMaintenance() {
 	log.Printf("[maintenance] scheduled %d backlogged jobs", processBacklog())
 }
 
-// Maintenance runs maintenance on an interval.
-func Maintenance() {
-	for {
-		select {
-		case <-done:
-			return
-		case <-time.After(maintenanceInterval):
-			wg.Add(1)
-			doMaintenance()
-			wg.Done()
+// StartMaintenance runs maintenance on an interval.
+func StartMaintenance() chan bool {
+	done := make(chan bool)
+	go func() {
+		log.Println("[maintenance] starting maintenance loop to run every", maintenanceInterval)
+		for {
+			select {
+			case <-done:
+				return
+			case <-time.After(maintenanceInterval):
+				wg.Add(1)
+				doMaintenance()
+				wg.Done()
+			}
 		}
-	}
+	}()
+	return done
 }
 
 // cleanupActive cleans up active jobs that are stalled.

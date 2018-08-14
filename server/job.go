@@ -4,18 +4,86 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/turnage/graw/reddit"
 )
 
-var ErrJobNotFound = errors.New("no job found")
+const (
+	_                  = iota
+	statusBacklogged   // Backlogged: waiting for workers to free up.
+	statusAssigned     // Assigned to the worker, but the worker hasn't received it yet.
+	statusPending      // Received by the worker.
+	statusAcknowledged // Acknowledged by the worker.
+	statusRecording    // The worker has begun recording.
+	statusUploading    // The worker has begun uploading.
+	statusSuccessful   // Job finished and successful.
+	statusFailed       // Job finished and failed.
+)
+
+var (
+	statusStr = map[int]string{
+		statusBacklogged:   "backlogged",
+		statusAssigned:     "assigned",
+		statusPending:      "pending",
+		statusAcknowledged: "acknowledged",
+		statusRecording:    "recording",
+		statusUploading:    "uploading",
+		statusSuccessful:   "successful",
+		statusFailed:       "failed",
+	}
+
+	ErrJobNotFound = errors.New("job not found")
+)
 
 // Job is a replay recording and uploading job.
 type Job struct {
 	ID        string         `db:"id"`         // Reddit ID of the post the job corresponds to.
 	WorkerID  sql.NullString `db:"worker_id"`  // ID of the worker assigned to the job.
+	Title     string         `db:"title"`      // Reddit post title.
+	Author    string         `db:"author"`     // Reddit author username.
 	Status    int            `db:"status"`     // Job status.
 	Comment   sql.NullString `db:"comment"`    // Justification of status (failure reason, etc.).
 	CreatedAt time.Time      `db:"created_at"` // Job creation time.
 	UpdatedAt time.Time      `db:"updated_at"` // Job update time.
+}
+
+// NewJob creates a new job and assigns it to a worker or the backlog.
+func NewJob(p reddit.Post) (*Job, error) {
+	now := time.Now()
+	job := &Job{
+		ID:        p.ID,
+		Title:     p.Title,
+		Author:    p.Author,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	_, err := GetJob(job.ID)
+	if err != nil && err != ErrJobNotFound {
+		return nil, err
+	}
+	if err == nil {
+		return nil, errors.New("job already exists")
+	}
+	// TODO: This all probably belongs in a transaction.
+	if err = job.Create(); err != nil {
+		return nil, err
+	}
+	available, err := GetAvailableWorkers()
+	if err != nil {
+		return nil, err
+	}
+	if len(available) == 0 {
+		job.Status = statusBacklogged
+		if err = job.Update(); err != nil {
+			return nil, err
+		}
+		return job, nil
+	}
+	worker := chooseWorker(available)
+	if err = worker.Assign(job); err != nil {
+		return nil, err
+	}
+	return job, nil
 }
 
 // Create saves a new job to the database.
@@ -28,8 +96,8 @@ func (j *Job) Create() error {
 		j.UpdatedAt = now
 	}
 	_, err := db.Exec(
-		"insert into jobs(id, worker_id, status) values ($1, $2, $3, $4, $5, $6)",
-		j.ID, j.WorkerID, j.Status, j.Comment, j.CreatedAt, j.UpdatedAt,
+		"insert into jobs(id, worker_id, title, author, status, comment, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8)",
+		j.ID, j.WorkerID, j.Title, j.Author, j.Status, j.Comment, j.CreatedAt, j.UpdatedAt,
 	)
 	return err
 }
@@ -37,6 +105,7 @@ func (j *Job) Create() error {
 // Update saves changes to a job to the database.
 func (j *Job) Update() error {
 	j.UpdatedAt = time.Now()
+	// We're leaving Title and Author untouched because should should never change.
 	_, err := db.Exec(
 		"update jobs set worker_id = $1, status = $2, comment = $3, updated_at = $4 where id = $5",
 		j.WorkerID, j.Status, j.Comment, j.UpdatedAt, j.ID,
@@ -103,4 +172,10 @@ func GetActiveJobs() ([]*Job, error) {
 		"select * from jobs where worker_id is not null and status between $1 and $2",
 		statusPending, statusUploading,
 	)
+}
+
+// GetBacklog gets backlogged jobs.
+func GetBacklog() ([]*Job, error) {
+	jobs := []*Job{}
+	return jobs, db.Select(&jobs, "select * from jobs where status = $1", statusBacklogged)
 }

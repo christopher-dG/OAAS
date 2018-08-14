@@ -2,26 +2,29 @@ package main
 
 import (
 	"log"
-	"net/http"
-	"strconv"
 	"sync"
+
+	"github.com/turnage/graw/reddit"
 )
 
-const port = 4000
-
-var (
-	wg   = sync.WaitGroup{}
-	done = make(chan bool)
-)
+var wg = sync.WaitGroup{}
 
 func main() {
-	http.HandleFunc("/poll", handlePoll)
-	http.HandleFunc("/jobs/create", handleJobsCreate)
-	http.HandleFunc("/jobs/status", handleJobsStatus)
+	posts := make(chan reddit.Post)
+	doneHTTP := StartHTTP()
+	doneMaintenance := StartMaintenance()
+	doneReddit, err := StartReddit(posts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	doneDiscord, err := StartDiscord(posts)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	go Maintenance()
-
-	log.Println(http.ListenAndServe(":"+strconv.Itoa(port), nil))
-	done <- true
+	<-doneHTTP
+	doneMaintenance <- true
+	doneReddit <- true
+	doneDiscord <- true
 	wg.Wait()
 }

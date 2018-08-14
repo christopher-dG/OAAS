@@ -31,7 +31,7 @@ var (
 )
 
 // startReddit starts polling a subreddit and handles each new post.
-func startReddit() (chan error, error) {
+func StartReddit(posts chan reddit.Post) (chan bool, error) {
 	if rBotConfig.Agent == "" {
 		return nil, errors.New("environment variable REDDIT_USER_AGENT is not set")
 	}
@@ -53,25 +53,33 @@ func startReddit() (chan error, error) {
 		return nil, err
 	}
 
-	_, wait, err := graw.Run(&postHandler{}, rBot, rConfig)
+	log.Println("[reddit] starting Reddit poller for subreddit", subreddit)
+	stop, _, err := graw.Run(&PostHandler{Posts: posts}, rBot, rConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	done := make(chan error)
-	go func() { done <- wait() }()
+	done := make(chan bool)
+	go func() {
+		<-done
+		stop()
+	}()
 	return done, nil
 }
 
 // PostHandler receives new post events and handles them.
-type postHandler struct{}
+type PostHandler struct {
+	Posts chan reddit.Post
+}
 
 // Post is called on all new Reddit posts. If it returns non-nil, the bot goes down.
-func (ph *postHandler) Post(p *reddit.Post) error {
+func (ph *PostHandler) Post(p *reddit.Post) error {
+	wg.Add(1)
 	if titleRE.MatchString(p.Title) {
 		log.Println("[reddit] post matches:", p.Title)
-		postChan <- *p
+		ph.Posts <- *p
 	}
+	wg.Done()
 	return nil
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"math/rand"
 	"time"
 )
 
@@ -135,4 +136,13 @@ func GetAvailableWorkers() ([]*Worker, error) {
 		}
 	}
 	return available, nil
+}
+
+// chooseWorker chooses a worker to be assigned to a job.
+// TODO: LRU.
+func chooseWorker(workers []*Worker) *Worker {
+	if len(workers) == 0 {
+		return nil
+	}
+	return workers[rand.Intn(len(workers))]
 }
