@@ -8,19 +8,19 @@ import (
 const schema = `
 create table if not exists workers(
   id text primary key,
-  last_poll timestamp not null
+  last_poll timestamptz not null
 );
 
 create table if not exists jobs(
   id text primary key,
-  worker text references workers(id),
+  worker_id text references workers(id) on delete set null,
   status integer not null,
   comment text,
-  created_at timestamp not null default current_timestamp,
-  updated_at timestamp not null default current_timestamp
+  created_at timestamptz not null,
+  updated_at timestamptz not null
 );
 
-alter table workers add column if not exists current_job_id text references jobs(id);
+alter table workers add column if not exists current_job_id text references jobs(id) on delete set null;
 `
 
 const (

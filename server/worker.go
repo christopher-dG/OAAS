@@ -15,13 +15,16 @@ var (
 
 // Worker is a client that can record and upload replays.
 type Worker struct {
-	ID           string         `db:"id"`          // Worker ID.
-	LastPoll     time.Time      `db:"last_poll"`   // Last poll time.
-	CurrentJobID sql.NullString `db:"current_job"` // Job being worked on.
+	ID           string         `db:"id"`             // Worker ID.
+	LastPoll     time.Time      `db:"last_poll"`      // Last poll time.
+	CurrentJobID sql.NullString `db:"current_job_id"` // Job being worked on.
 }
 
 // Create saves a new worker to the database.
 func (w *Worker) Create() error {
+	if w.LastPoll.IsZero() {
+		w.LastPoll = time.Now()
+	}
 	_, err := db.Exec(
 		"insert into workers(id, last_poll) values ($1, $2)",
 		w.ID, w.LastPoll,
@@ -78,8 +81,8 @@ func (w *Worker) Assign(j *Job) error {
 		return err
 	}
 	if _, err = tx.Exec(
-		"update jobs set status = $1 where id = $2",
-		statusPending, j.ID,
+		"update jobs set worker_id = $1, status = $2 where id = $3",
+		w.ID, statusPending, j.ID,
 	); err != nil {
 		tx.Rollback()
 		return err
@@ -91,7 +94,11 @@ func (w *Worker) Assign(j *Job) error {
 	if err = w.CurrentJobID.Scan(j.ID); err != nil {
 		return err
 	}
+	if err = j.WorkerID.Scan(w.ID); err != nil {
+		return err
+	}
 	j.Status = statusPending
+
 	return nil
 }
 

@@ -18,24 +18,18 @@ type Job struct {
 	UpdatedAt time.Time      `db:"updated_at"` // Job update time.
 }
 
-// NewJob creates a new job and assigns it to a worker if possible.
-func NewJob(id string) (*Job, error) {
-	now := time.Now()
-	job := &Job{
-		ID:        id,
-		Status:    statusPending,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-
-	return job, nil
-}
-
 // Create saves a new job to the database.
 func (j *Job) Create() error {
+	now := time.Now()
+	if j.CreatedAt.IsZero() {
+		j.CreatedAt = now
+	}
+	if j.UpdatedAt.IsZero() {
+		j.UpdatedAt = now
+	}
 	_, err := db.Exec(
-		"insert into jobs(id, worker, status) values ($1, $2, $3)",
-		j.ID, j.WorkerID, j.Status,
+		"insert into jobs(id, worker_id, status) values ($1, $2, $3, $4, $5, $6)",
+		j.ID, j.WorkerID, j.Status, j.Comment, j.CreatedAt, j.UpdatedAt,
 	)
 	return err
 }
@@ -44,10 +38,42 @@ func (j *Job) Create() error {
 func (j *Job) Update() error {
 	j.UpdatedAt = time.Now()
 	_, err := db.Exec(
-		"update jobs set worker = $1, status = $2, updated_at = $3 where id = $4",
-		j.WorkerID, j.Status, j.UpdatedAt, j.ID,
+		"update jobs set worker_id = $1, status = $2, comment = $3, updated_at = $4 where id = $5",
+		j.WorkerID, j.Status, j.Comment, j.UpdatedAt, j.ID,
 	)
 	return err
+}
+
+// Finish updates a job's status to complete and clears the worker's current job.
+func (j *Job) Finish(w *Worker, status int) error {
+	if status < statusSuccessful {
+		return errors.New("invalid status")
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec(
+		"update jobs set status = $1 where id = $2",
+		status, j.ID,
+	); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err = tx.Exec(
+		"update workers set current_job_id = null where id = $1",
+		w.ID,
+	); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		tx.Rollback()
+		return err
+	}
+	j.Status = status
+	w.CurrentJobID.Valid = false
+	return nil
 }
 
 // GetJobs gets all jobs.
@@ -74,7 +100,7 @@ func GetActiveJobs() ([]*Job, error) {
 	jobs := []*Job{}
 	return jobs, db.Select(
 		&jobs,
-		"select * from jobs where worker is not null and status between $1 and $2",
+		"select * from jobs where worker_id is not null and status between $1 and $2",
 		statusPending, statusUploading,
 	)
 }

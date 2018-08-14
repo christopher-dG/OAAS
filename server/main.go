@@ -17,7 +17,7 @@ var (
 func main() {
 	http.HandleFunc("/poll", handlePoll)
 	http.HandleFunc("/jobs/create", handleJobsCreate)
-	http.HandleFunc("/jobs/status", handleJobsCreate)
+	http.HandleFunc("/jobs/status", handleJobsStatus)
 
 	go Maintenance()
 

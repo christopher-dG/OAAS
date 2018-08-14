@@ -8,43 +8,55 @@ import (
 	"time"
 )
 
-// handlePoll handles POST requests to the /poll endpoint.
-func handlePoll(w http.ResponseWriter, r *http.Request) {
+// PollRequest contains the request body for /poll requests.
+type PollRequest struct {
+	WorkerID string `json:"worker"`
+}
+
+// validatePoll checks that the the request is valid.
+func validatePoll(w http.ResponseWriter, r *http.Request) *PollRequest {
 	defer r.Body.Close()
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Println("[/poll] can't read request body:", err)
 		writeText(w, 500, "request body could not be read")
-		return
+		return nil
 	}
-
-	var m map[string]string
-	if err = json.Unmarshal(b, &m); err != nil {
-		log.Printf("[/poll] request body %s invalid JSON: %v\n", string(b), err)
+	req := &PollRequest{}
+	if err = json.Unmarshal(b, req); err != nil {
+		log.Println("[/poll] invalid request body:", err)
 		writeText(w, 400, "invalid request body")
+		return nil
+	}
+	if req.WorkerID == "" {
+		log.Println("[/poll] request body is missing 'worker' field")
+		writeText(w, 400, "missing required field 'worker'")
+		return nil
+	}
+	return req
+}
+
+// handlePoll handles POST requests to the /poll endpoint.
+func handlePoll(w http.ResponseWriter, r *http.Request) {
+	req := validatePoll(w, r)
+	if req == nil {
 		return
 	}
 
-	wID, ok := m["worker"]
-	if !ok {
-		log.Println("[/poll] request body is missing worker ID")
-		writeText(w, 400, "missing required field: 'worker'")
-		return
-	}
-
-	worker, err := GetWorker(wID)
+	worker, err := GetWorker(req.WorkerID)
 	if err != nil && err != ErrWorkerNotFound {
 		log.Println("[/poll] couldn't retrieve worker:", err)
 		writeText(w, 500, "database error")
 		return
 	}
 	if err == ErrWorkerNotFound {
-		worker = &Worker{ID: wID, LastPoll: time.Now()}
+		worker = &Worker{ID: req.WorkerID, LastPoll: time.Now()}
 		if err = worker.Create(); err != nil {
 			log.Println("[/poll] couldn't create worker:", err)
 			writeText(w, 500, "database error")
 			return
 		}
+		log.Println("[/poll] created new worker", worker.ID)
 	} else if worker.CurrentJobID.Valid {
 		log.Println("[/poll] worker already has a job")
 		w.WriteHeader(204)
