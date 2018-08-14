@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apcera/termtables"
 	"github.com/bwmarrin/discordgo"
 	"github.com/turnage/graw/reddit"
 )
@@ -170,7 +171,8 @@ func listJobs(jobs []*Job) {
 		sendMsg("No jobs.")
 		return
 	}
-	msg := "job  -  worker  -  status  -  created  -  updated"
+	table := termtables.CreateTable()
+	table.AddHeaders("Job", "Worker", "Status", "Created", "Updated")
 	for _, j := range jobs {
 		var worker string
 		if j.WorkerID.Valid {
@@ -178,12 +180,9 @@ func listJobs(jobs []*Job) {
 		} else {
 			worker = "none"
 		}
-		msg += fmt.Sprintf(
-			"\n%s - %s - %s - %s - %s",
-			j.ID, worker, statusStr[j.Status], time.Since(j.CreatedAt), time.Since(j.UpdatedAt),
-		)
+		table.AddRow(j.ID, worker, statusStr[j.Status], time.Since(j.CreatedAt), time.Since(j.UpdatedAt))
 	}
-	sendMsgf("```\n%s\n```", msg)
+	sendMsgf("```\n%s\n```", table.Render())
 }
 
 // sendMsg sends a Discord message.
