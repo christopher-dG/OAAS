@@ -17,7 +17,7 @@ import (
 
 const (
 	reaction   = "👍"
-	nReactions = 3
+	nReactions = 2
 	prefix     = ">"
 )
 

@@ -7,10 +7,12 @@ import (
 	"github.com/turnage/graw/reddit"
 )
 
-var wg = sync.WaitGroup{}
+var (
+	wg    = sync.WaitGroup{}
+	posts = make(chan reddit.Post)
+)
 
 func main() {
-	posts := make(chan reddit.Post)
 	doneHTTP := StartHTTP()
 	doneMaintenance := StartMaintenance()
 	doneReddit, err := StartReddit(posts)
