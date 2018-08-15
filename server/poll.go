@@ -63,13 +63,7 @@ func handlePoll(w http.ResponseWriter, r *http.Request) {
 		worker.Update()
 	}
 
-	if worker.CurrentJobID.Valid {
-		log.Println("[/poll] worker already has a job")
-		w.WriteHeader(204)
-		return
-	}
-
-	job, err := worker.GetPendingJob()
+	job, err := worker.GetAssignedJob()
 	if err != nil && err != ErrNoJob {
 		log.Println("[/poll] couldn't get pending job:", err)
 		writeText(w, 500, "database error")
@@ -77,6 +71,12 @@ func handlePoll(w http.ResponseWriter, r *http.Request) {
 	}
 	if err == ErrNoJob {
 		log.Println("[/poll] no new job for worker", worker.ID)
+		w.WriteHeader(204)
+		return
+	}
+
+	if job.Status != shared.StatusAssigned {
+		log.Println("[/poll] worker is already working on a job")
 		w.WriteHeader(204)
 		return
 	}

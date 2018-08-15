@@ -44,13 +44,13 @@ func (w *Worker) Update() error {
 	return err
 }
 
-// GetPendingJob gets a pending job assigned to the worker.
-func (w *Worker) GetPendingJob() (*Job, error) {
+// GetAssigned gets a job assigned to the worker.
+func (w *Worker) GetAssignedJob() (*Job, error) {
 	job := &Job{}
 	err := db.Get(
 		job,
 		"select * from jobs where worker_id = $1 and status = $2",
-		w.ID, shared.StatusPending,
+		w.ID, shared.StatusAssigned,
 	)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -85,7 +85,7 @@ func (w *Worker) Assign(j *Job) error {
 	}
 	if _, err = tx.Exec(
 		"update jobs set worker_id = $1, status = $2 where id = $3",
-		w.ID, shared.StatusPending, j.ID,
+		w.ID, shared.StatusAssigned, j.ID,
 	); err != nil {
 		tx.Rollback()
 		return err
@@ -100,7 +100,7 @@ func (w *Worker) Assign(j *Job) error {
 	if err = j.WorkerID.Scan(w.ID); err != nil {
 		return err
 	}
-	j.Status = shared.StatusPending
+	j.Status = shared.StatusAssigned
 
 	return nil
 }

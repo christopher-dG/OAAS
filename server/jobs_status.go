@@ -14,6 +14,7 @@ type JobsStatusRequest struct {
 	WorkerID string `json:"worker"`
 	JobID    string `json:"job"`
 	Status   int    `json:"status"`
+	Comment  string `json:"comment"`
 }
 
 // validateJobsStatus checks that the the request is valid.
@@ -95,7 +96,7 @@ func handleJobsStatus(w http.ResponseWriter, r *http.Request) {
 	old := job.Status
 
 	if req.Status >= shared.StatusSuccessful {
-		if err = job.Finish(worker, req.Status); err != nil {
+		if err = job.Finish(worker, req.Status, req.Comment); err != nil {
 			log.Println("[/jobs/status] couldn't finish job:", err)
 			writeText(w, 500, "database error")
 			return

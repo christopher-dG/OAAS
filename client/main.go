@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -21,9 +22,12 @@ const (
 )
 
 var (
-	jobs   = make(chan shared.Job)
-	apiURL = os.Getenv("API_URL")
-	id     = func() string {
+	httpLogger = log.New(os.Stdout, "[http] ", log.LstdFlags)
+	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags)
+	jobLogger  = log.New(os.Stdout, "", log.LstdFlags)
+	jobs       = make(chan shared.Job)
+	apiURL     = os.Getenv("REPLAY_BOT_API_URL")
+	id         = func() string {
 		usr, err := user.Current()
 		if err != nil {
 			return strconv.Itoa(int(time.Now().Unix()))
@@ -32,12 +36,17 @@ var (
 	}()
 )
 
+// JobContext contains the data required to complete a job.
+type JobContext struct {
+	Job shared.Job
+}
+
 func main() {
 	if apiURL == "" {
-		log.Fatal("environment variable API_URL is not set")
+		log.Fatal("environment variable REPLAY_BOT_API_URL is not set")
 	}
 
-	log.Println("ID:", id)
+	log.Println("Worker ID:", id)
 	go poll()
 	for {
 		j := <-jobs
@@ -48,199 +57,169 @@ func main() {
 // poll calls the /poll endpoint to register presence and check for new work.
 func poll() {
 	for {
-		defer time.Sleep(interval)
-
-		resp, err := httpPOST(pollRoute, map[string]string{"worker": id})
-		if err != nil {
-			log.Println("[/poll]", err)
-			continue
-		}
-		if resp.StatusCode != 200 && resp.StatusCode != 204 {
-			log.Println("[/poll] unexpected status code:", strconv.Itoa(resp.StatusCode))
-			continue
-		}
-
-		if resp.StatusCode == 204 {
-			continue
-		}
-
-		defer resp.Body.Close()
-		respBody, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Println("[/poll] couldn't read response body:", err)
-			continue
-		}
-
-		var j shared.Job
-		if err = json.Unmarshal(respBody, &j); err != nil {
-			log.Println("[/poll] couldn't decode response body:", err)
-			continue
-		}
-
-		jobs <- j
+		pollOnce()
+		time.Sleep(interval)
 	}
 }
 
-// processJob processes a job.
+func pollOnce() {
+	resp, err := httpPOST(pollRoute, map[string]string{"worker": id})
+	if err != nil {
+		pollLogger.Println("error making request:", err)
+		return
+	}
+	if resp.StatusCode != 200 && resp.StatusCode != 204 {
+		pollLogger.Println("unexpected status code:", strconv.Itoa(resp.StatusCode))
+		return
+	}
+
+	if resp.StatusCode == 204 {
+		pollLogger.Println("no new job")
+		return
+	}
+
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		pollLogger.Println("couldn't read response body:", err)
+		return
+	}
+
+	var j shared.Job
+	if err = json.Unmarshal(respBody, &j); err != nil {
+		pollLogger.Println("couldn't decode response body:", err)
+		return
+	}
+
+	jobs <- j
+}
+
+// process processes a job.
 func process(j shared.Job) {
-	log.Println("processing job:", j.ID)
+	jobLogger.SetPrefix(fmt.Sprintf("[%s] ", j.ID))
+	jobLogger.Println("starting job")
 
 	// TODO: Think about how easily we want to give up.
 	var err error
 
-	log.Println("updating status -> acknowledged")
-	if err = updateStatus(j, shared.StatusAcknowledged); err != nil {
-		log.Println("[update-status-acknowledged]", err)
-		fail(j)
+	if err = updateStatus(j, shared.StatusAcknowledged, ""); err != nil {
+		fail(j, "error updating status", err)
 		return
 	}
-	log.Println("updated status")
 
-	log.Println("preparing job")
-	if err = prepare(j); err != nil {
-		log.Println("[job-prepare]", err)
-		fail(j)
+	jobLogger.Println("preparing job")
+	var ctx JobContext
+	if ctx, err = prepare(j); err != nil {
+		fail(j, "error preparing job", err)
 		return
 	}
-	log.Println("prepared job")
 
-	log.Println("updating status -> recording")
-	if err = updateStatus(j, shared.StatusRecording); err != nil {
+	if err = updateStatus(j, shared.StatusRecording, ""); err != nil {
 		log.Println("[update-status-recording]", err)
-		fail(j)
+		fail(j, "error updating status -> recording", err)
 		return
 	}
-	log.Println("updated status")
 
-	log.Println("starting recording")
-	if err = startRecording(j); err != nil {
-		log.Println("[job-start-recording]", err)
-		fail(j)
+	jobLogger.Println("starting recording")
+	if err = startRecording(ctx); err != nil {
+		fail(j, "error starting recording", err)
 		return
 	}
-	log.Println("started recording")
 
-	log.Println("starting replay")
+	jobLogger.Println("starting replay")
 	var done chan bool
-	if done, err = startReplay(j); err != nil {
-		log.Println("[job-start-replay]", err)
-		fail(j)
+	if done, err = startReplay(ctx); err != nil {
+		fail(j, "error starting replay", err)
 		return
 	}
-	log.Println("started replay")
 
-	log.Println("waiting for replay to finish")
+	jobLogger.Println("waiting for replay to end")
 	<-done
-	log.Println("replay finished")
+	jobLogger.Println("replay finished")
 
-	log.Println("stopping recording")
+	jobLogger.Println("stopping recording")
 	var path string
-	if path, err = stopRecording(j); err != nil {
-		log.Println("[job-stop-recording]", err)
-		fail(j)
-		return
-	}
-	log.Println("stopped recording")
-
-	log.Println("updating status -> uploading")
-	if err = updateStatus(j, shared.StatusUploading); err != nil {
-		log.Println("[update-status-uploading]", err)
-		fail(j)
+	if path, err = stopRecording(ctx); err != nil {
+		fail(j, "error stopping recording", err)
 		return
 	}
 
-	log.Println("uploading video at", path)
+	if err = updateStatus(j, shared.StatusUploading, ""); err != nil {
+		fail(j, "error updating status", err)
+		return
+	}
+
+	jobLogger.Println("uploading video at", path)
 	var url string
-	if url, err = uploadVideo(j, path); err != nil {
-		log.Println("[job-upload-video]", err)
-		fail(j)
+	if url, err = uploadVideo(ctx, path); err != nil {
+		fail(j, "error uploading video", err)
 		return
 	}
-	log.Println("uploaded video:", url)
 
-	log.Println("updating status -> succeeded")
-	if err = succeed(j, url); err != nil {
-		log.Println("[update-status-succeeded]", err)
-		fail(j)
+	if err = updateStatus(j, shared.StatusSuccessful, url); err != nil {
+		fail(j, "error updating status", err)
 		return
 	}
-	log.Println("updated status")
 }
 
-// prepare prepares the job.
-func prepare(j shared.Job) error {
-	return nil
+// prepare prepares a job.
+func prepare(j shared.Job) (JobContext, error) {
+	return JobContext{Job: j}, nil
 }
 
 // startRecording starts recording.
-func startRecording(j shared.Job) error {
+func startRecording(ctx JobContext) error {
 	return nil
 }
 
 // startReplay starts the replay and returns a channel to block until it's done.
-func startReplay(j shared.Job) (chan bool, error) {
+func startReplay(ctx JobContext) (chan bool, error) {
 	done := make(chan bool)
 
 	return done, nil
 }
 
 // stopRecording stops recording and returns the path of the exported video.
-func stopRecording(j shared.Job) (string, error) {
+func stopRecording(ctx JobContext) (string, error) {
 	return "TODO", nil
 }
 
 // uploadVideo uploads the video at path to YouTube and returns the URL.
-func uploadVideo(j shared.Job, path string) (string, error) {
+func uploadVideo(ctx JobContext, path string) (string, error) {
 	return "TODO", nil
 }
 
 // updateStatus sends a request to /jobs/status updating the job status.
-func updateStatus(j shared.Job, status int) error {
+func updateStatus(j shared.Job, status int, comment string) error {
+	jobLogger.Println("updating status ->", shared.StatusStr[status])
 	body := map[string]interface{}{
-		"worker": id,
-		"job":    j.ID,
-		"status": status,
-	}
-	_, err := httpPOST(statusRoute, body)
-	return err
-}
-
-// succeed updates the job status to SUCCESSFUL.
-func succeed(j shared.Job, url string) error {
-	body := map[string]interface{}{
-		"worker": id,
-		"job":    j.ID,
-		"status": shared.StatusSuccessful,
-		"url":    url,
+		"worker":  id,
+		"job":     j.ID,
+		"status":  status,
+		"comment": comment,
 	}
 	_, err := httpPOST(statusRoute, body)
 	return err
 }
 
 // fail updates the job status to FAILED.
-func fail(j shared.Job) error {
-	log.Println("updating status -> failed")
-	err := updateStatus(j, shared.StatusFailed)
-	if err != nil {
-		log.Println("[update-status-failed]", err)
-		return err
-	}
-	log.Println("updated status")
-	return nil
-
+func fail(j shared.Job, context string, err error) {
+	comment := fmt.Sprintf("%s: %v", context, err)
+	jobLogger.Println(comment)
+	updateStatus(j, shared.StatusFailed, comment)
 }
 
 // httpPOST makes an HTTP POST request to the API.
 func httpPOST(route string, body interface{}) (*http.Response, error) {
-	log.Println("request destination:", apiURL+route)
+	httpLogger.Println("request destination:", apiURL+route)
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
-	log.Println("request body:", string(b))
+	httpLogger.Println("request body:", string(b))
 	resp, err := http.Post(apiURL+route, "application/json", bytes.NewBuffer(b))
 	if err == nil {
-		log.Println("status code:", resp.StatusCode)
+		httpLogger.Println("status code:", resp.StatusCode)
 	}
 	return resp, err
 }

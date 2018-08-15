@@ -91,17 +91,18 @@ func (j *Job) Update() error {
 }
 
 // Finish updates a job's status to complete and clears the worker's current job.
-func (j *Job) Finish(w *Worker, status int) error {
+func (j *Job) Finish(w *Worker, status int, comment string) error {
 	if status < shared.StatusSuccessful {
 		return errors.New("invalid status")
 	}
+	c := sql.NullString{String: comment, Valid: comment == ""}
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	if _, err = tx.Exec(
-		"update jobs set status = $1 where id = $2",
-		status, j.ID,
+		"update jobs set status = $1, comment = $2 where id = $3",
+		status, c, j.ID,
 	); err != nil {
 		tx.Rollback()
 		return err
@@ -119,6 +120,8 @@ func (j *Job) Finish(w *Worker, status int) error {
 	}
 	j.Status = status
 	w.CurrentJobID.Valid = false
+	j.Comment = c
+
 	return nil
 }
 
