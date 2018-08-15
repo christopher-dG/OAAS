@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"replay-bot/shared"
 )
 
 // JobsStatusRequest contains the request body for /jobs/status requests.
@@ -44,7 +46,7 @@ func validateJobsStatus(w http.ResponseWriter, r *http.Request) *JobsStatusReque
 		writeText(w, 400, "missing required field 'status'")
 		return nil
 	}
-	if req.Status < statusAcknowledged || req.Status > statusFailed {
+	if req.Status < shared.StatusAcknowledged || req.Status > shared.StatusFailed {
 		log.Println("[/jobs/status] received invalid status:", req.Status)
 		writeText(w, 400, "invalid status")
 		return nil
@@ -92,7 +94,7 @@ func handleJobsStatus(w http.ResponseWriter, r *http.Request) {
 
 	old := job.Status
 
-	if req.Status > statusUploading {
+	if req.Status >= shared.StatusSuccessful {
 		if err = job.Finish(worker, req.Status); err != nil {
 			log.Println("[/jobs/status] couldn't finish job:", err)
 			writeText(w, 500, "database error")

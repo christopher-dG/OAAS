@@ -5,6 +5,8 @@ import (
 	"errors"
 	"math/rand"
 	"time"
+
+	"replay-bot/shared"
 )
 
 const onlineThreshold = time.Second * 30
@@ -48,7 +50,7 @@ func (w *Worker) GetPendingJob() (*Job, error) {
 	err := db.Get(
 		job,
 		"select * from jobs where worker_id = $1 and status = $2",
-		w.ID, statusPending,
+		w.ID, shared.StatusPending,
 	)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -83,7 +85,7 @@ func (w *Worker) Assign(j *Job) error {
 	}
 	if _, err = tx.Exec(
 		"update jobs set worker_id = $1, status = $2 where id = $3",
-		w.ID, statusPending, j.ID,
+		w.ID, shared.StatusPending, j.ID,
 	); err != nil {
 		tx.Rollback()
 		return err
@@ -98,7 +100,7 @@ func (w *Worker) Assign(j *Job) error {
 	if err = j.WorkerID.Scan(w.ID); err != nil {
 		return err
 	}
-	j.Status = statusPending
+	j.Status = shared.StatusPending
 
 	return nil
 }

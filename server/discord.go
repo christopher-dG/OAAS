@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"replay-bot/shared"
 	"strconv"
 	"strings"
 	"time"
@@ -121,7 +122,7 @@ func HandleReaction(_ *discordgo.Session, e *discordgo.MessageReactionAdd) {
 				sendMsgf(startFailureMsg, post.ID)
 				return
 			}
-			if job.Status == statusBacklogged {
+			if job.Status == shared.StatusBacklogged {
 				sendMsgf(startBackloggedMsg, post.ID)
 			} else {
 				sendMsgf(startAssignedMsg, post.ID, job.WorkerID.String)
@@ -180,7 +181,13 @@ func listJobs(jobs []*Job) {
 		} else {
 			worker = "none"
 		}
-		table.AddRow(j.ID, worker, statusStr[j.Status], time.Since(j.CreatedAt), time.Since(j.UpdatedAt))
+		table.AddRow(
+			j.ID,
+			worker,
+			shared.StatusStr[j.Status],
+			time.Since(j.CreatedAt),
+			time.Since(j.UpdatedAt),
+		)
 	}
 	sendMsgf("```\n%s\n```", table.Render())
 }

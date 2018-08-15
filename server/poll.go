@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"replay-bot/shared"
 	"time"
 )
 
@@ -78,7 +79,7 @@ func handlePoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job.Status = statusPending
+	job.Status = shared.StatusPending
 	if err = job.Update(); err != nil {
 		log.Println("[/poll] couldn't update job:", err)
 		writeText(w, 500, "database error")

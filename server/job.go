@@ -5,42 +5,17 @@ import (
 	"errors"
 	"time"
 
+	"replay-bot/shared"
+
 	"github.com/turnage/graw/reddit"
 )
 
-const (
-	_                  = iota
-	statusBacklogged   // Backlogged: waiting for workers to free up.
-	statusAssigned     // Assigned to the worker, but the worker hasn't received it yet.
-	statusPending      // Received by the worker.
-	statusAcknowledged // Acknowledged by the worker.
-	statusRecording    // The worker has begun recording.
-	statusUploading    // The worker has begun uploading.
-	statusSuccessful   // Job finished and successful.
-	statusFailed       // Job finished and failed.
-)
-
-var (
-	statusStr = map[int]string{
-		statusBacklogged:   "backlogged",
-		statusAssigned:     "assigned",
-		statusPending:      "pending",
-		statusAcknowledged: "acknowledged",
-		statusRecording:    "recording",
-		statusUploading:    "uploading",
-		statusSuccessful:   "successful",
-		statusFailed:       "failed",
-	}
-
-	ErrJobNotFound = errors.New("job not found")
-)
+var ErrJobNotFound = errors.New("job not found")
 
 // Job is a replay recording and uploading job.
 type Job struct {
-	ID        string         `db:"id"`         // Reddit ID of the post the job corresponds to.
+	shared.Job
 	WorkerID  sql.NullString `db:"worker_id"`  // ID of the worker assigned to the job.
-	Title     string         `db:"title"`      // Reddit post title.
-	Author    string         `db:"author"`     // Reddit author username.
 	Status    int            `db:"status"`     // Job status.
 	Comment   sql.NullString `db:"comment"`    // Justification of status (failure reason, etc.).
 	CreatedAt time.Time      `db:"created_at"` // Job creation time.
@@ -51,9 +26,11 @@ type Job struct {
 func NewJob(p reddit.Post) (*Job, error) {
 	now := time.Now()
 	job := &Job{
-		ID:        p.ID,
-		Title:     p.Title,
-		Author:    p.Author,
+		Job: shared.Job{
+			ID:     p.ID,
+			Title:  p.Title,
+			Author: p.Author,
+		},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -73,7 +50,7 @@ func NewJob(p reddit.Post) (*Job, error) {
 		return nil, err
 	}
 	if len(available) == 0 {
-		job.Status = statusBacklogged
+		job.Status = shared.StatusBacklogged
 		if err = job.Update(); err != nil {
 			return nil, err
 		}
@@ -115,7 +92,7 @@ func (j *Job) Update() error {
 
 // Finish updates a job's status to complete and clears the worker's current job.
 func (j *Job) Finish(w *Worker, status int) error {
-	if status < statusSuccessful {
+	if status < shared.StatusSuccessful {
 		return errors.New("invalid status")
 	}
 	tx, err := db.Begin()
@@ -170,12 +147,16 @@ func GetActiveJobs() ([]*Job, error) {
 	return jobs, db.Select(
 		&jobs,
 		"select * from jobs where worker_id is not null and status between $1 and $2",
-		statusPending, statusUploading,
+		shared.StatusPending, shared.StatusUploading,
 	)
 }
 
 // GetBacklog gets backlogged jobs.
 func GetBacklog() ([]*Job, error) {
 	jobs := []*Job{}
-	return jobs, db.Select(&jobs, "select * from jobs where status = $1", statusBacklogged)
+	return jobs, db.Select(
+		&jobs,
+		"select * from jobs where status = $1",
+		shared.StatusBacklogged,
+	)
 }
