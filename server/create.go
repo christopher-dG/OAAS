@@ -15,7 +15,7 @@ func create(w http.ResponseWriter, r *http.Request) {
 	posts <- reddit.Post{
 		ID:     strconv.Itoa(rand.Intn(10000)),
 		Title:  "test job",
-		Author: " test job",
+		Author: "test job",
 	}
 	w.WriteHeader(200)
 }

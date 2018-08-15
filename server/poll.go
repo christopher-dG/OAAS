@@ -58,13 +58,15 @@ func handlePoll(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Println("[/poll] created new worker", worker.ID)
-	} else if worker.CurrentJobID.Valid {
-		log.Println("[/poll] worker already has a job")
-		w.WriteHeader(204)
-		return
 	} else {
 		worker.LastPoll = time.Now()
 		worker.Update()
+	}
+
+	if worker.CurrentJobID.Valid {
+		log.Println("[/poll] worker already has a job")
+		w.WriteHeader(204)
+		return
 	}
 
 	job, err := worker.GetPendingJob()

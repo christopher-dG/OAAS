@@ -83,7 +83,7 @@ func (ph *PostHandler) Post(p *reddit.Post) error {
 	return nil
 }
 
-// Reply replies to a Reddit post with a YouTube link.
-func Reply(p reddit.Post, ytID string) error {
+// RedditReply replies to a Reddit post with a YouTube link.
+func RedditReply(p reddit.Post, ytID string) error {
 	return rBot.Reply(p.Name, fmt.Sprintf(commentMsg, ytID))
 }

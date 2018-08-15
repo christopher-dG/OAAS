@@ -8,9 +8,7 @@ import (
 	"replay-bot/shared"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/apcera/termtables"
 	"github.com/bwmarrin/discordgo"
 	"github.com/turnage/graw/reddit"
 )
@@ -19,6 +17,10 @@ const (
 	reaction   = "👍"
 	nReactions = 2
 	prefix     = ">"
+
+	startAssignedMsg   = ":+1: Assigned job `%s` to worker `%s`."
+	startBackloggedMsg = ":+1: Added job `%s` to backlog."
+	startFailureMsg    = ":-1: Starting job `%s` failed, maybe try removing and adding a :+1:."
 )
 
 var (
@@ -28,10 +30,7 @@ var (
 	dChannelID   = os.Getenv("DISCORD_CHANNEL_ID")
 	dRoleMention = os.Getenv("DISCORD_ROLE_MENTION")
 
-	newPostMsg         = dRoleMention + " :exclamation: New score post :exclamation: Should I upload it? React :+1: to vote yes. I'll upload if we reach " + strconv.Itoa(nReactions) + " reactions (including mine).\n**%s** (post by `/u/%s`) https://redd.it/%s"
-	startAssignedMsg   = ":+1: Started job `%s`, assigned to `%s`."
-	startBackloggedMsg = ":+1: Added job `%s` to backlog."
-	startFailureMsg    = ":-1: Starting job `%s` failed, maybe try removing and adding a :+1:."
+	newPostMsg = dRoleMention + " :exclamation: New score post :exclamation: Should I upload it? React :+1: to vote yes. I'll upload if we reach " + strconv.Itoa(nReactions) + " reactions (including mine).\n**%s** (post by `/u/%s`) https://redd.it/%s"
 )
 
 // StartDiscord starts waiting for posts to upload and starts the
@@ -54,8 +53,8 @@ func StartDiscord(posts chan reddit.Post) (chan bool, error) {
 		return nil, err
 	}
 
-	dBot.AddHandler(HandleReaction)
-	dBot.AddHandler(HandleMessage)
+	dBot.AddHandler(handleReaction)
+	dBot.AddHandler(handleMessage)
 
 	if err = dBot.Open(); err != nil {
 		return nil, err
@@ -70,7 +69,7 @@ func StartDiscord(posts chan reddit.Post) (chan bool, error) {
 				return
 			case p := <-posts:
 				wg.Add(1)
-				HandlePost(p)
+				handlePost(p)
 				wg.Done()
 			}
 		}
@@ -79,7 +78,7 @@ func StartDiscord(posts chan reddit.Post) (chan bool, error) {
 }
 
 // handlePost receives a new Reddit post and prompts Discord users to vote on it.
-func HandlePost(p reddit.Post) {
+func handlePost(p reddit.Post) {
 	msg, err := sendMsgf(newPostMsg, p.Title, p.Author, p.ID)
 	if err != nil {
 		return
@@ -87,12 +86,11 @@ func HandlePost(p reddit.Post) {
 	pendingPosts[msg.ID] = p
 	if err = dBot.MessageReactionAdd(dChannelID, msg.ID, reaction); err != nil {
 		log.Println("[discord] couldn't add reaction:", err)
-		// Don't return here, it's not a big deal.
 	}
 }
 
 // handleReactions handles a new reaction being added on a message.
-func HandleReaction(_ *discordgo.Session, e *discordgo.MessageReactionAdd) {
+func handleReaction(_ *discordgo.Session, e *discordgo.MessageReactionAdd) {
 	if e.ChannelID != dChannelID || e.Emoji.Name != reaction || e.UserID == dBot.State.User.ID {
 		return
 	}
@@ -133,63 +131,20 @@ func HandleReaction(_ *discordgo.Session, e *discordgo.MessageReactionAdd) {
 }
 
 // HandleMessage handles an incoming command to the bot.
-func HandleMessage(_ *discordgo.Session, e *discordgo.MessageCreate) {
+func handleMessage(_ *discordgo.Session, e *discordgo.MessageCreate) {
 	if e.ChannelID != dChannelID || !strings.HasPrefix(e.Message.Content, prefix) {
 		return
 	}
-
 	switch e.Message.Content[len(prefix):] {
-	case "list jobs":
-		ListActive()
+	case "list active jobs":
+		CmdListActive()
 	case "list backlog":
-		ListBacklog()
+		CmdListBacklog()
+	case "list online workers":
+		CmdListOnlineWorkers()
+	case "list all workers":
+		CmdListAllWorkers()
 	}
-}
-
-// ListActive lists all active jobs.
-func ListActive() {
-	jobs, err := GetActiveJobs()
-	if err != nil {
-		sendMsg(":-1: Database error.")
-		return
-	}
-	listJobs(jobs)
-}
-
-// ListBacklog lists all backlogged job.
-func ListBacklog() {
-	jobs, err := GetBacklog()
-	if err != nil {
-		sendMsg(":-1: Database error.")
-		return
-	}
-	listJobs(jobs)
-}
-
-// listJobs formats jobs into a table and sends it to the Discord channel.
-func listJobs(jobs []*Job) {
-	if len(jobs) == 0 {
-		sendMsg("No jobs.")
-		return
-	}
-	table := termtables.CreateTable()
-	table.AddHeaders("Job", "Worker", "Status", "Created", "Updated")
-	for _, j := range jobs {
-		var worker string
-		if j.WorkerID.Valid {
-			worker = j.WorkerID.String
-		} else {
-			worker = "none"
-		}
-		table.AddRow(
-			j.ID,
-			worker,
-			shared.StatusStr[j.Status],
-			time.Since(j.CreatedAt),
-			time.Since(j.UpdatedAt),
-		)
-	}
-	sendMsgf("```\n%s\n```", table.Render())
 }
 
 // sendMsg sends a Discord message.
