@@ -66,6 +66,7 @@ func StartDiscord(posts chan reddit.Post) (chan bool, error) {
 		for {
 			select {
 			case <-done:
+				dBot.Close()
 				return
 			case p := <-posts:
 				wg.Add(1)

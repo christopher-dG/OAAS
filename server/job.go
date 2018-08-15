@@ -95,7 +95,7 @@ func (j *Job) Finish(w *Worker, status int, comment string) error {
 	if status < shared.StatusSuccessful {
 		return errors.New("invalid status")
 	}
-	c := sql.NullString{String: comment, Valid: comment == ""}
+	c := sql.NullString{String: comment, Valid: comment != ""}
 	tx, err := db.Begin()
 	if err != nil {
 		return err
