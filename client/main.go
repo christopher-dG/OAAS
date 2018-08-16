@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,10 +10,13 @@ import (
 	"net/http"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	"replay-bot/shared"
+
+	osuapi "github.com/thehowl/go-osuapi"
 )
 
 const (
@@ -24,29 +28,47 @@ const (
 var (
 	httpLogger = log.New(os.Stdout, "[http] ", log.LstdFlags)
 	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags)
-	jobLogger  = log.New(os.Stdout, "", log.LstdFlags)
-	jobs       = make(chan shared.Job)
 	apiURL     = os.Getenv("REPLAY_BOT_API_URL")
-	id         = func() string {
+	jobs       = make(chan shared.Job)
+
+	username = func() string {
 		usr, err := user.Current()
 		if err != nil {
-			return strconv.Itoa(int(time.Now().Unix()))
+			log.Fatal(err)
 		}
-		return usr.Username // TODO: Needs more uniqueness.
+		return usr.Username
+	}()
+	id = func() string {
+		path := filepath.Join(osuRoot, "replay-bot-token")
+		token, err := ioutil.ReadFile(path)
+		if err != nil {
+			token = []byte(fmt.Sprintf("%x", md5.Sum([]byte(strconv.Itoa(int(time.Now().Unix()))))))[:4]
+			ioutil.WriteFile(path, token, 0644)
+		}
+		return fmt.Sprintf("%s-%s", username, string(token))
 	}()
 )
 
 // JobContext contains the data required to complete a job.
 type JobContext struct {
-	Job shared.Job
+	Job     shared.Job
+	Player  *osuapi.User
+	Beatmap *osuapi.Beatmap
 }
 
 func main() {
 	if apiURL == "" {
 		log.Fatal("environment variable REPLAY_BOT_API_URL is not set")
 	}
+	if osuRoot == "" {
+		log.Fatal("environment variable REPLAY_BOT_SKINS_DIR is not set")
+	}
+	if apiKey == "" {
+		log.Fatal("environment variable REPLAY_BOT_OSU_API_KEY is not set")
+	}
 
 	log.Println("Worker ID:", id)
+	os.Exit(0)
 	go poll()
 	for {
 		j := <-jobs
@@ -96,8 +118,8 @@ func pollOnce() {
 
 // process processes a job.
 func process(j shared.Job) {
-	jobLogger.SetPrefix(fmt.Sprintf("[%s] ", j.ID))
-	jobLogger.Println("starting job")
+	log.SetPrefix(fmt.Sprintf("[job %s] ", j.ID))
+	log.Println("starting job")
 
 	// TODO: Think about how easily we want to give up.
 	var err error
@@ -107,39 +129,37 @@ func process(j shared.Job) {
 		return
 	}
 
-	jobLogger.Println("preparing job")
-	var ctx JobContext
-	if ctx, err = prepare(j); err != nil {
+	log.Println("preparing job")
+	ctx, err := prepare(j)
+	if err != nil {
 		fail(j, "error preparing job", err)
 		return
 	}
 
 	if err = updateStatus(j, shared.StatusRecording, ""); err != nil {
-		log.Println("[update-status-recording]", err)
 		fail(j, "error updating status -> recording", err)
 		return
 	}
 
-	jobLogger.Println("starting recording")
-	if err = startRecording(ctx); err != nil {
+	log.Println("starting recording")
+	if err = ctx.startRecording(); err != nil {
 		fail(j, "error starting recording", err)
 		return
 	}
 
-	jobLogger.Println("starting replay")
+	log.Println("starting replay")
 	var done chan bool
-	if done, err = startReplay(ctx); err != nil {
+	if done, err = ctx.startReplay(); err != nil {
 		fail(j, "error starting replay", err)
 		return
 	}
 
-	jobLogger.Println("waiting for replay to end")
+	log.Println("waiting for replay to end")
 	<-done
-	jobLogger.Println("replay finished")
 
-	jobLogger.Println("stopping recording")
+	log.Println("stopping recording")
 	var path string
-	if path, err = stopRecording(ctx); err != nil {
+	if path, err = ctx.stopRecording(); err != nil {
 		fail(j, "error stopping recording", err)
 		return
 	}
@@ -149,9 +169,9 @@ func process(j shared.Job) {
 		return
 	}
 
-	jobLogger.Println("uploading video at", path)
+	log.Println("uploading video at", path)
 	var url string
-	if url, err = uploadVideo(ctx, path); err != nil {
+	if url, err = ctx.uploadVideo(path); err != nil {
 		fail(j, "error uploading video", err)
 		return
 	}
@@ -162,36 +182,31 @@ func process(j shared.Job) {
 	}
 }
 
-// prepare prepares a job.
-func prepare(j shared.Job) (JobContext, error) {
-	return JobContext{Job: j}, nil
-}
-
 // startRecording starts recording.
-func startRecording(ctx JobContext) error {
+func (ctx *JobContext) startRecording() error {
 	return nil
 }
 
 // startReplay starts the replay and returns a channel to block until it's done.
-func startReplay(ctx JobContext) (chan bool, error) {
+func (ctx *JobContext) startReplay() (chan bool, error) {
 	done := make(chan bool)
 
 	return done, nil
 }
 
 // stopRecording stops recording and returns the path of the exported video.
-func stopRecording(ctx JobContext) (string, error) {
+func (ctx *JobContext) stopRecording() (string, error) {
 	return "TODO", nil
 }
 
 // uploadVideo uploads the video at path to YouTube and returns the URL.
-func uploadVideo(ctx JobContext, path string) (string, error) {
+func (ctx *JobContext) uploadVideo(path string) (string, error) {
 	return "TODO", nil
 }
 
 // updateStatus sends a request to /jobs/status updating the job status.
 func updateStatus(j shared.Job, status int, comment string) error {
-	jobLogger.Println("updating status ->", shared.StatusStr[status])
+	log.Println("updating status ->", shared.StatusStr[status])
 	body := map[string]interface{}{
 		"worker":  id,
 		"job":     j.ID,
@@ -205,13 +220,13 @@ func updateStatus(j shared.Job, status int, comment string) error {
 // fail updates the job status to FAILED.
 func fail(j shared.Job, context string, err error) {
 	comment := fmt.Sprintf("%s: %v", context, err)
-	jobLogger.Println(comment)
+	log.Println(comment)
 	updateStatus(j, shared.StatusFailed, comment)
 }
 
 // httpPOST makes an HTTP POST request to the API.
 func httpPOST(route string, body interface{}) (*http.Response, error) {
-	httpLogger.Println("request destination:", apiURL+route)
+	httpLogger.Println("POST:", apiURL+route)
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, err

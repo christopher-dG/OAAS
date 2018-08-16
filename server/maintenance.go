@@ -7,7 +7,7 @@ import (
 	"replay-bot/shared"
 )
 
-const maintenanceInterval = time.Second * 10
+const maintenanceInterval = time.Minute * 10
 
 var thresholds = map[int]time.Duration{
 	shared.StatusAssigned:     time.Minute,
