@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -22,4 +23,16 @@ func StartHTTP() chan bool {
 		done <- true
 	}()
 	return done
+}
+
+// writeJSON writes a JSON response to the response writer.
+func writeJSON(w http.ResponseWriter, content interface{}, status int) {
+	b, err := json.Marshal(content)
+	if err != nil {
+		log.Printf("[http] couldn't encode content '%v': %v\n", content, err)
+		http.Error(w, "error encoding response", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(status)
+	w.Write(b)
 }

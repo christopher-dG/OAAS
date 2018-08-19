@@ -20,18 +20,18 @@ func validatePoll(w http.ResponseWriter, r *http.Request) *PollRequest {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Println("[/poll] can't read request body:", err)
-		writeText(w, 500, "request body could not be read")
+		http.Error(w, "request body could not be read", http.StatusInternalServerError)
 		return nil
 	}
 	req := &PollRequest{}
 	if err = json.Unmarshal(b, req); err != nil {
 		log.Println("[/poll] invalid request body:", err)
-		writeText(w, 400, "invalid request body")
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return nil
 	}
 	if req.WorkerID == "" {
 		log.Println("[/poll] request body is missing 'worker' field")
-		writeText(w, 400, "missing required field 'worker'")
+		http.Error(w, "missing required field 'worker'", http.StatusBadRequest)
 		return nil
 	}
 	return req
@@ -47,14 +47,14 @@ func handlePoll(w http.ResponseWriter, r *http.Request) {
 	worker, err := GetWorker(req.WorkerID)
 	if err != nil && err != ErrWorkerNotFound {
 		log.Println("[/poll] couldn't retrieve worker:", err)
-		writeText(w, 500, "database error")
+		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
 	if err == ErrWorkerNotFound {
 		worker = &Worker{ID: req.WorkerID, LastPoll: time.Now()}
 		if err = worker.Create(); err != nil {
 			log.Println("[/poll] couldn't create worker:", err)
-			writeText(w, 500, "database error")
+			http.Error(w, "database error", http.StatusInternalServerError)
 			return
 		}
 		log.Println("[/poll] created new worker", worker.ID)
@@ -66,28 +66,28 @@ func handlePoll(w http.ResponseWriter, r *http.Request) {
 	job, err := worker.GetAssignedJob()
 	if err != nil && err != ErrNoJob {
 		log.Println("[/poll] couldn't get pending job:", err)
-		writeText(w, 500, "database error")
+		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
 	if err == ErrNoJob {
 		log.Println("[/poll] no new job for worker", worker.ID)
-		w.WriteHeader(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	if job.Status != shared.StatusAssigned {
 		log.Println("[/poll] worker is already working on a job")
-		w.WriteHeader(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	job.Status = shared.StatusPending
 	if err = job.Update(); err != nil {
 		log.Println("[/poll] couldn't update job:", err)
-		writeText(w, 500, "database error")
+		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
 
 	log.Printf("[/poll] sending job %s to worker %s\n", job.ID, worker.ID)
-	writeJSON(w, 200, job)
+	writeJSON(w, job, http.StatusOK)
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/turnage/graw/reddit"
 )
 
-func init() { http.HandleFunc("/create", create) }
+func init() { http.HandleFunc("/dev/create", create) }
 
 func create(w http.ResponseWriter, r *http.Request) {
 	posts <- reddit.Post{
@@ -16,5 +16,5 @@ func create(w http.ResponseWriter, r *http.Request) {
 		Title:  "test job",
 		Author: "test job",
 	}
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 }
