@@ -29,7 +29,9 @@ var (
 	httpLogger = log.New(os.Stdout, "[http] ", log.LstdFlags)
 	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags)
 	apiURL     = os.Getenv("REPLAY_BOT_API_URL")
+	apiKey     = os.Getenv("REPLAY_BOT_API_KEY")
 	jobs       = make(chan shared.Job)
+	httpClient = http.Client{Timeout: time.Second * 3}
 
 	username = func() string {
 		usr, err := user.Current()
@@ -47,6 +49,15 @@ var (
 		}
 		return fmt.Sprintf("%s-%s", username, string(token))
 	}()
+	pollReq = func() *http.Request {
+		b := []byte(fmt.Sprintf(`{"worker":"%s"}`, id))
+		req, err := http.NewRequest(http.MethodPost, apiURL+pollRoute, bytes.NewBuffer(b))
+		if err != nil {
+			log.Fatal(err)
+		}
+		req.Header.Set("Authorization", apiKey)
+		return req
+	}()
 )
 
 // JobContext contains the data required to complete a job.
@@ -60,15 +71,14 @@ func main() {
 	if apiURL == "" {
 		log.Fatal("environment variable REPLAY_BOT_API_URL is not set")
 	}
+	if apiKey == "" {
+		log.Fatal("environment variable REPLAY_BOT_API_KEY is not set")
+	}
 	if osuRoot == "" {
 		log.Fatal("environment variable REPLAY_BOT_SKINS_DIR is not set")
 	}
-	if apiKey == "" {
-		log.Fatal("environment variable REPLAY_BOT_OSU_API_KEY is not set")
-	}
 
 	log.Println("Worker ID:", id)
-	os.Exit(0)
 	go poll()
 	for {
 		j := <-jobs
@@ -85,7 +95,7 @@ func poll() {
 }
 
 func pollOnce() {
-	resp, err := httpPOST(pollRoute, map[string]string{"worker": id})
+	resp, err := httpClient.Do(pollReq)
 	if err != nil {
 		pollLogger.Println("error making request:", err)
 		return
@@ -207,13 +217,12 @@ func (ctx *JobContext) uploadVideo(path string) (string, error) {
 // updateStatus sends a request to /jobs/status updating the job status.
 func updateStatus(j shared.Job, status int, comment string) error {
 	log.Println("updating status ->", shared.StatusStr[status])
-	body := map[string]interface{}{
+	_, err := postJobsStatus(map[string]interface{}{
 		"worker":  id,
 		"job":     j.ID,
 		"status":  status,
 		"comment": comment,
-	}
-	_, err := httpPOST(statusRoute, body)
+	})
 	return err
 }
 
@@ -224,15 +233,20 @@ func fail(j shared.Job, context string, err error) {
 	updateStatus(j, shared.StatusFailed, comment)
 }
 
-// httpPOST makes an HTTP POST request to the API.
-func httpPOST(route string, body interface{}) (*http.Response, error) {
-	httpLogger.Println("POST:", apiURL+route)
+// postJobsStatus makes an HTTP POST request to the API's /jobs/status endpoint.
+func postJobsStatus(body map[string]interface{}) (*http.Response, error) {
+	httpLogger.Println("POST:", statusRoute)
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	httpLogger.Println("request body:", string(b))
-	resp, err := http.Post(apiURL+route, "application/json", bytes.NewBuffer(b))
+	req, err := http.NewRequest(http.MethodPost, apiURL+statusRoute, bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", apiKey)
+	resp, err := httpClient.Do(req)
 	if err == nil {
 		httpLogger.Println("status code:", resp.StatusCode)
 	}

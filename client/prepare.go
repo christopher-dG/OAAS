@@ -28,8 +28,8 @@ var (
 	skinsDir  = filepath.Join(osuRoot, "Skins")
 	mapsDir   = filepath.Join(osuRoot, "Songs")
 	osuCfg    = filepath.Join(osuRoot, fmt.Sprintf("osu.%s.cfg", username))
-	apiKey    = os.Getenv("REPLAY_BOT_OSU_API_KEY")
-	apiClient = osuapi.NewClient(apiKey)
+	osuKey    = os.Getenv("REPLAY_BOT_OSU_API_KEY")
+	osuClient = osuapi.NewClient(apiKey)
 )
 
 // prepare prepares the job and creates a JobContext.
@@ -64,7 +64,7 @@ func getPlayer(title string) (*osuapi.User, error) {
 		return nil, errors.New("invalid title")
 	}
 	name := strings.TrimSpace(tokens[0])
-	return apiClient.GetUser(osuapi.GetUserOpts{Username: name, EventDays: 31})
+	return osuClient.GetUser(osuapi.GetUserOpts{Username: name, EventDays: 31})
 }
 
 // getBeatmap finds the beatmap referenced in the post title.
@@ -80,7 +80,7 @@ func getBeatmap(title string, user *osuapi.User) (*osuapi.Beatmap, error) {
 	for _, e := range user.Events {
 		if strings.Contains(strings.ToLower(e.DisplayHTML), mapStr) {
 			opts := osuapi.GetBeatmapsOpts{BeatmapID: e.BeatmapID}
-			beatmaps, err := apiClient.GetBeatmaps(opts)
+			beatmaps, err := osuClient.GetBeatmaps(opts)
 			if err != nil {
 				continue
 			}
@@ -92,14 +92,14 @@ func getBeatmap(title string, user *osuapi.User) (*osuapi.Beatmap, error) {
 	}
 
 	opts := osuapi.GetUserScoresOpts{UserID: user.UserID, Limit: 50}
-	scores, err := apiClient.GetUserBest(opts)
+	scores, err := osuClient.GetUserBest(opts)
 	if err != nil {
 		return nil, errors.New("beatmap not found")
 	}
 
 	for _, s := range scores {
 		opts := osuapi.GetBeatmapsOpts{BeatmapID: s.BeatmapID}
-		beatmaps, err := apiClient.GetBeatmaps(opts)
+		beatmaps, err := osuClient.GetBeatmaps(opts)
 		if err != nil {
 			continue
 		}
