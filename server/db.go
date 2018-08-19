@@ -23,6 +23,11 @@ create table if not exists jobs(
 );
 
 alter table workers add column if not exists current_job_id text references jobs(id) on delete set null;
+
+create table if not exists keys(
+  key text primary key
+);
+
 `
 
 var db = func() *sqlx.DB {
