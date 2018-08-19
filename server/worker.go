@@ -3,10 +3,11 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"math/rand"
 	"time"
 
 	"replay-bot/shared"
+
+	"github.com/lib/pq"
 )
 
 const onlineThreshold = time.Second * 30
@@ -20,6 +21,7 @@ var (
 type Worker struct {
 	ID           string         `db:"id"`             // Worker ID.
 	LastPoll     time.Time      `db:"last_poll"`      // Last poll time.
+	LastJob      pq.NullTime    `db:"last_job"`       // Last job assignment time.
 	CurrentJobID sql.NullString `db:"current_job_id"` // Job being worked on.
 }
 
@@ -38,8 +40,8 @@ func (w *Worker) Create() error {
 // Update saves changes to a worker to the database.
 func (w *Worker) Update() error {
 	_, err := db.Exec(
-		"update workers set last_poll = $1, current_job_id = $2 where id = $3",
-		w.LastPoll, w.CurrentJobID, w.ID,
+		"update workers set last_poll = $1, last_job = $2, current_job_id = $3 where id = $4",
+		w.LastPoll, w.LastJob, w.CurrentJobID, w.ID,
 	)
 	return err
 }
@@ -77,8 +79,9 @@ func (w *Worker) Assign(j *Job) error {
 	if err != nil {
 		return err
 	}
-	if _, err = tx.Exec("update workers set current_job_id = $1 where id = $2",
-		j.ID, w.ID,
+	now := time.Now()
+	if _, err = tx.Exec("update workers set current_job_id = $1, last_job = $2 where id = $3",
+		j.ID, now, w.ID,
 	); err != nil {
 		tx.Rollback()
 		return err
@@ -95,6 +98,9 @@ func (w *Worker) Assign(j *Job) error {
 	}
 
 	if err = w.CurrentJobID.Scan(j.ID); err != nil {
+		return err
+	}
+	if err = w.LastJob.Scan(now); err != nil {
 		return err
 	}
 	if err = j.WorkerID.Scan(w.ID); err != nil {
@@ -141,10 +147,21 @@ func GetAvailableWorkers() ([]*Worker, error) {
 }
 
 // ChooseWorker chooses a worker to be assigned to a job.
-// TODO: LRU.
 func ChooseWorker(workers []*Worker) *Worker {
 	if len(workers) == 0 {
 		return nil
 	}
-	return workers[rand.Intn(len(workers))]
+
+	min := time.Hour * 99999
+	var chosen *Worker
+	for _, w := range workers {
+		if !w.LastJob.Valid {
+			return w
+		}
+		if t := time.Since(w.LastJob.Time); t < min {
+			min = t
+			chosen = w
+		}
+	}
+	return chosen
 }

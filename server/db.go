@@ -8,7 +8,8 @@ import (
 const schema = `
 create table if not exists workers(
   id text primary key,
-  last_poll timestamptz not null
+  last_poll timestamptz not null,
+  last_job timestampz
 );
 
 create table if not exists jobs(
