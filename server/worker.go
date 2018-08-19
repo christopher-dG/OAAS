@@ -140,9 +140,9 @@ func GetAvailableWorkers() ([]*Worker, error) {
 	return available, nil
 }
 
-// chooseWorker chooses a worker to be assigned to a job.
+// ChooseWorker chooses a worker to be assigned to a job.
 // TODO: LRU.
-func chooseWorker(workers []*Worker) *Worker {
+func ChooseWorker(workers []*Worker) *Worker {
 	if len(workers) == 0 {
 		return nil
 	}

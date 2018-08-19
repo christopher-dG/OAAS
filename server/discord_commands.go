@@ -15,7 +15,7 @@ const dbErrMsg = ":-1: Database error."
 func CmdListActive() {
 	jobs, err := GetActiveJobs()
 	if err != nil {
-		sendMsg(":-1: Database error.")
+		DiscordSend(":-1: Database error.")
 		return
 	}
 	cmdListJobs(jobs)
@@ -25,7 +25,7 @@ func CmdListActive() {
 func CmdListBacklog() {
 	jobs, err := GetBacklog()
 	if err != nil {
-		sendMsg(":-1: Database error.")
+		DiscordSend(":-1: Database error.")
 		return
 	}
 	cmdListJobs(jobs)
@@ -34,7 +34,7 @@ func CmdListBacklog() {
 // cmdListJobs formats jobs into a table and sends it to the Discord channel.
 func cmdListJobs(jobs []*Job) {
 	if len(jobs) == 0 {
-		sendMsg("No jobs.")
+		DiscordSend("No jobs.")
 		return
 	}
 	table := termtables.CreateTable()
@@ -54,7 +54,7 @@ func cmdListJobs(jobs []*Job) {
 			time.Since(j.UpdatedAt),
 		)
 	}
-	sendMsgf("```\n%s\n```", table.Render())
+	DiscordSendf("```\n%s\n```", table.Render())
 }
 
 // CmdListOnlineWorkers lists online workers.
@@ -62,7 +62,7 @@ func CmdListOnlineWorkers() {
 	workers, err := GetWorkers()
 	if err != nil {
 		log.Println("[>get workers] couldn't get available workers:", err)
-		sendMsg(dbErrMsg)
+		DiscordSend(dbErrMsg)
 		return
 	}
 	online := []*Worker{}
@@ -79,7 +79,7 @@ func CmdListAllWorkers() {
 	workers, err := GetWorkers()
 	if err != nil {
 		log.Println("[>get workers] couldn't get available workers:", err)
-		sendMsg(dbErrMsg)
+		DiscordSend(dbErrMsg)
 		return
 	}
 	cmdListWorkers(workers)
@@ -87,7 +87,7 @@ func CmdListAllWorkers() {
 
 func cmdListWorkers(workers []*Worker) {
 	if len(workers) == 0 {
-		sendMsg("No workers.")
+		DiscordSend("No workers.")
 		return
 	}
 	table := termtables.CreateTable()
@@ -101,5 +101,5 @@ func cmdListWorkers(workers []*Worker) {
 		}
 		table.AddRow(w.ID, job, time.Since(w.LastPoll))
 	}
-	sendMsgf("```\n%s\n```", table.Render())
+	DiscordSendf("```\n%s\n```", table.Render())
 }

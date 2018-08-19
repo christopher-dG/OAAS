@@ -7,7 +7,7 @@ import (
 	"replay-bot/shared"
 )
 
-const maintenanceInterval = time.Minute * 10
+const maintenanceInterval = time.Second * 10
 
 var thresholds = map[int]time.Duration{
 	shared.StatusAssigned:     time.Minute,
@@ -20,8 +20,10 @@ var thresholds = map[int]time.Duration{
 // doMaintenance cleans up active jobs that are stalled,
 // and moves jobs in the backlog onto free workers.
 func doMaintenance() {
-	log.Printf("[maintenance] cleaned up %d stalled jobs", cleanupActive())
-	log.Printf("[maintenance] scheduled %d backlogged jobs", processBacklog())
+	active := cleanupActive()
+	backlog := processBacklog()
+	log.Printf("[maintenance] cleaned up %d stalled jobs", active)
+	log.Printf("[maintenance] scheduled %d backlogged jobs", backlog)
 }
 
 // StartMaintenance runs maintenance on an interval.
@@ -75,6 +77,7 @@ func cleanupActive() int {
 			if err = j.Finish(w, shared.StatusFailed, "timeout"); err != nil {
 				log.Println("[maintenance] couldn't clean up job:", err)
 			}
+			DiscordSendf("Job `%s` assigned to worker `%s` timed out.", j.ID, w.ID)
 			count++
 			continue
 		}
@@ -83,6 +86,7 @@ func cleanupActive() int {
 			if err = j.Finish(w, shared.StatusFailed, "worker offline"); err != nil {
 				log.Println("[maintenance] couldn't clean up job:", err)
 			}
+			DiscordSendf("Worker `%s` went offline while assigned job `%s`.", w.ID, j.ID)
 			count++
 			continue
 		}
@@ -93,7 +97,41 @@ func cleanupActive() int {
 
 // processBacklog moves jobs in the backlog into free workers.
 func processBacklog() int {
-	return 0
+	jobs, err := GetBacklog()
+	if err != nil {
+		log.Println("[maintenance] couldn't get backlog:", err)
+		return 0
+	}
+	if len(jobs) == 0 {
+		log.Println("[maintenance] no backlog to process")
+		return 0
+	}
+
+	workers, err := GetAvailableWorkers()
+	if err != nil {
+		log.Println("[maintenance] couldn't get available workers:", err)
+		return 0
+	}
+	if len(workers) == 0 {
+		log.Println("[maintenance] no workers available to process backlog")
+		return 0
+	}
+
+	count := 0
+	for _, j := range jobs {
+		w := ChooseWorker(workers)
+		if err = w.Assign(j); err != nil {
+			log.Println(
+				"[maintenance] couldn't assign job %s to worker %s: %v",
+				j.ID, w.ID, err,
+			)
+			continue
+		}
+		DiscordSendf("Assigned job `%s` to worker `%s` from backlog.", j.ID, w.ID)
+		count++
+	}
+
+	return count
 }
 
 // workerMap returns a map from worker ID to worker.

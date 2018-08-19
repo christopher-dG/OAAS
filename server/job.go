@@ -56,7 +56,7 @@ func NewJob(p reddit.Post) (*Job, error) {
 		}
 		return job, nil
 	}
-	worker := chooseWorker(available)
+	worker := ChooseWorker(available)
 	if err = worker.Assign(job); err != nil {
 		return nil, err
 	}
@@ -154,12 +154,12 @@ func GetActiveJobs() ([]*Job, error) {
 	)
 }
 
-// GetBacklog gets backlogged jobs.
+// GetBacklog gets backlogged jobs, ordered by oldest to newest.
 func GetBacklog() ([]*Job, error) {
 	jobs := []*Job{}
 	return jobs, db.Select(
 		&jobs,
-		"select * from jobs where status = $1",
+		"select * from jobs where status = $1 order by created_at asc",
 		shared.StatusBacklogged,
 	)
 }

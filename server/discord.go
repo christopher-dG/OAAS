@@ -80,7 +80,7 @@ func StartDiscord(posts chan reddit.Post) (chan bool, error) {
 
 // handlePost receives a new Reddit post and prompts Discord users to vote on it.
 func handlePost(p reddit.Post) {
-	msg, err := sendMsgf(newPostMsg, p.Title, p.Author, p.ID)
+	msg, err := DiscordSendf(newPostMsg, p.Title, p.Author, p.ID)
 	if err != nil {
 		return
 	}
@@ -118,13 +118,13 @@ func handleReaction(_ *discordgo.Session, e *discordgo.MessageReactionAdd) {
 			job, err := NewJob(post)
 			if err != nil {
 				log.Println("[discord] creating/assigning job failed:", err)
-				sendMsgf(startFailureMsg, post.ID)
+				DiscordSendf(startFailureMsg, post.ID)
 				return
 			}
 			if job.Status == shared.StatusBacklogged {
-				sendMsgf(startBackloggedMsg, post.ID)
+				DiscordSendf(startBackloggedMsg, post.ID)
 			} else {
-				sendMsgf(startAssignedMsg, post.ID, job.WorkerID.String)
+				DiscordSendf(startAssignedMsg, post.ID, job.WorkerID.String)
 			}
 			delete(pendingPosts, e.MessageID)
 		}
@@ -148,8 +148,8 @@ func handleMessage(_ *discordgo.Session, e *discordgo.MessageCreate) {
 	}
 }
 
-// sendMsg sends a Discord message.
-func sendMsg(text string) (*discordgo.Message, error) {
+// DiscordSend sends a Discord message.
+func DiscordSend(text string) (*discordgo.Message, error) {
 	msg, err := dBot.ChannelMessageSend(dChannelID, text)
 	if err != nil {
 		log.Println("[discord] couldn't send message:", err)
@@ -159,7 +159,7 @@ func sendMsg(text string) (*discordgo.Message, error) {
 	return msg, nil
 }
 
-// sendMsgf sends a formatted Discord message.
-func sendMsgf(text string, args ...interface{}) (*discordgo.Message, error) {
-	return sendMsg(fmt.Sprintf(text, args...))
+// DiscordSendf sends a formatted Discord message.
+func DiscordSendf(text string, args ...interface{}) (*discordgo.Message, error) {
+	return DiscordSend(fmt.Sprintf(text, args...))
 }
