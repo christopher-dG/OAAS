@@ -1,3 +1,3 @@
-# Replay Farm
+# Replay Farm [![Build Status](https://travis-ci.com/christopher-dG/replay-farm.svg?branch=master)](https://travis-ci.com/christopher-dG/replay-farm)
 
-**Tools/services/etc. for autonomously discovering/recording/uploading [osu!](https://osu.ppy.sh) replays.**
+**A client/server model for autonomously discovering, recording, and uploading [osu!](https://osu.ppy.sh) replays.**

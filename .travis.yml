@@ -1,0 +1,14 @@
+matrix:
+  include:
+    - language: elixir
+      elixir: 1.7
+      otp_release: 21.0
+      before_install: cd server
+      script:
+        - mix test --no-start --cover
+        - mix format --check-formatted
+    - language: go
+      go: 1.11
+      before_install: cd client
+      script: go test -v -cover
+notifications: {email: false}
