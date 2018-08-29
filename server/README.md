@@ -1,5 +1,3 @@
-# osu! Replay Bot Server
+# Replay Farm Server
 
-HTTP server to handle job management.
-
-Run one instance of this on a machine with port 4000 open.
+This handles the discovery and distribution of jobs to clients (workers).
