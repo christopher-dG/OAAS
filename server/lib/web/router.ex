@@ -12,16 +12,11 @@ defmodule ReplayFarm.Web.Router do
   def auth(conn, _opts) do
     if Mix.env() === :dev do
       # Don't worry about auth for development.
-      true
+      conn
     else
-      f =
-        if String.contains?(conn.request_path, "/admin") do
-          &ReplayFarm.DB.Keys.get_admin_keys/0
-        else
-          &ReplayFarm.DB.Keys.get_worker_keys/0
-        end
+      admin? = String.contains?(conn.request_path, "/admin")
 
-      case f.() do
+      case ReplayFarm.DB.Keys.get_keys(admin?) do
         {:ok, keys} ->
           case get_req_header(conn, "authorization") do
             [] ->
