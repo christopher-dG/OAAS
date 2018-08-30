@@ -3,6 +3,33 @@ defmodule ReplayFarm.DB do
 
   require Logger
 
+  @schema [
+    "CREATE TABLE IF NOT EXISTS keys(
+      key TEXT PRIMARY KEY,
+      admin BOOLEAN NOT NULL
+	)",
+    "CREATE TABLE IF NOT EXISTS workers(
+      id TEXT PRIMARY KEY,
+      last_poll INTEGER,
+      last_job INTEGER
+    )",
+    "CREATE TABLE IF NOT EXISTS jobs(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      player TEXT NOT NULL,   -- JSON
+      beatmap TEXT NOT NULL,  -- JSON
+      replay TEXT NOT NULL,
+	  skin TEXT,  -- JSON
+      post TEXT,  -- JSON
+      status INTEGER NOT NULL,
+	  comment TEXT,
+      worker_id TEXT REFERENCES workers(id),
+      created_at INTEGER,
+      updated_at INTEGER
+    )",
+    # This one is going to fail whenver the column already exists but whatever.
+    "ALTER TABLE workers ADD COLUMN current_job_id REFERENCES jobs(id) ON DELETE SET NULL"
+  ]
+
   def child_spec(opts) do
     %{
       id: __MODULE__,
@@ -11,7 +38,7 @@ defmodule ReplayFarm.DB do
   end
 
   def start_link(_opts) do
-    create_table!("keys", key: {:text, [:primary_key]}, admin: {:boolean, [:not_null]})
+    Enum.each(@schema, fn sql -> Sqlitex.Server.query(ReplayFarm.DB, sql) end)
     {:ok, self()}
   end
 
@@ -38,6 +65,7 @@ defmodule ReplayFarm.DB do
                  {k, v}
                end
              end)
+             |> Map.new()
            end)}
         else
           {:ok, results}
@@ -45,19 +73,6 @@ defmodule ReplayFarm.DB do
 
       {:error, err} ->
         {:error, err}
-    end
-  end
-
-  # Creates a database table.
-  defp create_table!(name, cols) do
-    case Sqlitex.Server.create_table(ReplayFarm.DB, name, cols) do
-      {:error, {:sqlite_error, err}} ->
-        unless String.ends_with?(List.to_string(err), "already exists") do
-          raise err
-        end
-
-      _ ->
-        :ok
     end
   end
 end

@@ -23,7 +23,7 @@ var (
 
 // Job is a recording/uploading job to be completed by the worker.
 type Job struct {
-	ID     string `json:"id"` // Job ID.
+	ID     int `json:"id"` // Job ID.
 	Player struct {
 		UserID   int    `json:"user_id"`  // Player ID.
 		Username string `json:"username"` // Player name.
@@ -50,7 +50,7 @@ type Job struct {
 
 // Process processes the job from start to finish.
 func (j Job) Process() {
-	log.SetPrefix(fmt.Sprintf("[job %s] ", j.ID))
+	log.SetPrefix(fmt.Sprintf("[job %d] ", j.ID))
 	log.Println("starting job")
 
 	if err := j.Prepare(); err != nil {
