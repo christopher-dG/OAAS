@@ -1,4 +1,6 @@
 defmodule ReplayFarm.Router do
+  @moduledoc "The web server."
+
   use Plug.Router
   import Plug.Conn
   require Logger
@@ -31,11 +33,11 @@ defmodule ReplayFarm.Router do
 
       {:error, err} ->
         Logger.error("encoding response failed: #{inspect(err)}")
-        text(conn, 500, "encoding response failed")
+        text(conn, 500, "couldn't encode response")
     end
   end
 
-  @doc "Authenticates a request with an admin API key."
+  @doc "Authenticates a request with an API key."
   def authenticate(conn, _opts) do
     if Mix.env() === :dev do
       # Don't worry about auth for development.
@@ -116,7 +118,7 @@ defmodule ReplayFarm.Router do
 
     case Worker.get_assigned(id) do
       {:ok, nil} ->
-        text(conn, 204, "no new job")
+        send_resp(conn, 204, "")
 
       {:ok, job} ->
         json(conn, 200, job)
@@ -126,7 +128,7 @@ defmodule ReplayFarm.Router do
 
         case Worker.put_worker(id) do
           {:ok, _w} ->
-            text(conn, 204, "no new job")
+            send_resp(conn, 204, "")
 
           {:error, err} ->
             Logger.error("creating new worker #{id} failed: #{inspect(err)}")

@@ -53,7 +53,7 @@ defmodule ReplayFarm.Job do
     sql = "SELECT * FROM #{@table}"
 
     case DB.query(sql, decode: @json_columns) do
-      {:ok, jobs} -> {:ok, Enum.map(jobs, &from_map/1)}
+      {:ok, jobs} -> {:ok, Enum.map(jobs, &struct(__MODULE__, &1))}
       {:error, err} -> {:error, err}
     end
   end
@@ -64,7 +64,7 @@ defmodule ReplayFarm.Job do
     sql = "SELECT * FROM #{@table} WHERE id = ?1"
 
     case DB.query(sql, bind: [id]) do
-      {:ok, [job]} -> {:ok, from_map(job)}
+      {:ok, [job]} -> {:ok, struct(__MODULE__, job)}
       {:ok, []} -> {:error, :job_not_found}
       {:error, err} -> {:error, err}
       _ -> {:error, :unknown}
@@ -120,34 +120,5 @@ defmodule ReplayFarm.Job do
       {:error, err} ->
         {:error, err}
     end
-  end
-
-  # Convert a job map to a struct.
-  defp from_map(%{
-         id: id,
-         player: p,
-         beatmap: b,
-         replay: r,
-         skin: s,
-         post: po,
-         status: st,
-         comment: c,
-         worker_id: w,
-         created_at: ca,
-         updated_at: ua
-       }) do
-    %__MODULE__{
-      id: id,
-      player: p,
-      beatmap: b,
-      replay: r,
-      skin: s,
-      post: po,
-      status: st,
-      comment: c,
-      worker_id: w,
-      created_at: ca,
-      updated_at: ua
-    }
   end
 end

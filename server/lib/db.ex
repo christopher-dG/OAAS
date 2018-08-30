@@ -1,5 +1,5 @@
 defmodule ReplayFarm.DB do
-  @moduledoc "Defines and executes the schema at startup."
+  @moduledoc "The database wrapper."
 
   require Logger
 
@@ -42,7 +42,7 @@ defmodule ReplayFarm.DB do
     {:ok, self()}
   end
 
-  @doc "Helper function to start the database when nothing else is running."
+  @doc "Starts the database (useful when running with --no-start)."
   def start do
     File.mkdir_p("priv")
     Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: ReplayFarm.DB)

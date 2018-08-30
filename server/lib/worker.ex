@@ -24,7 +24,7 @@ defmodule ReplayFarm.Worker do
     sql = "SELECT * FROM #{@table}"
 
     case DB.query(sql) do
-      {:ok, workers} -> {:ok, Enum.map(workers, &from_map/1)}
+      {:ok, workers} -> {:ok, Enum.map(workers, &struct(__MODULE__, &1))}
       {:error, err} -> {:error, err}
     end
   end
@@ -35,7 +35,7 @@ defmodule ReplayFarm.Worker do
     sql = "SELECT * FROM #{@table} WHERE id = ?1"
 
     case DB.query(sql, bind: [id]) do
-      {:ok, [worker]} -> {:ok, from_map(worker)}
+      {:ok, [worker]} -> {:ok, struct(__MODULE__, worker)}
       {:ok, []} -> {:error, :worker_not_found}
       {:error, err} -> {:error, err}
       _ -> {:error, :unknown}
@@ -48,7 +48,7 @@ defmodule ReplayFarm.Worker do
     sql = "SELECT * FROM #{@table} WHERE ABS(?1 - last_poll) <= ?2"
 
     case DB.query(sql, bind: [System.system_time(:millisecond), @online_threshold]) do
-      {:ok, workers} -> {:ok, Enum.map(workers, &from_map/1)}
+      {:ok, workers} -> {:ok, Enum.map(workers, &struct(__MODULE__, &1))}
       {:error, err} -> {:error, err}
     end
   end
@@ -79,10 +79,5 @@ defmodule ReplayFarm.Worker do
       {:error, err} ->
         {:error, err}
     end
-  end
-
-  # Convert a worker map to a struct.
-  defp from_map(%{id: id, last_poll: lp, last_job: lj, current_job_id: cri, created_at: ca}) do
-    %__MODULE__{id: id, last_poll: lp, last_job: lj, current_job_id: cri, created_at: ca}
   end
 end

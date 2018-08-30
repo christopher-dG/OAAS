@@ -1,4 +1,6 @@
 defmodule ReplayFarm.Discord.Consumer do
+  @doc "The Discord bot."
+
   use Nostrum.Consumer
   alias Nostrum.Api
   require Logger
