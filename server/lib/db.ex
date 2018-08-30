@@ -10,8 +10,9 @@ defmodule ReplayFarm.DB do
 	)",
     "CREATE TABLE IF NOT EXISTS workers(
       id TEXT PRIMARY KEY,
-      last_poll INTEGER,
-      last_job INTEGER
+      last_poll INTEGER NOT NULL,
+      last_job INTEGER,
+      created_at INTEGER NOT NULL
     )",
     "CREATE TABLE IF NOT EXISTS jobs(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,8 +24,8 @@ defmodule ReplayFarm.DB do
       status INTEGER NOT NULL,
 	  comment TEXT,
       worker_id TEXT REFERENCES workers(id),
-      created_at INTEGER,
-      updated_at INTEGER
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     )",
     # This one is going to fail whenver the column already exists but whatever.
     "ALTER TABLE workers ADD COLUMN current_job_id REFERENCES jobs(id) ON DELETE SET NULL"
@@ -48,7 +49,7 @@ defmodule ReplayFarm.DB do
 
     case Sqlitex.Server.query(ReplayFarm.DB, query, opts) do
       {:ok, results} ->
-        if String.starts_with?(query, "select") do
+        if String.starts_with?(String.upcase(query), "SELECT") do
           {:ok,
            Enum.map(results, fn row ->
              Enum.map(row, fn {k, v} ->

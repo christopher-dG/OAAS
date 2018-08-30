@@ -16,7 +16,7 @@ defmodule ReplayFarm.Web.Router do
     else
       admin? = String.contains?(conn.request_path, "/admin")
 
-      case ReplayFarm.DB.Keys.get_keys(admin?) do
+      case ReplayFarm.Keys.get_keys(admin?) do
         {:ok, keys} ->
           case get_req_header(conn, "authorization") do
             [] ->
