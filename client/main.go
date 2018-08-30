@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -14,87 +15,84 @@ import (
 	"strconv"
 	"time"
 
-	"replay-bot/shared"
-
-	osuapi "github.com/thehowl/go-osuapi"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
-	pollRoute   = "/poll"
-	statusRoute = "/jobs/status"
-	interval    = time.Second * 10
+	pollRoute    = "/poll"          // Endpoint to poll for new jobs.
+	statusRoute  = "/status"        // Endpoint to update job status.
+	pollInterval = time.Second * 10 // Time to wait between polls.
 )
 
 var (
-	httpLogger = log.New(os.Stdout, "[http] ", log.LstdFlags)
-	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags)
-	apiURL     = os.Getenv("REPLAY_BOT_API_URL")
-	apiKey     = os.Getenv("REPLAY_BOT_API_KEY")
-	jobs       = make(chan shared.Job)
-	httpClient = http.Client{Timeout: time.Second * 3}
+	pathFlag   = flag.String("c", "", "path to configuration file") // Config path flag.
+	httpClient = http.Client{Timeout: time.Second * 3}              // HTTP client.
+	httpLogger = log.New(os.Stdout, "[http] ", log.LstdFlags)       // Logger for HTTP requests.
+	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags)      // Logger for polling.
+
+	// Runtime configuration.
+	config = func() ConfigFile {
+		flag.Parse()
+		if *pathFlag == "" {
+			log.Fatal("required option -c is missing")
+		}
+		b, err := ioutil.ReadFile(*pathFlag)
+		var c ConfigFile
+		if err = yaml.Unmarshal(b, &c); err != nil {
+			log.Fatal(err)
+		}
+		return c
+	}()
 
 	username = func() string {
 		usr, err := user.Current()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("couldn't get username;", err)
 		}
 		return usr.Username
 	}()
-	id = func() string {
-		path := filepath.Join(osuRoot, "replay-bot-token")
+
+	// Unique identifier for this worker.
+	workerID = func() string {
+		path := filepath.Join(config.OsuRoot, "rf-token")
 		token, err := ioutil.ReadFile(path)
 		if err != nil {
-			token = []byte(fmt.Sprintf("%x", md5.Sum([]byte(strconv.Itoa(int(time.Now().Unix()))))))[:4]
-			ioutil.WriteFile(path, token, 0644)
+			token = []byte(fmt.Sprintf("%x", md5.Sum([]byte(strconv.Itoa(int(time.Now().Unix()))))))[:8]
+			ioutil.WriteFile(path, token, 0400)
 		}
 		return fmt.Sprintf("%s-%s", username, string(token))
 	}()
+
+	// Polling request that will be sent at a regular interval.
 	pollReq = func() *http.Request {
-		b := []byte(fmt.Sprintf(`{"worker":"%s"}`, id))
-		req, err := http.NewRequest(http.MethodPost, apiURL+pollRoute, bytes.NewBuffer(b))
+		b := []byte(fmt.Sprintf(`{"worker":"%s"}`, workerID))
+		req, err := http.NewRequest(http.MethodPost, config.ApiURL+pollRoute, bytes.NewBuffer(b))
 		if err != nil {
 			log.Fatal(err)
 		}
-		req.Header.Set("Authorization", apiKey)
+		req.Header.Set("Authorization", config.ApiKey)
 		return req
 	}()
 )
 
-// JobContext contains the data required to complete a job.
-type JobContext struct {
-	Job     shared.Job
-	Player  *osuapi.User
-	Beatmap *osuapi.Beatmap
-}
-
 func main() {
-	if apiURL == "" {
-		log.Fatal("environment variable REPLAY_BOT_API_URL is not set")
-	}
-	if apiKey == "" {
-		log.Fatal("environment variable REPLAY_BOT_API_KEY is not set")
-	}
-	if osuRoot == "" {
-		log.Fatal("environment variable REPLAY_BOT_SKINS_DIR is not set")
-	}
-
-	log.Println("Worker ID:", id)
-	go poll()
+	log.Println("Worker ID:", workerID)
+	jobs := make(chan Job)
+	go poll(jobs)
 	for {
-		j := <-jobs
-		go process(j)
+		go (<-jobs).Process()
 	}
 }
 
 // poll calls the /poll endpoint to register presence and check for new work.
-func poll() {
+func poll(jobs chan Job) {
 	for {
-		pollOnce()
-		time.Sleep(interval)
+		pollOnce(jobs)
+		time.Sleep(pollInterval)
 	}
 }
 
-func pollOnce() {
+func pollOnce(jobs chan Job) {
 	resp, err := httpClient.Do(pollReq)
 	if err != nil {
 		pollLogger.Println("error making request:", err)
@@ -117,7 +115,7 @@ func pollOnce() {
 		return
 	}
 
-	var j shared.Job
+	var j Job
 	if err = json.Unmarshal(respBody, &j); err != nil {
 		pollLogger.Println("couldn't decode response body:", err)
 		return
@@ -126,99 +124,11 @@ func pollOnce() {
 	jobs <- j
 }
 
-// process processes a job.
-func process(j shared.Job) {
-	log.SetPrefix(fmt.Sprintf("[job %s] ", j.ID))
-	log.Println("starting job")
-
-	// TODO: Think about how easily we want to give up.
-	var err error
-
-	if err = updateStatus(j, shared.StatusAcknowledged, ""); err != nil {
-		fail(j, "error updating status", err)
-		return
-	}
-
-	log.Println("preparing job")
-	ctx, err := prepare(j)
-	if err != nil {
-		fail(j, "error preparing job", err)
-		return
-	}
-
-	if err = updateStatus(j, shared.StatusRecording, ""); err != nil {
-		fail(j, "error updating status -> recording", err)
-		return
-	}
-
-	log.Println("starting recording")
-	if err = ctx.startRecording(); err != nil {
-		fail(j, "error starting recording", err)
-		return
-	}
-
-	log.Println("starting replay")
-	var done chan bool
-	if done, err = ctx.startReplay(); err != nil {
-		fail(j, "error starting replay", err)
-		return
-	}
-
-	log.Println("waiting for replay to end")
-	<-done
-
-	log.Println("stopping recording")
-	var path string
-	if path, err = ctx.stopRecording(); err != nil {
-		fail(j, "error stopping recording", err)
-		return
-	}
-
-	if err = updateStatus(j, shared.StatusUploading, ""); err != nil {
-		fail(j, "error updating status", err)
-		return
-	}
-
-	log.Println("uploading video at", path)
-	var url string
-	if url, err = ctx.uploadVideo(path); err != nil {
-		fail(j, "error uploading video", err)
-		return
-	}
-
-	if err = updateStatus(j, shared.StatusSuccessful, url); err != nil {
-		fail(j, "error updating status", err)
-		return
-	}
-}
-
-// startRecording starts recording.
-func (ctx *JobContext) startRecording() error {
-	return nil
-}
-
-// startReplay starts the replay and returns a channel to block until it's done.
-func (ctx *JobContext) startReplay() (chan bool, error) {
-	done := make(chan bool)
-
-	return done, nil
-}
-
-// stopRecording stops recording and returns the path of the exported video.
-func (ctx *JobContext) stopRecording() (string, error) {
-	return "TODO", nil
-}
-
-// uploadVideo uploads the video at path to YouTube and returns the URL.
-func (ctx *JobContext) uploadVideo(path string) (string, error) {
-	return "TODO", nil
-}
-
-// updateStatus sends a request to /jobs/status updating the job status.
-func updateStatus(j shared.Job, status int, comment string) error {
-	log.Println("updating status ->", shared.StatusStr[status])
-	_, err := postJobsStatus(map[string]interface{}{
-		"worker":  id,
+// updateStatus sends a request to update the job's status.
+func updateStatus(j Job, status int, comment string) error {
+	log.Println("updating status ->", StatusMap[status])
+	_, err := postStatus(map[string]interface{}{
+		"worker":  workerID,
 		"job":     j.ID,
 		"status":  status,
 		"comment": comment,
@@ -227,28 +137,46 @@ func updateStatus(j shared.Job, status int, comment string) error {
 }
 
 // fail updates the job status to FAILED.
-func fail(j shared.Job, context string, err error) {
+func fail(j Job, context string, err error) {
 	comment := fmt.Sprintf("%s: %v", context, err)
 	log.Println(comment)
-	updateStatus(j, shared.StatusFailed, comment)
+	updateStatus(j, StatusFailed, comment)
 }
 
 // postJobsStatus makes an HTTP POST request to the API's /jobs/status endpoint.
-func postJobsStatus(body map[string]interface{}) (*http.Response, error) {
+func postStatus(body map[string]interface{}) (*http.Response, error) {
 	httpLogger.Println("POST:", statusRoute)
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	httpLogger.Println("request body:", string(b))
-	req, err := http.NewRequest(http.MethodPost, apiURL+statusRoute, bytes.NewBuffer(b))
+	req, err := http.NewRequest(http.MethodPost, config.ApiURL+statusRoute, bytes.NewBuffer(b))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", apiKey)
+	req.Header.Set("Authorization", config.ApiKey)
 	resp, err := httpClient.Do(req)
 	if err == nil {
 		httpLogger.Println("status code:", resp.StatusCode)
 	}
 	return resp, err
+}
+
+// httpGet makes a GET request and returns the body.
+func httpGet(url string) ([]byte, error) {
+	httpLogger.Println("GET:", url)
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("non-200 status code %d", resp.StatusCode)
+	}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
