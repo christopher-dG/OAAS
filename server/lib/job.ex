@@ -15,6 +15,8 @@ defmodule ReplayFarm.Job do
     backlogged: 7
   }
 
+  @derive Jason.Encoder
+  @enforce_keys [:id, :player, :beatmap, :replay, :status, :created_at, :updated_at]
   defstruct [
     :id,
     :player,
@@ -63,7 +65,7 @@ defmodule ReplayFarm.Job do
 
     case DB.query(sql, bind: [id]) do
       {:ok, [job]} -> {:ok, from_map(job)}
-      {:ok, []} -> {:error, :not_found}
+      {:ok, []} -> {:error, :job_not_found}
       {:error, err} -> {:error, err}
       _ -> {:error, :unknown}
     end

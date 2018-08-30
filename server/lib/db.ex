@@ -43,6 +43,9 @@ defmodule ReplayFarm.DB do
     {:ok, self()}
   end
 
+  @doc "Helper function to start the database when nothing else is running."
+  def start, do: Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: ReplayFarm.DB)
+
   @doc "Execute a database query."
   def query(query, opts \\ []) when is_binary(query) and is_list(opts) do
     {decode, opts} = Keyword.pop(opts, :decode, [])

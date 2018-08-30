@@ -9,9 +9,9 @@ defmodule ReplayFarm.Keys do
   @spec get_keys(boolean) :: {:ok, [binary]} | {:error, term}
   def get_keys(admin?) when is_boolean(admin?) do
     maybe = if(admin?, do: "", else: "not")
-    sql = "SELECT key FROM ?1 WHERE #{maybe} admin"
+    sql = "SELECT key FROM #{@table} WHERE #{maybe} admin"
 
-    case DB.query(sql, bind: [@table]) do
+    case DB.query(sql) do
       {:ok, keys} -> {:ok, Enum.map(keys, &Map.get(&1, :key))}
       {:error, err} -> {:error, err}
     end

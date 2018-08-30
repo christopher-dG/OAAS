@@ -36,7 +36,7 @@ defmodule ReplayFarm.Worker do
 
     case DB.query(sql, bind: [id]) do
       {:ok, [worker]} -> {:ok, from_map(worker)}
-      {:ok, []} -> {:error, :not_found}
+      {:ok, []} -> {:error, :worker_not_found}
       {:error, err} -> {:error, err}
       _ -> {:error, :unknown}
     end
