@@ -43,7 +43,11 @@ defmodule ReplayFarm.DB do
   end
 
   @doc "Helper function to start the database when nothing else is running."
-  def start, do: Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: ReplayFarm.DB)
+  def start do
+    File.mkdir_p("priv")
+    Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: ReplayFarm.DB)
+    start_link([])
+  end
 
   @doc "Execute a database query."
   def query(query, opts \\ []) when is_binary(query) and is_list(opts) do
