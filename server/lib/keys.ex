@@ -5,11 +5,10 @@ defmodule ReplayFarm.Keys do
 
   @table "keys"
 
-  @doc "Gets all worker or admin API keys (one category, not both)."
-  @spec get_keys(boolean) :: {:ok, [binary]} | {:error, term}
-  def get_keys(admin?) when is_boolean(admin?) do
-    maybe = if(admin?, do: "", else: "not")
-    sql = "SELECT key FROM #{@table} WHERE #{maybe} admin"
+  @doc "Gets all API keys"
+  @spec get_keys :: {:ok, [binary]} | {:error, term}
+  def get_keys do
+    sql = "SELECT key FROM #{@table}"
 
     case DB.query(sql) do
       {:ok, keys} -> {:ok, Enum.map(keys, &Map.get(&1, :key))}
@@ -18,11 +17,11 @@ defmodule ReplayFarm.Keys do
   end
 
   @doc "Inserts a new API key."
-  @spec put_key(binary, boolean) :: :ok | {:error, term}
-  def put_key(key, admin?) when is_binary(key) and is_boolean(admin?) do
-    sql = "INSERT INTO #{@table} (key, admin) VALUES (?1, ?2)"
+  @spec put_key(binary) :: :ok | {:error, term}
+  def put_key(key) when is_binary(key) do
+    sql = "INSERT INTO #{@table} (key) VALUES (?1)"
 
-    case DB.query(sql, bind: [key, admin?]) do
+    case DB.query(sql, bind: [key]) do
       {:ok, _} -> :ok
       {:error, err} -> {:error, err}
     end

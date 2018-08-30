@@ -41,17 +41,10 @@ defmodule ReplayFarm.Router do
       # Don't worry about auth for development.
       conn
     else
-      admin? = String.contains?(conn.request_path, "/admin")
-
-      case ReplayFarm.Keys.get_keys(admin?) do
-        {:ok, keys} ->
-          case get_req_header(conn, "authorization") do
-            [] ->
-              conn
-              |> text(400, "missing API key")
-              |> halt()
-
-            [key] ->
+      case get_req_header(conn, "authorization") do
+        [key] ->
+          case ReplayFarm.Keys.get_keys() do
+            {:ok, keys} ->
               if key in keys do
                 conn
               else
@@ -60,17 +53,22 @@ defmodule ReplayFarm.Router do
                 |> halt()
               end
 
-            _ ->
+            {:error, err} ->
+              Logger.error("retrieving keys failed: #{inspect(err)}")
+
               conn
-              |> text(400, "invalid API key")
+              |> text(500, "couldn't check API key")
               |> halt()
           end
 
-        {:error, err} ->
-          Logger.error("retrieving keys failed: #{inspect(err)}")
-
+        [] ->
           conn
-          |> text(500, "couldn't check API key")
+          |> text(400, "missing API key")
+          |> halt()
+
+        _ ->
+          conn
+          |> text(400, "invalid API key")
           |> halt()
       end
     end
@@ -142,10 +140,6 @@ defmodule ReplayFarm.Router do
   end
 
   post "/status" do
-    text(conn, 500, "TODO")
-  end
-
-  post "/admin/keys" do
     text(conn, 500, "TODO")
   end
 

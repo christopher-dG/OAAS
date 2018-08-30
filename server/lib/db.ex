@@ -5,8 +5,7 @@ defmodule ReplayFarm.DB do
 
   @schema [
     "CREATE TABLE IF NOT EXISTS keys(
-      key TEXT PRIMARY KEY,
-      admin BOOLEAN NOT NULL
+      key TEXT PRIMARY KEY
 	)",
     "CREATE TABLE IF NOT EXISTS workers(
       id TEXT PRIMARY KEY,
