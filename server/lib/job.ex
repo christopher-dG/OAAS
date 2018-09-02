@@ -83,7 +83,7 @@ defmodule ReplayFarm.Job do
     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
     """
 
-    opts = [
+    binds = [
       Jason.encode!(player),
       Jason.encode!(beatmap),
       replay,
@@ -94,7 +94,7 @@ defmodule ReplayFarm.Job do
       now
     ]
 
-    case DB.query(sql, bind: opts) do
+    case DB.query(sql, bind: binds) do
       {:ok, _} ->
         case DB.query("SELECT LAST_INSERT_ROWID()") do
           {:ok, [%{"LAST_INSERT_ROWID()": id}]} ->

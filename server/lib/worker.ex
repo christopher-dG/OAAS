@@ -65,19 +65,55 @@ defmodule ReplayFarm.Worker do
     end
   end
 
+  @doc "Updates a worker."
+  @spec update_worker(binary | t, map) :: {:ok, t} | {:error, term}
+  def update_worker(_w, _v)
+
+  def update_worker(id, vals) when is_binary(id) and is_map(vals) do
+    case get_worker(id) do
+      {:ok, w} -> update_worker(w, vals)
+      {:error, err} -> {:error, err}
+    end
+  end
+
+  def update_worker(%__MODULE__{} = worker, vals) when is_map(vals) do
+    save_worker(Map.merge(worker, vals))
+  end
+
   @doc "Gets the worker's currently assigned job."
-  @spec get_assigned(binary) :: {:ok, Job.t() | nil} | {:error, term}
+  @spec get_assigned(binary | t) :: {:ok, Job.t() | nil} | {:error, term}
+  def get_assigned(_w)
+
   def get_assigned(id) when is_binary(id) do
     case get_worker(id) do
-      {:ok, worker} ->
-        if is_nil(worker.current_job_id) do
-          {:ok, nil}
-        else
-          Job.get_job(worker.current_job_id)
-        end
+      {:ok, w} -> get_assigned(w)
+      {:error, err} -> {:error, err}
+    end
+  end
 
-      {:error, err} ->
-        {:error, err}
+  def get_assigned(%__MODULE__{} = worker) do
+    if is_nil(worker.current_job_id) do
+      {:ok, nil}
+    else
+      Job.get_job(worker.current_job_id)
+    end
+  end
+
+  # Saves any updated worker fields to the database.
+  @spec save_worker(binary | t) :: {:ok, t} | {:error, term}
+  defp save_worker(%__MODULE__{} = worker) do
+    sql = "UPDATE #{@table} SET last_poll = ?1, last_job = ?2, current_job_id = ?3 WHERE id = ?4"
+
+    binds = [
+      worker.last_poll,
+      worker.last_job,
+      worker.current_job_id,
+      worker.id
+    ]
+
+    case DB.query(sql, bind: binds) do
+      {:ok, w} -> {:ok, struct(__MODULE__, w)}
+      {:error, err} -> {:error, err}
     end
   end
 end

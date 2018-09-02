@@ -7,12 +7,19 @@ defmodule ReplayFarm.Router do
 
   alias ReplayFarm.Worker
 
-  plug(:match)
   plug(Plug.Logger)
+  plug(Plug.Parsers, parsers: [:json], pass: ["*/*"], json_decoder: Jason)
+  plug(:match)
   plug(:authenticate)
-  plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
   plug(:validate)
   plug(:dispatch)
+
+  # Helpers
+
+  @doc "Starts the server (useful when running with --no-start)."
+  def start do
+    Plug.Adapters.Cowboy2.http(__MODULE__, port: Application.get_env(:replay_farm, :port))
+  end
 
   # Plugs
 
@@ -116,12 +123,28 @@ defmodule ReplayFarm.Router do
   post "/poll" do
     id = conn.body_params["worker"]
 
-    case Worker.get_assigned(id) do
-      {:ok, nil} ->
-        send_resp(conn, 204, "")
+    case Worker.get_worker(id) do
+      {:ok, worker} ->
+        worker =
+          case Worker.update_worker(worker, %{
+                 worker
+                 | last_poll: System.system_time(:millisecond)
+               }) do
+            {:ok, w} ->
+              w
 
-      {:ok, job} ->
-        json(conn, 200, job)
+            {:error, err} ->
+              Logger.warn("updating last_poll for worker #{id} failed: #{inspect(err)}")
+              worker
+          end
+
+        case Worker.get_assigned(worker) do
+          {:ok, nil} ->
+            send_resp(conn, 204, "")
+
+          {:ok, job} ->
+            json(conn, 200, job)
+        end
 
       {:error, :worker_not_found} ->
         Logger.info("inserting new worker #{id}")
