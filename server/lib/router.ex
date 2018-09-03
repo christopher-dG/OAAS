@@ -6,12 +6,14 @@ defmodule ReplayFarm.Router do
   require Logger
 
   alias ReplayFarm.Worker
+  alias ReplayFarm.Job
 
   plug(Plug.Logger)
   plug(Plug.Parsers, parsers: [:json], pass: ["*/*"], json_decoder: Jason)
   plug(:match)
   plug(:authenticate)
   plug(:validate)
+  plug(:preload)
   plug(:dispatch)
 
   # Helpers
@@ -42,6 +44,46 @@ defmodule ReplayFarm.Router do
         Logger.error("encoding response failed: #{inspect(err)}")
         text(conn, 500, "couldn't encode response")
     end
+  end
+
+  @doc "Preloads parameters passed as IDs into their actual entities."
+  def preload(conn, _opts) do
+    w = conn.body_params["worker"]
+    j = conn.body_params["job"]
+
+    conn = put_private(conn, :preload_errors, %{})
+
+    conn =
+      unless is_nil(w) do
+        case Worker.get_worker(w) do
+          {:ok, worker} ->
+            Logger.debug("preloaded worker #{w}")
+            %{conn | body_params: %{conn.body_params | "worker" => worker}}
+
+          {:error, err} ->
+            Logger.warn("preloading worker #{w} failed: #{inspect(err)}")
+            put_private(conn, :preload_errors, Map.put(conn.private.preload_errors, :worker, err))
+        end
+      else
+        conn
+      end
+
+    conn =
+      unless is_nil(j) do
+        case Job.get_job(j) do
+          {:ok, job} ->
+            Logger.debug("preloaded job #{j}")
+            %{conn | body_params: %{conn.body_params | "job" => job}}
+
+          {:error, err} ->
+            Logger.warn("preloading job #{j} failed: #{inspect(err)}")
+            put_private(conn, :preload_errors, Map.put(conn.private.preload_errors, :job, err))
+        end
+      else
+        conn
+      end
+
+    conn
   end
 
   @doc "Authenticates a request with an API key."
@@ -94,7 +136,7 @@ defmodule ReplayFarm.Router do
 
             _ ->
               conn
-              |> send_resp(400, "invalid request body")
+              |> text(400, "invalid request body")
               |> halt()
           end
 
@@ -106,7 +148,7 @@ defmodule ReplayFarm.Router do
 
             _ ->
               conn
-              |> send_resp(400, "invalid request_body")
+              |> text(400, "invalid request_body")
               |> halt()
           end
 
@@ -121,46 +163,46 @@ defmodule ReplayFarm.Router do
   # Endpoints
 
   post "/poll" do
-    id = conn.body_params["worker"]
-
-    case Worker.get_worker(id) do
-      {:ok, worker} ->
-        worker =
-          case Worker.update_worker(worker, %{
-                 worker
-                 | last_poll: System.system_time(:millisecond)
-               }) do
+    case conn.body_params["worker"] do
+      %Worker{} = w ->
+        w =
+          case Worker.update_worker(w, %{last_poll: System.system_time(:millisecond)}) do
             {:ok, w} ->
               w
 
             {:error, err} ->
-              Logger.warn("updating last_poll for worker #{id} failed: #{inspect(err)}")
-              worker
+              Logger.warn("updating last_poll for worker #{w.id} failed: #{inspect(err)}")
+              w
           end
 
-        case Worker.get_assigned(worker) do
+        case Worker.get_assigned(w) do
           {:ok, nil} ->
             send_resp(conn, 204, "")
 
           {:ok, job} ->
+            Logger.info("sending job #{job.id} to worker #{w.id}")
             json(conn, 200, job)
-        end
-
-      {:error, :worker_not_found} ->
-        Logger.info("inserting new worker #{id}")
-
-        case Worker.put_worker(id) do
-          {:ok, _w} ->
-            send_resp(conn, 204, "")
 
           {:error, err} ->
-            Logger.error("creating new worker #{id} failed: #{inspect(err)}")
-            text(conn, 500, "couldn't create new worker")
+            Logger.error("getting assigned job for worker #{w.id} failed: #{inspect(err)}")
+            text(conn, 500, "couldn't get assigned job")
         end
 
-      {:error, err} ->
-        Logger.error("getting assigned job for worker #{id} failed: #{inspect(err)}")
-        text(conn, 500, "couldn't get assigned job")
+      id ->
+        if conn.private.preload_errors[:worker] === :worker_not_found do
+          Logger.info("inserting new worker #{id}")
+
+          case Worker.put_worker(id) do
+            {:ok, _w} ->
+              send_resp(conn, 204, "")
+
+            {:error, err} ->
+              Logger.error("creating new worker #{id} failed: #{inspect(err)}")
+              text(conn, 500, "couldn't create new worker")
+          end
+        else
+          text(conn, 500, "couldn't retrieve worker")
+        end
     end
   end
 
