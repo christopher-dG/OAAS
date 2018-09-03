@@ -1,4 +1,4 @@
-defmodule ReplayFarm.Job do
+defmodule ReplayFarm.Jobs do
   @moduledoc "Jobs are recording/uploading tasks to be completed."
 
   alias ReplayFarm.DB

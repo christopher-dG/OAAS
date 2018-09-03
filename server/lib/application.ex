@@ -20,7 +20,7 @@ defmodule ReplayFarm.Application do
       {ReplayFarm.Discord.Consumer, []},
       {Plug.Adapters.Cowboy2,
        scheme: :http,
-       plug: ReplayFarm.Router,
+       plug: ReplayFarm.Web.Router,
        options: [port: Application.get_env(:replay_farm, :port)]}
     ]
 

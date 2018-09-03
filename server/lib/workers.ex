@@ -1,8 +1,8 @@
-defmodule ReplayFarm.Worker do
+defmodule ReplayFarm.Workers do
   @moduledoc "Workers are clients that can complete jobs."
 
   alias ReplayFarm.DB
-  alias ReplayFarm.Job
+  alias ReplayFarm.Jobs
 
   @table "workers"
   @online_threshold 30_000
@@ -81,7 +81,7 @@ defmodule ReplayFarm.Worker do
   end
 
   @doc "Gets the worker's currently assigned job."
-  @spec get_assigned(binary | t) :: {:ok, Job.t() | nil} | {:error, term}
+  @spec get_assigned(binary | t) :: {:ok, Jobs.t() | nil} | {:error, term}
   def get_assigned(_w)
 
   def get_assigned(id) when is_binary(id) do
@@ -95,7 +95,7 @@ defmodule ReplayFarm.Worker do
     if is_nil(worker.current_job_id) do
       {:ok, nil}
     else
-      Job.get_job(worker.current_job_id)
+      Jobs.get_job(worker.current_job_id)
     end
   end
 
