@@ -11,7 +11,8 @@ defmodule ReplayFarm.DB do
       id TEXT PRIMARY KEY,
       last_poll INTEGER NOT NULL,
       last_job INTEGER,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     )",
     "CREATE TABLE IF NOT EXISTS jobs(
       id INTEGER PRIMARY KEY AUTOINCREMENT,

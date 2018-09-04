@@ -6,7 +6,8 @@ defmodule ReplayFarm.Web.Router do
   import ReplayFarm.Web.Plugs
   require Logger
 
-  alias ReplayFarm.Workers
+  alias ReplayFarm.Worker
+  alias ReplayFarm.Job
 
   plug(Plug.Logger)
   plug(Plug.Parsers, parsers: [:json], pass: ["*/*"], json_decoder: Jason)
@@ -27,9 +28,9 @@ defmodule ReplayFarm.Web.Router do
 
   post "/poll" do
     case conn.body_params["worker"] do
-      %Workers{} = w ->
+      %Worker{} = w ->
         w =
-          case Workers.update_worker(w, %{last_poll: System.system_time(:millisecond)}) do
+          case Worker.update(w, last_poll: System.system_time(:millisecond)) do
             {:ok, w} ->
               w
 
@@ -38,11 +39,11 @@ defmodule ReplayFarm.Web.Router do
               w
           end
 
-        case Workers.get_assigned(w) do
+        case Worker.get_assigned(w) do
           {:ok, nil} ->
             send_resp(conn, 204, "")
 
-          {:ok, job} ->
+          {:ok, %Job{} = job} ->
             Logger.info("sending job #{job.id} to worker #{w.id}")
             json(conn, 200, job)
 
@@ -52,10 +53,10 @@ defmodule ReplayFarm.Web.Router do
         end
 
       id ->
-        if conn.private.preload_errors[:worker] === :worker_not_found do
+        if conn.private.preload_errors.worker === :worker_not_found do
           Logger.info("inserting new worker #{id}")
 
-          case Workers.put_worker(id) do
+          case Worker.put(id: id, last_poll: System.system_time(:millisecond)) do
             {:ok, _w} ->
               send_resp(conn, 204, "")
 
@@ -70,7 +71,28 @@ defmodule ReplayFarm.Web.Router do
   end
 
   post "/status" do
-    text(conn, 500, "TODO")
+    case conn.body_params do
+      %{
+        "worker" => %Worker{} = worker,
+        "job" => %Job{} = job,
+        "status" => status,
+        "comment" => comment
+      } ->
+        if worker.current_job_id != job.id do
+          text(conn, 400, "worker is not assigned that job")
+        else
+          text(conn, 500, "TODO")
+        end
+
+      _ ->
+        errs = conn.private.preload_errors
+
+        cond do
+          errs.worker === :worker_not_found -> text(conn, 400, "worker does not exist")
+          errs.job === :job_not_found -> text(conn, 400, "job does not exist")
+          true -> text(conn, 500, "couldn't look up required resources")
+        end
+    end
   end
 
   match _ do

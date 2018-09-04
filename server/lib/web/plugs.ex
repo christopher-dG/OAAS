@@ -4,8 +4,9 @@ defmodule ReplayFarm.Web.Plugs do
   import Plug.Conn
   require Logger
 
-  alias ReplayFarm.Workers
-  alias ReplayFarm.Jobs
+  alias ReplayFarm.Worker
+  alias ReplayFarm.Job
+  alias ReplayFarm.Key
 
   @doc "Sends a text response."
   def text(conn, status, text) when is_integer(status) and is_binary(text) do
@@ -32,7 +33,7 @@ defmodule ReplayFarm.Web.Plugs do
     else
       case get_req_header(conn, "authorization") do
         [key] ->
-          case ReplayFarm.Keys.get_keys() do
+          case Key.get() do
             {:ok, keys} ->
               if key in keys do
                 conn
@@ -87,18 +88,18 @@ defmodule ReplayFarm.Web.Plugs do
     w = conn.body_params["worker"]
     j = conn.body_params["job"]
 
-    conn = put_private(conn, :preload_errors, %{})
+    conn = put_private(conn, :preload_errors, %{worker: nil, job: nil})
 
     conn =
       unless is_nil(w) do
-        case Workers.get_worker(w) do
+        case Worker.get(w) do
           {:ok, worker} ->
             Logger.debug("preloaded worker #{w}")
             %{conn | body_params: %{conn.body_params | "worker" => worker}}
 
           {:error, err} ->
             Logger.warn("preloading worker #{w} failed: #{inspect(err)}")
-            put_private(conn, :preload_errors, Map.put(conn.private.preload_errors, :worker, err))
+            put_private(conn, :preload_errors, %{conn.private.preload_errors | worker: err})
         end
       else
         conn
@@ -106,14 +107,14 @@ defmodule ReplayFarm.Web.Plugs do
 
     conn =
       unless is_nil(j) do
-        case Jobs.get_job(j) do
+        case Job.get(j) do
           {:ok, job} ->
             Logger.debug("preloaded job #{j}")
             %{conn | body_params: %{conn.body_params | "job" => job}}
 
           {:error, err} ->
             Logger.warn("preloading job #{j} failed: #{inspect(err)}")
-            put_private(conn, :preload_errors, Map.put(conn.private.preload_errors, :job, err))
+            put_private(conn, :preload_errors, %{conn.private.preload_errors | job: err})
         end
       else
         conn
