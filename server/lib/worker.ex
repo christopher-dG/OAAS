@@ -24,30 +24,25 @@ defmodule ReplayFarm.Worker do
   @online_threshold 30_000
 
   @doc "Gets all online workers."
-  @spec get(:online) :: {:ok, [t]} | {:error, term}
-  def get(:online) do
+  @spec get!(:online) :: {:ok, [t]} | {:error, term}
+  def get!(:online) do
     sql = "SELECT * FROM #{@table} WHERE ABS(?1 - last_poll) <= ?2"
 
-    case DB.query(sql, bind: [System.system_time(:millisecond), @online_threshold]) do
-      {:ok, ws} -> {:ok, Enum.map(ws, &struct(__MODULE__, &1))}
-      {:error, err} -> {:error, err}
-    end
+    DB.query!(sql, bind: [System.system_time(:millisecond), @online_threshold])
+    |> Enum.map(&struct(__MODULE__, &1))
   end
 
   use Model
 
   @doc "Gets the worker's currently assigned job."
-  @spec get_assigned(binary | t) :: {:ok, Job.t() | nil} | {:error, term}
-  def get_assigned(_w)
+  @spec get_assigned!(binary | t) :: {:ok, Job.t() | nil} | {:error, term}
+  def get_assigned!(_w)
 
-  def get_assigned(id) when is_binary(id) do
-    case get(id) do
-      {:ok, w} -> get_assigned(w)
-      {:error, err} -> {:error, err}
-    end
+  def get_assigned!(id) when is_binary(id) do
+    get!(id) |> get_assigned!()
   end
 
-  def get_assigned(%__MODULE__{} = w) do
-    if(is_nil(w.current_job_id), do: {:ok, nil}, else: Job.get(w.current_job_id))
+  def get_assigned!(%__MODULE__{} = w) do
+    if(is_nil(w.current_job_id), do: nil, else: Job.get!(w.current_job_id))
   end
 end

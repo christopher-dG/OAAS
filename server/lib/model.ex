@@ -6,35 +6,28 @@ defmodule ReplayFarm.Model do
       @model String.slice(@table, 0, String.length(@table) - 1)
 
       @doc "Gets all models, or a single model by ID."
-      def get(_)
+      def get!(_)
 
-      @spec get :: {:ok, [t]} | {:error, term}
-      def get do
+      @spec get! :: [t]
+      def get! do
         sql = "SELECT * FROM #{@table}"
-
-        case DB.query(sql, decode: @json_columns) do
-          {:ok, ms} -> Enum.map(ms, &struct(__MODULE__, &1))
-          {:error, err} -> {:error, err}
-          _ -> {:error, :unknown}
-        end
+        DB.query!(sql, decode: @json_columns) |> Enum.map(&struct(__MODULE__, &1))
       end
 
-      @spec get(term) :: {:ok, t} | {:error, term}
-      def get(id) do
+      @spec get!(term) :: t | nil
+      def get!(id) do
         sql = "SELECT * FROM #{@table} WHERE id = ?1"
         bind = [id]
 
-        case DB.query(sql, bind: bind, decode: @json_columns) do
-          {:ok, []} -> {:error, :"#{@model}_not_found"}
-          {:ok, [m]} -> {:ok, struct(__MODULE__, m)}
-          {:error, err} -> {:error, err}
-          _ -> {:error, :unknown}
+        case DB.query!(sql, bind: bind, decode: @json_columns) do
+          [] -> nil
+          [m] -> struct(__MODULE__, m)
         end
       end
 
       @doc "Insert a new model."
-      @spec put(keyword) :: {:ok, t} | {:error, term}
-      def put(cols) when is_list(cols) do
+      @spec put!(keyword) :: t
+      def put!(cols) when is_list(cols) do
         now = System.system_time(:millisecond)
         cols = Keyword.merge([created_at: now, updated_at: now], cols)
 
@@ -48,25 +41,21 @@ defmodule ReplayFarm.Model do
         bind = Keyword.values(cols)
         id = Keyword.get(cols, :id)
 
-        case DB.query(sql, bind: bind) do
-          {:ok, _} ->
-            if is_nil(id) do
-              case DB.query("SELECT LAST_INSERT_ROWID()") do
-                {:ok, [%{"LAST_INSERT_ROWID()": id}]} -> get(id)
-                {:error, err} -> {:error, err}
-              end
-            else
-              get(id)
-            end
+        DB.query!(sql, bind: bind)
 
-          {:error, err} ->
-            {:error, err}
-        end
+        id =
+          if is_nil(id) do
+            DB.query!("SELECT LAST_INSERT_ROWID()")[:"LAST_INSERT_ROWID()"]
+          else
+            id
+          end
+
+        get!(id)
       end
 
       @doc "Updates a model."
-      @spec update(t, keyword) :: {:ok, t} | {:error, term}
-      def update(%__MODULE__{} = m, cols) when is_list(cols) do
+      @spec update!(t, keyword) :: t
+      def update!(%__MODULE__{} = m, cols) when is_list(cols) do
         cols = Keyword.put_new(cols, :updated_at, System.system_time(:millisecond))
 
         sql =
@@ -78,10 +67,8 @@ defmodule ReplayFarm.Model do
 
         binds = Keyword.values(cols) ++ [m.id]
 
-        case DB.query(sql, bind: binds) do
-          {:ok, _} -> get(m.id)
-          {:error, err} -> {:error, err}
-        end
+        DB.query!(sql, bind: binds)
+        get!(m.id)
       end
     end
   end

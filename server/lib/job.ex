@@ -1,6 +1,20 @@
 defmodule ReplayFarm.Job do
   @moduledoc "Jobs are recording/uploading tasks to be completed."
 
+  @status %{
+    pending: 0,
+    assigned: 1,
+    recording: 2,
+    uploading: 3,
+    successful: 4,
+    failed: 5
+  }
+
+  @doc "Accesses the job status enum."
+  def status(k) when is_atom(k) do
+    @status[k]
+  end
+
   alias ReplayFarm.Model
 
   @table "jobs"

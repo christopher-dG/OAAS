@@ -13,6 +13,11 @@ defmodule ReplayFarm.Web.Plugs do
     conn |> put_resp_content_type("text/plain") |> send_resp(status, text)
   end
 
+  @doc "Sends a 500 response."
+  def error(conn) do
+    text(conn, 500, "internal server error")
+  end
+
   @doc "Sends a JSON response."
   def json(conn, status, data) when is_integer(status) do
     case Jason.encode(data) do
@@ -21,7 +26,7 @@ defmodule ReplayFarm.Web.Plugs do
 
       {:error, err} ->
         Logger.error("encoding response failed: #{inspect(err)}")
-        text(conn, 500, "couldn't encode response")
+        error(conn)
     end
   end
 
@@ -33,17 +38,14 @@ defmodule ReplayFarm.Web.Plugs do
     else
       case get_req_header(conn, "authorization") do
         [key] ->
-          case Key.get() do
-            {:ok, keys} ->
-              if key in keys do
-                conn
-              else
-                conn |> text(400, "invalid API key") |> halt()
-              end
-
-            {:error, err} ->
-              Logger.error("retrieving keys failed: #{inspect(err)}")
-              conn |> text(500, "couldn't check API key") |> halt()
+          try do
+            if key in Key.get!() do
+              conn
+            else
+              conn |> text(400, "invalid API key") |> halt()
+            end
+          rescue
+            e -> Logger.info("getting keys failed: #{inspect(e)}") && conn |> error() |> halt()
           end
 
         [] ->
@@ -88,36 +90,30 @@ defmodule ReplayFarm.Web.Plugs do
     w = conn.body_params["worker"]
     j = conn.body_params["job"]
 
-    conn = put_private(conn, :preload_errors, %{worker: nil, job: nil})
+    conn = put_private(conn, :preloads, %{worker: nil, job: nil})
 
     conn =
-      unless is_nil(w) do
-        case Worker.get(w) do
-          {:ok, worker} ->
-            Logger.debug("preloaded worker #{w}")
-            %{conn | body_params: %{conn.body_params | "worker" => worker}}
-
-          {:error, err} ->
-            Logger.warn("preloading worker #{w} failed: #{inspect(err)}")
-            put_private(conn, :preload_errors, %{conn.private.preload_errors | worker: err})
-        end
-      else
+      if is_nil(w) do
         conn
+      else
+        try do
+          worker = Worker.get!(w)
+          put_private(conn, :preloads, %{conn.private.preloads | worker: worker})
+        rescue
+          e -> Logger.info("preloading worker #{w} failed: #{inspect(e)}") && conn
+        end
       end
 
     conn =
-      unless is_nil(j) do
-        case Job.get(j) do
-          {:ok, job} ->
-            Logger.debug("preloaded job #{j}")
-            %{conn | body_params: %{conn.body_params | "job" => job}}
-
-          {:error, err} ->
-            Logger.warn("preloading job #{j} failed: #{inspect(err)}")
-            put_private(conn, :preload_errors, %{conn.private.preload_errors | job: err})
-        end
-      else
+      if is_nil(j) do
         conn
+      else
+        try do
+          job = Job.get!(j)
+          put_private(conn, :preloads, %{conn.private.preloads | job: job})
+        rescue
+          e -> Logger.info("preloading job #{j} failed: #{inspect(e)}") && conn
+        end
       end
 
     conn
