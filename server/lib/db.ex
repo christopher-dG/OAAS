@@ -1,8 +1,6 @@
 defmodule ReplayFarm.DB do
   @moduledoc "The database wrapper."
 
-  require Logger
-
   @schema [
     "CREATE TABLE IF NOT EXISTS keys(
       key TEXT PRIMARY KEY

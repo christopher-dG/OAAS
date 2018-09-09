@@ -56,7 +56,7 @@ defmodule ReplayFarm.Worker do
   def get_or_put!(id) when is_binary(id) do
     # We could do one less query with "INSERT OR IGNORE" but it's not worth the effort.
     case get!(id) do
-      nil -> Logger.info("inserting new worker #{id}") && put!(id: id)
+      nil -> Logger.info("Inserting new worker #{id}") && put!(id: id)
       w -> w
     end
   end

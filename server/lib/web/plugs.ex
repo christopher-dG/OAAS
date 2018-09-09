@@ -25,7 +25,7 @@ defmodule ReplayFarm.Web.Plugs do
         conn |> put_resp_content_type("application/json") |> send_resp(status, encoded)
 
       {:error, err} ->
-        Logger.error("encoding response failed: #{inspect(err)}")
+        Logger.error("Encoding response failed: #{inspect(err)}")
         error(conn)
     end
   end
@@ -45,7 +45,7 @@ defmodule ReplayFarm.Web.Plugs do
               conn |> text(400, "invalid API key") |> halt()
             end
           rescue
-            e -> Logger.info("getting keys failed: #{inspect(e)}") && conn |> error() |> halt()
+            e -> Logger.info("Getting keys failed: #{inspect(e)}") && conn |> error() |> halt()
           end
 
         [] ->
@@ -101,11 +101,11 @@ defmodule ReplayFarm.Web.Plugs do
       else
         try do
           worker = Worker.get!(w)
-          worker || Logger.warn("tried to preload worker #{w}, does not exist")
+          worker || Logger.warn("Tried to preload worker #{w}, does not exist")
           put_private(conn, :preloads, %{conn.private.preloads | worker: worker})
         rescue
           e ->
-            Logger.info("preloading worker #{w} failed: #{inspect(e)}") &&
+            Logger.info("Preloading worker #{w} failed: #{inspect(e)}") &&
               put_private(conn, :preloads, %{conn.private.preloads | worker: :error})
         end
       end
@@ -116,11 +116,11 @@ defmodule ReplayFarm.Web.Plugs do
       else
         try do
           job = Job.get!(j)
-          job || Logger.warn("tried to preload job #{j}, does not exist")
+          job || Logger.warn("Tried to preload job #{j}, does not exist")
           put_private(conn, :preloads, %{conn.private.preloads | job: job})
         rescue
           e ->
-            Logger.info("preloading job #{j} failed: #{inspect(e)}") &&
+            Logger.info("Preloading job #{j} failed: #{inspect(e)}") &&
               put_private(conn, :preloads, %{conn.private.preloads | job: :error})
         end
       end

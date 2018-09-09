@@ -76,7 +76,7 @@ defmodule ReplayFarm.Model do
                     val
 
                   {:error, err} ->
-                    Logger.warn("encoding column #{k} failed: #{inspect(err)}")
+                    Logger.warn("Encoding column #{k} failed: #{inspect(err)}")
                     v
                 end
               else
@@ -98,7 +98,7 @@ defmodule ReplayFarm.Model do
                         {k, val}
 
                       {:error, err} ->
-                        Logger.warn("decoding column #{k} failed: #{inspect(err)}") && {k, v}
+                        Logger.warn("Decoding column #{k} failed: #{inspect(err)}") && {k, v}
                     end
                   else
                     {k, v}

@@ -1,6 +1,8 @@
 defmodule ReplayFarm.Job do
   @moduledoc "Jobs are recording/uploading tasks to be completed."
 
+  require Logger
+
   @doc "Defines the job status enum."
   def status(_s)
 
@@ -72,14 +74,14 @@ defmodule ReplayFarm.Job do
     case HTTPoison.get(@skins_api <> username) do
       {:ok, resp} ->
         if resp.body === "" do
-          Logger.warn("no skin available for user #{username}")
+          Logger.warn("No skin available for user #{username}")
           nil
         else
           resp.body
         end
 
       {:error, err} ->
-        Logger.warn("couldn't get skin for user #{username}: #{inspect(err)}")
+        Logger.warn("Couldn't get skin for user #{username}: #{inspect(err)}")
         nil
     end
   end

@@ -22,7 +22,7 @@ defmodule ReplayFarm.Queue do
   end
 
   def handle_info(:work, state) do
-    Logger.info("processing job queue")
+    Logger.info("Processing job queue")
 
     try do
       clear_stalled()
