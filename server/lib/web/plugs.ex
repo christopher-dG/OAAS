@@ -70,7 +70,7 @@ defmodule ReplayFarm.Web.Plugs do
         ["status"] ->
           case conn.body_params do
             %{"worker" => w, "job" => j, "status" => s, "comment" => c}
-            when is_binary(w) and is_integer(j) and is_integer(s) and is_binary(c) ->
+            when is_binary(w) and is_integer(j) and is_integer(s) and (is_binary(c) or is_nil(c)) ->
               conn
 
             _ ->
@@ -90,7 +90,10 @@ defmodule ReplayFarm.Web.Plugs do
     w = conn.body_params["worker"]
     j = conn.body_params["job"]
 
-    conn = put_private(conn, :preloads, %{worker: nil, job: nil})
+    # The preloads map fields will be :missing if they weren't provided in the request.
+    # If there's an error preloading, the field is :error.
+    # Otherwise, it's the model or nil.
+    conn = put_private(conn, :preloads, %{worker: :missing, job: :missing})
 
     conn =
       if is_nil(w) do
@@ -98,9 +101,12 @@ defmodule ReplayFarm.Web.Plugs do
       else
         try do
           worker = Worker.get!(w)
+          worker || Logger.warn("tried to preload worker #{w}, does not exist")
           put_private(conn, :preloads, %{conn.private.preloads | worker: worker})
         rescue
-          e -> Logger.info("preloading worker #{w} failed: #{inspect(e)}") && conn
+          e ->
+            Logger.info("preloading worker #{w} failed: #{inspect(e)}") &&
+              put_private(conn, :preloads, %{conn.private.preloads | worker: :error})
         end
       end
 
@@ -110,9 +116,12 @@ defmodule ReplayFarm.Web.Plugs do
       else
         try do
           job = Job.get!(j)
+          job || Logger.warn("tried to preload job #{j}, does not exist")
           put_private(conn, :preloads, %{conn.private.preloads | job: job})
         rescue
-          e -> Logger.info("preloading job #{j} failed: #{inspect(e)}") && conn
+          e ->
+            Logger.info("preloading job #{j} failed: #{inspect(e)}") &&
+              put_private(conn, :preloads, %{conn.private.preloads | job: :error})
         end
       end
 

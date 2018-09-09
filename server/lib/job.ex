@@ -15,8 +15,6 @@ defmodule ReplayFarm.Job do
     @status[k]
   end
 
-  alias ReplayFarm.Model
-
   @table "jobs"
 
   @derive Jason.Encoder
@@ -51,5 +49,5 @@ defmodule ReplayFarm.Job do
 
   @json_columns [:player, :beatmap, :skin, :post]
 
-  use Model
+  use ReplayFarm.Model
 end

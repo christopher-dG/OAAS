@@ -8,6 +8,9 @@ defmodule ReplayFarm.Web.Router do
   require Logger
 
   alias ReplayFarm.Worker
+  alias ReplayFarm.Job
+  alias ReplayFarm.DB
+  require DB
 
   plug(Plug.Logger)
   plug(Plug.Parsers, parsers: [:json], pass: ["*/*"], json_decoder: Jason)
@@ -17,39 +20,35 @@ defmodule ReplayFarm.Web.Router do
   plug(:preload)
   plug(:dispatch)
 
-  # Helpers
-
-  @doc "Starts the server (useful when running with --no-start)."
-  def start do
-    Plug.Adapters.Cowboy2.http(__MODULE__, port: Application.get_env(:replay_farm, :port))
-  end
-
-  # Endpoints
-
   post "/poll" do
-    case conn.private.preloads.worker do
-      nil ->
-        id = conn.body_params["worker"]
-        Logger.info("inserting new worker #{id}")
-        Worker.put!(id: id, last_poll: System.system_time(:millisecond))
-        send_resp(conn, 204, "")
+    w =
+      Worker.get_or_put!(conn.body_params["worker"])
+      |> Worker.update!(last_poll: System.system_time(:millisecond))
 
-      w ->
-        w = Worker.update!(w, last_poll: System.system_time(:millisecond))
-
-        case Worker.get_assigned!(w) do
-          nil ->
-            send_resp(conn, 204, "")
-
-          job ->
-            Logger.info("sending job #{job.id} to worker #{w.id}")
-            json(conn, 200, job)
-        end
+    case Worker.get_assigned!(w) do
+      nil -> send_resp(conn, 204, "")
+      j -> Logger.info("sending job #{j.id} to worker #{w.id}") && json(conn, 200, j)
     end
   end
 
   post "/status" do
-    error(conn)
+    with %Worker{} = worker <- conn.private.preloads.worker,
+         %Job{} = job <- conn.private.preloads.job do
+      status = conn.body_params["status"]
+      comment = conn.body_params["comment"] || job.comment
+
+      if worker.current_job_id !== job.id do
+        text(conn, 400, "worker is not assigned that job")
+      else
+        DB.transaction! do
+          Job.update!(job, status: status, comment: comment)
+          status > Job.status(:successful) && Worker.update!(worker, current_job_id: nil)
+        end
+      end
+    else
+      :error -> error(conn)
+      nil -> text(conn, 400, "worker or job does not exist")
+    end
   end
 
   match _ do
