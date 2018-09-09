@@ -34,8 +34,8 @@ type Job struct {
 		Artist       string `json:"artist"`        // Song artist.
 		Title        string `json:"title"`         // Song title.
 		Version      string `json:"version"`       // Diff name.
-		Mode         int    `json:"mode"`          // Game mode.
 	} `json:"beatmap"` // Beatmap played.
+	Mode   int    `json:"mode"`   // Game mode.
 	Replay string `json:"replay"` // Base64-encoded replay file.
 	Skin   *struct {
 		Name string `json:"name"` // Skin name.

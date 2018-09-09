@@ -39,7 +39,7 @@ defmodule ReplayFarm.Model do
 
         cols
         |> Keyword.get_lazy(:id, fn ->
-          query!("SELECT LAST_INSERT_ROWID()")[:"LAST_INSERT_ROWID()"]
+          query!("SELECT LAST_INSERT_ROWID()") |> hd() |> Map.get(:"LAST_INSERT_ROWID()")
         end)
         |> get!()
       end
@@ -93,7 +93,7 @@ defmodule ReplayFarm.Model do
               Enum.map(results, fn row ->
                 Enum.map(row, fn {k, v} ->
                   if k in @json_columns do
-                    case Jason.decode(v) do
+                    case Jason.decode(v || "null") do
                       {:ok, val} ->
                         {k, val}
 

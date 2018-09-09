@@ -31,4 +31,8 @@ use Mix.Config
 
 config :nostrum, token: System.get_env("DISCORD_TOKEN")
 
-config :replay_farm, port: 4000
+config :osu_api, api_key: System.get_env("OSU_API_KEY")
+
+config :replay_farm,
+  port: 4000,
+  discord_channel: System.get_env("DISCORD_CHANNEL")

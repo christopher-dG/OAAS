@@ -42,8 +42,10 @@ defmodule ReplayFarm.Web.Router do
       else
         DB.transaction! do
           Job.update!(job, status: status, comment: comment)
-          status > Job.status(:successful) && Worker.update!(worker, current_job_id: nil)
+          Job.finished(status) && Worker.update!(worker, current_job_id: nil)
         end
+
+        send_resp(conn, 204, "")
       end
     else
       :error -> error(conn)

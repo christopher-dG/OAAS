@@ -18,6 +18,7 @@ defmodule ReplayFarm.DB do
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       player TEXT NOT NULL,   -- JSON
       beatmap TEXT NOT NULL,  -- JSON
+      mode INTEGER NOT NULL,
       replay TEXT NOT NULL,
       skin TEXT,  -- JSON
       post TEXT,  -- JSON
