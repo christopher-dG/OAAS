@@ -10,6 +10,7 @@ defmodule ReplayFarm.Web.Router do
   alias ReplayFarm.Worker
   alias ReplayFarm.Job
   alias ReplayFarm.DB
+  alias ReplayFarm.Discord.Utils, as: Discord
   require DB
 
   plug(Plug.Logger)
@@ -27,23 +28,27 @@ defmodule ReplayFarm.Web.Router do
 
     case Worker.get_assigned!(w) do
       nil -> send_resp(conn, 204, "")
-      j -> Logger.info("sending job #{j.id} to worker #{w.id}") && json(conn, 200, j)
+      j -> Logger.info("Sending job #{j.id} to worker #{w.id}") && json(conn, 200, j)
     end
   end
 
   post "/status" do
-    with %Worker{} = worker <- conn.private.preloads.worker,
-         %Job{} = job <- conn.private.preloads.job do
+    with %Worker{} = w <- conn.private.preloads.worker,
+         %Job{} = j <- conn.private.preloads.job do
       status = conn.body_params["status"]
-      comment = conn.body_params["comment"] || job.comment
+      comment = conn.body_params["comment"] || j.comment
 
-      if worker.current_job_id !== job.id do
+      if w.current_job_id !== j.id do
         text(conn, 400, "worker is not assigned that job")
       else
         DB.transaction! do
-          Job.update!(job, status: status, comment: comment)
-          Job.finished(status) && Worker.update!(worker, current_job_id: nil)
+          Job.update!(j, status: status, comment: comment)
+          Job.finished(status) && Worker.update!(w, current_job_id: nil)
         end
+
+        Discord.send_message(
+          "Job `#{j.id}` updated to status `#{Job.status(status)}` by worker `#{w.id}`."
+        )
 
         send_resp(conn, 204, "")
       end

@@ -60,4 +60,18 @@ defmodule ReplayFarm.Worker do
       w -> w
     end
   end
+
+  @doc "Chooses an online worker by LRU."
+  @spec get_lru! :: t | nil
+  def get_lru! do
+    case get_online!() do
+      [] ->
+        nil
+
+      ws ->
+        ws
+        |> Enum.sort_by(fn w -> w.last_job || 0 end)
+        |> hd()
+    end
+  end
 end

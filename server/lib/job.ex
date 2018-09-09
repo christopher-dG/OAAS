@@ -1,19 +1,24 @@
 defmodule ReplayFarm.Job do
   @moduledoc "Jobs are recording/uploading tasks to be completed."
 
-  @status %{
-    pending: 0,
-    assigned: 1,
-    recording: 2,
-    uploading: 3,
-    successful: 4,
-    failed: 5
-  }
+  @doc "Defines the job status enum."
+  def status(_s)
 
-  @doc "Accesses the job status enum."
-  def status(k) when is_atom(k) do
-    @status[k]
-  end
+  @spec status(atom) :: integer
+  def status(:pending), do: 0
+  def status(:assigned), do: 1
+  def status(:recording), do: 2
+  def status(:uploading), do: 3
+  def status(:successful), do: 4
+  def status(:failed), do: 5
+
+  @spec status(integer) :: atom
+  def status(0), do: :pending
+  def status(1), do: :assigned
+  def status(2), do: :recording
+  def status(3), do: :uploading
+  def status(4), do: :successful
+  def status(5), do: :failed
 
   @doc "Checks whether a status indicates that the job is finished."
   @spec finished(integer) :: boolean
@@ -77,5 +82,37 @@ defmodule ReplayFarm.Job do
         Logger.warn("couldn't get skin for user #{username}: #{inspect(err)}")
         nil
     end
+  end
+
+  @timeouts %{
+    assigned: 60 * 1000,
+    recording: 10 * 60 * 1000,
+    uploading: 10 * 60 * 1000
+  }
+
+  @doc "Gets all jobs which are running but stalled."
+  @spec get_stalled! :: [t]
+  def get_stalled! do
+    now = System.system_time(:millisecond)
+
+    query!(
+      "SELECT * FROM #{@table} WHERE status BETWEEN ?1 AND ?2",
+      x: status(:assigned),
+      x: status(:uploading)
+    )
+    |> Enum.flat_map(fn j ->
+      if abs(now - j.updated_at) < @timeouts[status(j.status)] do
+        []
+      else
+        [struct(__MODULE__, j)]
+      end
+    end)
+  end
+
+  @doc "Gets all pending jobs."
+  @spec get_pending! :: [t]
+  def get_pending! do
+    query!("SELECT * FROM #{@table} WHERE status = ?1", x: status(:pending))
+    |> Enum.map(&struct(__MODULE__, &1))
   end
 end

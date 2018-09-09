@@ -15,7 +15,7 @@ defmodule ReplayFarm.Discord.Utils do
   @doc "Sends a message to the discord channel."
   @spec send_message(binary) :: :ok
   def send_message(msg) do
-    Logger.info("sending message: #{msg}")
+    Logger.info("#{msg} (sent to Discord)")
 
     case Api.create_message(channel(), content: msg) do
       {:ok, _} -> :ok

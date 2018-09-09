@@ -16,6 +16,7 @@ defmodule ReplayFarm.Application do
         id: Sqlitex.Server
       },
       {ReplayFarm.DB, []},
+      {ReplayFarm.Queue, []},
       {ReplayFarm.Discord.Consumer, []},
       {Plug.Adapters.Cowboy2,
        scheme: :http,
