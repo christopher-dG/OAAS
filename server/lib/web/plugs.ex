@@ -42,16 +42,19 @@ defmodule ReplayFarm.Web.Plugs do
             if key in Key.get!() do
               conn
             else
+              Logger.info("blocked request with invalid API key")
               conn |> text(400, "invalid API key") |> halt()
             end
           rescue
-            e -> Logger.info("Getting keys failed: #{inspect(e)}") && conn |> error() |> halt()
+            e -> Logger.error("Getting keys failed: #{inspect(e)}") && conn |> error() |> halt()
           end
 
         [] ->
+          Logger.info("blocked request with missing API key")
           conn |> text(400, "missing API key") |> halt()
 
         _ ->
+          Logger.info("blocked request with invalid API key")
           conn |> text(400, "invalid API key") |> halt()
       end
     end

@@ -68,8 +68,8 @@ defmodule ReplayFarm.Job do
 
   @skins_api "https://circle-people.com/skins-api.php?player="
 
-  @doc "Gets the skin URL for a user."
-  @spec skin(map) :: binary | nil
+  @doc "Gets the skin name and URL for a user."
+  @spec skin(map) :: map | nil
   def skin(%{username: username}) do
     case HTTPoison.get(@skins_api <> username) do
       {:ok, resp} ->
@@ -77,7 +77,10 @@ defmodule ReplayFarm.Job do
           Logger.warn("No skin available for user #{username}")
           nil
         else
-          resp.body
+          %{
+            name: resp.body |> String.split("/") |> List.last() |> String.trim_trailing(".osk"),
+            url: resp.body
+          }
         end
 
       {:error, err} ->
@@ -87,7 +90,7 @@ defmodule ReplayFarm.Job do
   end
 
   @timeouts %{
-    assigned: 60 * 1000,
+    assigned: 90 * 1000,
     recording: 10 * 60 * 1000,
     uploading: 10 * 60 * 1000
   }

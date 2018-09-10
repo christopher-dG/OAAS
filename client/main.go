@@ -26,7 +26,7 @@ const (
 
 var (
 	pathFlag   = flag.String("c", "", "path to configuration file") // Config path flag.
-	httpClient = http.Client{Timeout: time.Second * 3}              // HTTP client.
+	httpClient = http.Client{Timeout: time.Second * 10}             // HTTP client.
 	httpLogger = log.New(os.Stdout, "[http] ", log.LstdFlags)       // Logger for HTTP requests.
 	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags)      // Logger for polling.
 
@@ -62,17 +62,6 @@ var (
 		}
 		return fmt.Sprintf("%s-%s", username, string(token))
 	}()
-
-	// Polling request that will be sent at a regular interval.
-	pollReq = func() *http.Request {
-		b := []byte(fmt.Sprintf(`{"worker":"%s"}`, workerID))
-		req, err := http.NewRequest(http.MethodPost, config.ApiURL+pollRoute, bytes.NewBuffer(b))
-		if err != nil {
-			log.Fatal(err)
-		}
-		req.Header.Set("Authorization", config.ApiKey)
-		return req
-	}()
 )
 
 func main() {
@@ -92,14 +81,36 @@ func poll(jobs chan Job) {
 	}
 }
 
+func headers(r *http.Request) {
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Authorization", config.ApiKey)
+}
+
 func pollOnce(jobs chan Job) {
-	resp, err := httpClient.Do(pollReq)
+	b := []byte(fmt.Sprintf(`{"worker":"%s"}`, workerID))
+	req, err := http.NewRequest(http.MethodPost, config.ApiURL+pollRoute, bytes.NewBuffer(b))
+	if err != nil {
+		pollLogger.Println("couldn't create request:", err)
+		return
+	}
+	headers(req)
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		pollLogger.Println("error making request:", err)
 		return
 	}
+
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		pollLogger.Println("couldn't read response body:", err)
+		return
+	}
+
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		pollLogger.Println("unexpected status code:", strconv.Itoa(resp.StatusCode))
+		pollLogger.Println("body:", string(respBody))
 		return
 	}
 
@@ -108,8 +119,6 @@ func pollOnce(jobs chan Job) {
 		return
 	}
 
-	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		pollLogger.Println("couldn't read response body:", err)
 		return
@@ -146,20 +155,25 @@ func fail(j Job, context string, err error) {
 // postJobsStatus makes an HTTP POST request to the API's /jobs/status endpoint.
 func postStatus(body map[string]interface{}) (*http.Response, error) {
 	httpLogger.Println("POST:", statusRoute)
+
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
+
 	httpLogger.Println("request body:", string(b))
+
 	req, err := http.NewRequest(http.MethodPost, config.ApiURL+statusRoute, bytes.NewBuffer(b))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", config.ApiKey)
+	headers(req)
+
 	resp, err := httpClient.Do(req)
 	if err == nil {
 		httpLogger.Println("status code:", resp.StatusCode)
 	}
+
 	return resp, err
 }
 

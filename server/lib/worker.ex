@@ -23,13 +23,11 @@ defmodule ReplayFarm.Worker do
 
   use ReplayFarm.Model
 
-  # 30 seconds.
-  @online_threshold 30_000
+  @online_threshold 30 * 1000
 
   @doc "Gets all online workers."
   @spec get_online! :: [t]
   def get_online! do
-    # The binding keys don't matter here, they aren't column names.
     query!(
       "SELECT * FROM #{@table} WHERE ABS(?1 - last_poll) <= ?2",
       x: System.system_time(:millisecond),
@@ -48,7 +46,16 @@ defmodule ReplayFarm.Worker do
 
   @spec get_assigned!(t) :: Job.t() | nil
   def get_assigned!(%__MODULE__{} = w) do
-    if(is_nil(w.current_job_id), do: nil, else: Job.get!(w.current_job_id))
+    if is_nil(w.current_job_id) do
+      nil
+    else
+      assigned = Job.status(:assigned)
+
+      case Job.get!(w.current_job_id) do
+        %Job{status: ^assigned} = j -> j
+        _ -> nil
+      end
+    end
   end
 
   @doc "Retrieves a worker, or creates a new one."
