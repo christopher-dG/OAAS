@@ -38,7 +38,7 @@ defmodule ReplayFarm.DB do
   end
 
   def start_link(_opts) do
-    Enum.each(@schema, fn sql -> Sqlitex.Server.query(ReplayFarm.DB, sql) end)
+    Enum.each(@schema, fn sql -> Sqlitex.Server.query(__MODULE__, sql) end)
     {:ok, self()}
   end
 

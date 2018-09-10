@@ -25,7 +25,7 @@ defmodule ReplayFarm.Job do
   @doc "Checks whether a status indicates that the job is finished."
   @spec finished(integer) :: boolean
   def finished(stat) when is_integer(stat) do
-    stat > status(:successful)
+    stat >= status(:successful)
   end
 
   @table "jobs"

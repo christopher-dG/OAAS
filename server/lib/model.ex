@@ -3,6 +3,8 @@ defmodule ReplayFarm.Model do
     quote do
       require Logger
 
+      alias ReplayFarm.DB
+
       @model String.slice(@table, 0, String.length(@table) - 1)
 
       @doc "Gets all #{@table}, or a single #{@model} by ID."
@@ -87,7 +89,7 @@ defmodule ReplayFarm.Model do
             Keyword.values(bind)
           end
 
-        case Sqlitex.Server.query(ReplayFarm.DB, sql, bind: bind) do
+        case Sqlitex.Server.query(DB, sql, bind: bind) do
           {:ok, results} ->
             if op === "SELECT" do
               Enum.map(results, fn row ->

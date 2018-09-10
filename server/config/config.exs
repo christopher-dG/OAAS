@@ -34,5 +34,5 @@ config :nostrum, token: System.get_env("DISCORD_TOKEN")
 config :osu_api, api_key: System.get_env("OSU_API_KEY")
 
 config :replay_farm,
-  port: System.get_env("PORT") |> Integer.parse() |> elem(0),
+  port: System.get_env("PORT") || "4000" |> Integer.parse() |> elem(0),
   discord_channel: System.get_env("DISCORD_CHANNEL")
