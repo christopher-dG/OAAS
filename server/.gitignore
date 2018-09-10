@@ -23,4 +23,7 @@ erl_crash.dump
 replay_farm-*.tar
 
 # Ignore database files.
-priv/
+*.sqlite3
+
+# Ignore Python cache.
+__pycache__/
