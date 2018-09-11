@@ -67,11 +67,11 @@ defmodule ReplayFarm.Discord.Command do
   end
 
   defp exec!(%{command: :new, beatmap: b, replay: r}) do
-    beatmap = OsuAPI.get_beatmap!(b)
+    beatmap = OsuEx.API.get_beatmap!(b)
     resp = HTTPoison.get!(r)
-    replay = OsuReplayParser.parse!(resp.body)
+    replay = OsuEx.Replay.parse!(resp.body)
     mode = replay.mode
-    player = OsuAPI.get_user!(replay.player)
+    player = OsuEx.API.get_user!(replay.player)
 
     job =
       Job.put!(

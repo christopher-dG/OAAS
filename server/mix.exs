@@ -28,8 +28,7 @@ defmodule ReplayFarm.MixProject do
       {:export, "~> 0.1"},
       {:httpoison, "~> 1.3", override: true},
       {:jason, "~> 1.1"},
-      {:osu_api, "~> 0.1"},
-      {:osu_replay_parser, "~> 0.1"},
+      {:osu_ex, "~> 0.1"},
       {:plug, "~> 1.6"},
       {:sqlitex, "~> 1.4"},
       {:nostrum, git: "https://github.com/Kraigie/nostrum.git"}
