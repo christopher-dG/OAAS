@@ -41,11 +41,6 @@ type Job struct {
 		Name string `json:"name"` // Skin name.
 		URL  string `json:"url"`  // Skin download URL.
 	} `json:"skin"` // Skin to use (empty if default).
-	Post *struct {
-		ID     string `json:"id"`     // Post ID.
-		Title  string `json:"title"`  // Post title.
-		Author string `json:"author"` // Post author.
-	} `json:"post"` // Reddit post that triggered the job (null if not applicable).
 }
 
 // Process processes the job from start to finish.
