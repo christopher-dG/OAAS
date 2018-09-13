@@ -14,8 +14,12 @@ import (
 )
 
 const (
-	statusRoute = "/status"         // Endpoint to update job status.
-	defaultSkin = "rf-default-skin" // osu! skin to use when none is provided.
+	statusRoute  = "/status"         // Endpoint to update job status.
+	defaultSkin  = "rf-default-skin" // osu! skin to use when none is provided.
+	replayScaleX = 0.8546875
+	replayScaleY = 0.7555555555555555
+	graphScaleX  = 0.41354166666666664
+	graphScaleY  = 0.8296296296296296
 )
 
 var (
