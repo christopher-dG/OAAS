@@ -13,7 +13,10 @@ import (
 	"github.com/mholt/archiver"
 )
 
-const defaultSkin = "rf-default-skin"
+const (
+	statusRoute = "/status"         // Endpoint to update job status.
+	defaultSkin = "rf-default-skin" // osu! skin to use when none is provided.
+)
 
 var (
 	skinsDir    = filepath.Join(config.OsuRoot, "Skins")
@@ -75,7 +78,7 @@ func (j Job) getSkin() {
 		return
 	}
 
-	b, err := httpGet(j.Skin.URL)
+	b, err := getBody(j.Skin.URL)
 	if err != nil {
 		log.Println("couldn't download skin (using default):", err)
 		setSkin(defaultSkin)
@@ -148,7 +151,48 @@ func (j Job) getBeatmap() error {
 		}
 	}
 
-	// TODO: Download the mapset.
+	// TODO: Download the mapset, need some magic for this.
+	// Maybe the server could upload to S3 and give a presigned URL,
+	// but that would be redundant most of the time.
 
-	return errors.New("mapset not found")
+	return errors.New("mapset not found or downloaded")
+}
+
+// updateStatus updates the job's status.
+func (j Job) updateStatus(status int, comment *string) error {
+	log.Println("updating status ->", StatusMap[status])
+
+	resp, err := postRF(statusRoute, map[string]interface{}{
+		"worker":  workerID,
+		"job":     j.ID,
+		"status":  status,
+		"comment": comment,
+	})
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 204 {
+		return fmt.Errorf("non-204 status code: %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// fail updates the job status to FAILED.
+func (j Job) fail(context string, err error) {
+	var comment string
+	if context != "" && err != nil {
+		comment = fmt.Sprintf("%s: %v", context, err)
+	} else if context != "" {
+		comment = context
+	} else if err != nil {
+		comment = err.Error()
+	}
+
+	if comment != "" {
+		log.Println(comment)
+		j.updateStatus(StatusFailed, &comment)
+	} else {
+		j.updateStatus(StatusFailed, nil)
+	}
 }
