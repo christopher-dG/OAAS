@@ -18,6 +18,7 @@ var (
 	pathFlag = flag.String("c", "", "path to configuration file") // Config path flag.
 
 	config   ConfigFile // Runtime configuration.
+	localDir string     // Directory for local data.
 	username string     // Worker's username (used for osu! config file and worker ID).
 	workerID string     // Unique identifier for this worker.
 )
@@ -34,6 +35,11 @@ func init() {
 	if err = yaml.Unmarshal(b, &config); err != nil {
 		log.Fatal(err)
 	}
+	if err = config.Validate(); err != nil {
+		log.Fatal(err)
+	}
+
+	localDir = filepath.Join(config.OsuRoot, "Replay Farm")
 
 	usr, err := user.Current()
 	if err != nil {
@@ -41,7 +47,7 @@ func init() {
 	}
 	username = usr.Username
 
-	path := filepath.Join(config.OsuRoot, "rf-token")
+	path := filepath.Join(localDir, "id-token")
 	token, err := ioutil.ReadFile(path)
 	if err != nil {
 		token = []byte(fmt.Sprintf("%x", md5.Sum([]byte(strconv.Itoa(int(time.Now().Unix()))))))[:8]
