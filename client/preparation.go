@@ -113,7 +113,7 @@ func (j Job) getBeatmap() error {
 			continue
 		}
 
-		if strings.HasPrefix(f.Name(), strconv.Itoa(j.Beatmap.BeatmapsetID)+" ") {
+		if strings.HasPrefix(f.Name(), strconv.Itoa(j.BeatmapsetID)+" ") {
 			log.Println("found existing mapset:", f.Name())
 			return nil
 		}

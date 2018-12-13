@@ -10,29 +10,14 @@ const statusRoute = "/status" // Endpoint to update job status.
 
 // Job is a recording/uploading job to be completed by the worker.
 type Job struct {
-	ID     int `json:"id"` // Job ID.
-	Player struct {
-		UserID   int    `json:"user_id"`  // Player ID.
-		Username string `json:"username"` // Player name.
-	} `json:"player"`
-	Beatmap struct {
-		BeatmapID    int    `json:"beatmap_id"`    // Beatmap ID.
-		BeatmapsetID int    `json:"beatmapset_id"` // Mapset ID.
-		Artist       string `json:"artist"`        // Song artist.
-		Title        string `json:"title"`         // Song title.
-		Version      string `json:"version"`       // Diff name.
-		MaxCombo     int    `json:"max_combo"`     // Maximum combo.
-	} `json:"beatmap"` // Beatmap played.
-	Score struct {
-		Mods     int     `json:"mods"`     // Enabled mods (bitwise OR).
-		Accuracy float64 `json:"accuracy"` // Accuracy of the play (0-100).
-		PP       float64 `json:"pp"`       // pp earned.
-		Combo    int     `json:"combo"`    // Maximum combo achieved.
-		NMiss    int     `json:"nmiss"`    // Number of misses.
-	} `json:"score"`
-	Mode   int    `json:"mode"`   // Game mode.
-	Replay string `json:"replay"` // Base64-encoded replay file.
-	Skin   *struct {
+	ID           int    `json:"id"`            // Job ID.
+	BeatmapsetID int    `json:"beatmapset_id"` // ID of the play's beatmapset.
+	Replay       string `json:"replay"`        // Base64-encoded replay file.
+	YouTube      struct {
+		Title       string `json:"title"`       // Video title.
+		Description string `json:"description"` // Video description.
+	} `json:"youtube"` // YouTube video data.
+	Skin *struct {
 		Name string `json:"name"` // Skin name.
 		URL  string `json:"url"`  // Skin download URL.
 	} `json:"skin"` // Skin to use (empty if default).
