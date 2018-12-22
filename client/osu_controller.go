@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/go-vgo/robotgo"
 )
@@ -60,6 +61,13 @@ func ExitOsu() error {
 func StartReplay() {
 	robotgo.MoveMouse(int(math.Round(sizeX*replayScaleX)), int(math.Round(sizeY*replayScaleY)))
 	robotgo.MouseClick()
+	// Press space bar a few times to skip the intro.
+	go func() {
+		for i := 0; i < 5; i++ {
+			time.Sleep(time.Second)
+			robotgo.KeyTap("space")
+		}
+	}()
 }
 
 func ShowGraph() {

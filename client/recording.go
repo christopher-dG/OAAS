@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"github.com/go-vgo/robotgo"
 )
 
 // Record records the video.
@@ -35,18 +37,29 @@ func (j Job) Record() error {
 	// it's only here as a backup in case something goes wrong.
 	defer StopRecording()
 
-	mapLength := time.Second * 10 // TODO: Get the length of the map.
-	log.Println("waiting...")
-	time.Sleep(time.Second) // Give some time to see the score screen.
-	// StartReplay()
-	time.Sleep(mapLength)
-
-	// TODO: Press ESC to exit replay? We risk losing the score screen at that point.
-
-	log.Println("moving to graph")
+	// Wait on the results screen for a bit.
+	log.Println("waiting on score screen")
+	time.Sleep(time.Second * 5)
+	StartReplay()
+	// Wait for the map to end.
+	log.Println("waiting for map to end:", j.Beatmap.TotalLength)
+	time.Sleep(time.Second * time.Duration(j.Beatmap.TotalLength))
+	// Small buffer for map ending.
+	log.Println("waiting buffer")
+	time.Sleep(time.Second * 2)
+	// Move the cursor to the graph.
+	log.Println("showing graph")
 	ShowGraph()
-	time.Sleep(time.Second * 3) // Give some time to see the graph.
-	log.Println("stopping recording")
+	// Stay on the graph for some time.
+	log.Println("waiting on graph")
+	time.Sleep(time.Second * 5)
+	// Press escape to either quit a map's outro or go back to the leaderboard.
+	// Either case is fine.
+	log.Println("pressing esc")
+	robotgo.KeyTap("escape")
+	log.Println("waiting on score screen/leaderboard")
+	time.Sleep(time.Second * 5)
+
 	if err := StopRecording(); err != nil {
 		return err
 	}

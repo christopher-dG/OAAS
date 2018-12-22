@@ -11,19 +11,20 @@ defmodule WorkerTest do
 
   # We're going to use functions from Model freely here because they're tested elsewhere.
 
-  test "get_online!/0" do
+  test "get_available!/0" do
     now = System.system_time(:millisecond)
 
     Worker.put!(id: "a", last_poll: now)
     Worker.put!(id: "b", last_poll: now - 15_000)
     Worker.put!(id: "c", last_poll: now - 29_900)
     Worker.put!(id: "d", last_poll: now - 35_000)
+    Worker.put!(id: "e", last_poll: now - 29_900, current_job_id: 1)
 
-    assert [%Worker{id: "a"}, %Worker{id: "b"}, %Worker{id: "c"}] = Worker.get_online!()
+    assert [%Worker{id: "a"}, %Worker{id: "b"}, %Worker{id: "c"}] = Worker.get_available!()
 
     :timer.sleep(150)
 
-    assert [%Worker{id: "a"}, %Worker{id: "b"}] = Worker.get_online!()
+    assert [%Worker{id: "a"}, %Worker{id: "b"}] = Worker.get_available!()
   end
 
   test "get_assigned!/1" do

@@ -22,6 +22,7 @@ type Job struct {
 		Artist       string `json:"artist"`
 		Title        string `json:"title"`
 		Version      string `json:"version"`
+		TotalLength  int    `json:"total_length"`
 	} `json:"beatmap"` // Beatmap data.
 	Replay  string `json:"replay"` // Base64-encoded replay file.
 	YouTube struct {
