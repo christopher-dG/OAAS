@@ -7,7 +7,6 @@ defmodule ReplayFarm.Queue do
   alias ReplayFarm.Worker
   alias ReplayFarm.Job
   alias ReplayFarm.DB
-  alias ReplayFarm.Discord.Utils, as: Discord
   require DB
 
   @interval 60 * 1000
@@ -56,7 +55,7 @@ defmodule ReplayFarm.Queue do
         )
       end
 
-      Discord.send_message(
+      Logger.info(
         "unassigned job `#{j.id}` from worker `#{w.id}` (stalled at `#{Job.status(j.status)}`)"
       )
     end)
@@ -77,7 +76,7 @@ defmodule ReplayFarm.Queue do
             Job.update!(j, worker_id: w.id, status: Job.status(:assigned))
           end
 
-          Discord.send_message("Assigned job `#{j.id}` to worker `#{w.id}`.")
+          Logger.info("Assigned job `#{j.id}` to worker `#{w.id}`.")
       end
     end)
   end

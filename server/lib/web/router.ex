@@ -10,7 +10,6 @@ defmodule ReplayFarm.Web.Router do
   alias ReplayFarm.Worker
   alias ReplayFarm.Job
   alias ReplayFarm.DB
-  alias ReplayFarm.Discord.Utils, as: Discord
   require DB
 
   plug(Plug.Logger)
@@ -23,7 +22,8 @@ defmodule ReplayFarm.Web.Router do
 
   post "/poll" do
     w =
-      Worker.get_or_put!(conn.body_params["worker"])
+      conn.body_params["worker"]
+      |> Worker.get_or_put!()
       |> Worker.update!(last_poll: System.system_time(:millisecond))
 
     case Worker.get_assigned!(w) do
@@ -46,7 +46,7 @@ defmodule ReplayFarm.Web.Router do
           Job.finished(status) && Worker.update!(w, current_job_id: nil)
         end
 
-        Discord.send_message(
+        Logger.info(
           "Job `#{j.id}` updated to status `#{Job.status(status)}` by worker `#{w.id}`."
         )
 

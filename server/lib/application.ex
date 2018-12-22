@@ -17,7 +17,7 @@ defmodule ReplayFarm.Application do
       },
       {ReplayFarm.DB, []},
       {ReplayFarm.Queue, []},
-      {ReplayFarm.Reddit, []},
+      # {ReplayFarm.Reddit, []},
       {
         Plug.Cowboy,
         scheme: :http,
