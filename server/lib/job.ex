@@ -31,13 +31,12 @@ defmodule ReplayFarm.Job do
   @table "jobs"
 
   @derive Jason.Encoder
-  @enforce_keys [:id, :player, :beatmap, :mode, :replay, :status, :created_at, :updated_at]
+  @enforce_keys [:id, :beatmapset_id, :replay, :youtube, :status, :created_at, :updated_at]
   defstruct [
     :id,
-    :player,
-    :beatmap,
-    :mode,
+    :beatmapset_id,
     :replay,
+    :youtube,
     :skin,
     :post,
     :status,
@@ -49,10 +48,9 @@ defmodule ReplayFarm.Job do
 
   @type t :: %__MODULE__{
           id: integer,
-          player: map,
-          beatmap: map,
-          mode: integer,
+          beatmapset_id: integer,
           replay: binary,
+          youtube: map,
           skin: map | nil,
           post: map | nil,
           status: integer,
@@ -62,7 +60,7 @@ defmodule ReplayFarm.Job do
           updated_at: integer
         }
 
-  @json_columns [:player, :beatmap, :skin, :post]
+  @json_columns [:skin, :youtube, :post]
 
   use ReplayFarm.Model
 

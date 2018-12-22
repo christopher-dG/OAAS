@@ -14,6 +14,7 @@ defmodule ReplayFarm.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      applications: [:plug_cowboy],
       extra_applications: [:logger],
       mod: {ReplayFarm.Application, []}
     ]
@@ -24,14 +25,13 @@ defmodule ReplayFarm.MixProject do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
-      {:cowboy, "~> 2.4"},
+      {:cowboy, "~> 2.6"},
       {:export, "~> 0.1"},
-      {:httpoison, "~> 1.3", override: true},
+      {:httpoison, "~> 1.4"},
       {:jason, "~> 1.1"},
-      {:osu_ex, "~> 0.1"},
-      {:plug, "~> 1.6"},
-      {:sqlitex, "~> 1.4"},
-      {:nostrum, git: "https://github.com/Kraigie/nostrum.git"}
+      {:osu_ex, git: "https://github.com/christopher-dG/osu-ex.git"},
+      {:plug_cowboy, "~> 2.0"},
+      {:sqlitex, "~> 1.4"}
     ]
   end
 end
