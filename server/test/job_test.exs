@@ -14,7 +14,14 @@ defmodule JobTest do
   end
 
   defp put!(s \\ :pending, u \\ System.system_time(:millisecond)) do
-    Job.put!(player: %{}, beatmap: %{}, mode: 0, replay: "", status: Job.status(s), updated_at: u)
+    Job.put!(
+      player: %{},
+      beatmap: %{},
+      replay: "",
+      youtube: %{},
+      status: Job.status(s),
+      updated_at: u
+    )
   end
 
   test "put!/1 (autoincrementing ID)" do
@@ -37,10 +44,10 @@ defmodule JobTest do
   @tag :capture_log
   @tag :net
   test "skin/1" do
-    assert is_nil(Job.skin(%{username: ""}))
-    assert is_nil(Job.skin(%{username: "i"}))
+    assert is_nil(Job.skin(""))
+    assert is_nil(Job.skin("i"))
 
-    assert %{name: _n, url: "https://" <> _u} = Job.skin(%{username: "cookiezi"})
+    assert %{name: _n, url: "https://" <> _u} = Job.skin("cookiezi")
   end
 
   test "get_stalled!/0" do

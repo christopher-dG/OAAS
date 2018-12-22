@@ -9,7 +9,7 @@ defmodule ReplayFarm.Queue do
   alias ReplayFarm.DB
   require DB
 
-  @interval 60 * 1000
+  @interval 10 * 1000
 
   def start_link(_args) do
     GenServer.start_link(__MODULE__, %{})

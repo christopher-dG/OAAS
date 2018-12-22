@@ -1,4 +1,6 @@
 defmodule ReplayFarm.Model do
+  @moduledoc "A generic database model with some CRUD ops."
+
   defmacro __using__(_) do
     quote do
       require Logger
@@ -89,31 +91,27 @@ defmodule ReplayFarm.Model do
             Keyword.values(bind)
           end
 
-        case Sqlitex.Server.query(DB, sql, bind: bind) do
-          {:ok, results} ->
-            if op === "SELECT" do
-              Enum.map(results, fn row ->
-                Enum.map(row, fn {k, v} ->
-                  if k in @json_columns do
-                    case Jason.decode(v || "null") do
-                      {:ok, val} ->
-                        {k, val}
+        results = DB.query!(sql, bind: bind)
 
-                      {:error, err} ->
-                        Logger.warn("Decoding column #{k} failed: #{inspect(err)}") && {k, v}
-                    end
-                  else
-                    {k, v}
-                  end
-                end)
-                |> Map.new()
-              end)
-            else
-              results
-            end
+        if op === "SELECT" do
+          Enum.map(results, fn row ->
+            Enum.map(row, fn {k, v} ->
+              if k in @json_columns do
+                case Jason.decode(v || "null") do
+                  {:ok, val} ->
+                    {k, val}
 
-          {:error, err} ->
-            raise inspect(err)
+                  {:error, err} ->
+                    Logger.warn("Decoding column #{k} failed: #{inspect(err)}") && {k, v}
+                end
+              else
+                {k, v}
+              end
+            end)
+            |> Map.new()
+          end)
+        else
+          results
         end
       end
     end

@@ -9,6 +9,7 @@ defmodule ReplayFarm.DB do
       id TEXT PRIMARY KEY,
       last_poll INTEGER DEFAULT 0,
       last_job INTEGER,
+      current_job_id INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )",
@@ -16,11 +17,10 @@ defmodule ReplayFarm.DB do
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       player TEXT NOT NULL,   -- JSON
       beatmap TEXT NOT NULL,  -- JSON
-      mode INTEGER NOT NULL,
+      youtube TEXT NOT NULL,  -- JSON
       replay TEXT NOT NULL,
-      skin TEXT,  -- JSON
-      post TEXT,  -- JSON
       status INTEGER NOT NULL,
+      skin TEXT,  -- JSON
       comment TEXT,
       worker_id TEXT REFERENCES workers(id),
       created_at INTEGER NOT NULL,

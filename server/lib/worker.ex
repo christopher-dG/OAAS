@@ -8,14 +8,20 @@ defmodule ReplayFarm.Worker do
   @table "workers"
 
   @enforce_keys [:id, :last_poll, :created_at, :updated_at]
-  defstruct [:id, :last_poll, :last_job, :current_job_id, :created_at, :updated_at]
+  defstruct @enforce_keys ++ [:last_job, :current_job_id]
 
   @type t :: %__MODULE__{
+          # Worker ID.
           id: binary,
+          # Last poll time (unix).
           last_poll: integer,
+          # Last job time (unix).
           last_job: integer,
+          # Current job.
           current_job_id: integer,
+          # Worker creation time.
           created_at: integer,
+          # Worker update time.
           updated_at: integer
         }
 
@@ -41,7 +47,7 @@ defmodule ReplayFarm.Worker do
 
   @spec get_assigned!(binary) :: Job.t() | nil
   def get_assigned!(id) when is_binary(id) do
-    get!(id) |> get_assigned!()
+    id |> get!() |> get_assigned!()
   end
 
   @spec get_assigned!(t) :: Job.t() | nil

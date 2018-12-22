@@ -28,7 +28,9 @@ defmodule WorkerTest do
 
   test "get_assigned!/1" do
     w = Worker.put!(id: "i")
-    j = Job.put!(player: %{}, beatmap: %{}, mode: 0, replay: "", status: Job.status(:pending))
+
+    j =
+      Job.put!(player: %{}, beatmap: %{}, replay: "", youtube: %{}, status: Job.status(:pending))
 
     assert is_nil(Worker.get_assigned!(w))
 

@@ -14,7 +14,7 @@ defmodule ReplayFarm.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      applications: [:plug_cowboy],
+      applications: [:httpoison, :plug_cowboy],
       extra_applications: [:logger],
       mod: {ReplayFarm.Application, []}
     ]

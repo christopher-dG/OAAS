@@ -30,7 +30,12 @@ defmodule ReplayFarm.Web.Plugs do
     end
   end
 
-  @doc "Authenticates a request with an API key."
+  @doc """
+  Authenticates a request with an API key.
+
+  In dev mode, authorization is ignored.
+  Otherwise, the "Authorization" header is verified.
+  """
   def authenticate(conn, _opts) do
     if Mix.env() === :dev do
       # Don't worry about auth for development.
@@ -60,7 +65,13 @@ defmodule ReplayFarm.Web.Plugs do
     end
   end
 
-  @doc "Validates the request body."
+  @doc """
+  Validates the request body.
+
+  Required bodies look like:
+  - poll: {worker: worker_id}
+  - status: {worker: worker_id, job: job_id, status: status, comment: comment}
+  """
   def validate(conn, _opts) do
     if conn.method === "POST" do
       case conn.path_info do
@@ -88,7 +99,14 @@ defmodule ReplayFarm.Web.Plugs do
     end
   end
 
-  @doc "Preloads parameters passed as IDs into their actual entities."
+  @doc """
+  Preloads parameters passed as IDs into their actual entities.
+
+  The entities are stored in the Conn's private storage, and the values are either:
+  - :missing (no such entity)
+  - :error (something failed)
+  - The successfully-preloaded value
+  """
   def preload(conn, _opts) do
     w = conn.body_params["worker"]
     j = conn.body_params["job"]

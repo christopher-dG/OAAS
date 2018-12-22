@@ -1,5 +1,9 @@
 defmodule ReplayFarm.Web.Router do
-  @moduledoc "The web server."
+  @moduledoc """
+  The web server.
+
+  See the docstrings in ReplayFarm.Web.Plugs for some conventions.
+  """
 
   use Plug.Router
   use Plug.ErrorHandler
