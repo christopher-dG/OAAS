@@ -4,19 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 )
-
-const (
-	pollRoute    = "/poll"          // Endpoint to poll for new jobs.
-	pollInterval = time.Second * 10 // Time to wait between polls.
-)
-
-var pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags) // Logger for polling.
 
 // poll calls pollOnce continuously.
 func poll(jobs chan Job) {
@@ -34,14 +25,13 @@ func pollOnce(jobs chan Job) {
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPost, config.ApiURL+pollRoute, bytes.NewBuffer(b))
+	req, err := http.NewRequest(http.MethodPost, config.ApiURL+routePoll, bytes.NewBuffer(b))
 	if err != nil {
 		pollLogger.Println("couldn't create request:", err)
 		return
 	}
-	headers(req)
-
-	resp, err := httpClient.Do(req)
+	rfHeaders(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		pollLogger.Println("error making request:", err)
 		return
@@ -60,13 +50,8 @@ func pollOnce(jobs chan Job) {
 		return
 	}
 
-	if resp.StatusCode == 204 {
+	if isWorking || resp.StatusCode == 204 {
 		pollLogger.Println("no new job")
-		return
-	}
-
-	if err != nil {
-		pollLogger.Println("couldn't read response body:", err)
 		return
 	}
 

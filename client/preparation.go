@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -12,14 +11,6 @@ import (
 	"strings"
 
 	"github.com/mholt/archiver"
-)
-
-const defaultSkin = "rf-default-skin" // osu! skin to use when none is provided.
-
-var (
-	skinsDir    = filepath.Join(config.OsuRoot, "Skins")
-	beatmapsDir = filepath.Join(config.OsuRoot, "Songs")
-	osuCfg      = filepath.Join(config.OsuRoot, fmt.Sprintf("osu.%s.cfg", username))
 )
 
 // Prepare downloads and installs all required assets.
@@ -46,7 +37,7 @@ func (j Job) setupSkin() {
 		return
 	}
 
-	b, err := getBody(j.Skin.URL)
+	b, err := httpGetBody(j.Skin.URL)
 	if err != nil {
 		log.Println("couldn't download skin (using default):", err)
 		setSkin(defaultSkin)
@@ -113,7 +104,7 @@ func (j Job) getBeatmap() error {
 			continue
 		}
 
-		if strings.HasPrefix(f.Name(), strconv.Itoa(j.BeatmapsetID)+" ") {
+		if strings.HasPrefix(f.Name(), strconv.Itoa(j.Beatmap.BeatmapsetID)+" ") {
 			log.Println("found existing mapset:", f.Name())
 			return nil
 		}

@@ -2,8 +2,6 @@ package main
 
 import "errors"
 
-const defaultPort = 4444 // The default OBS websocket port.
-
 // ConfigFile contains runtime configuration options.
 type ConfigFile struct {
 	ApiURL      string `yaml:"api_url"`  // Server URL.

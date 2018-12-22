@@ -31,11 +31,11 @@ defmodule ReplayFarm.Worker do
 
   @online_threshold 30 * 1000
 
-  @doc "Gets all online workers."
-  @spec get_online! :: [t]
-  def get_online! do
+  @doc "Gets all available workers (online + not busy)."
+  @spec get_available! :: [t]
+  def get_available! do
     query!(
-      "SELECT * FROM #{@table} WHERE ABS(?1 - last_poll) <= ?2",
+      "SELECT * FROM #{@table} WHERE current_job_id IS NULL AND ABS(?1 - last_poll) <= ?2",
       x: System.system_time(:millisecond),
       x: @online_threshold
     )
@@ -77,7 +77,7 @@ defmodule ReplayFarm.Worker do
   @doc "Chooses an online worker by LRU."
   @spec get_lru! :: t | nil
   def get_lru! do
-    case get_online!() do
+    case get_available!() do
       [] ->
         nil
 
