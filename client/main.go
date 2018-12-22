@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	obs "github.com/christopher-dG/go-obs-websocket"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -22,6 +23,8 @@ const (
 	pollInterval = time.Second * 10  // Time between requests to routePoll.
 	defaultSkin  = "rf-default-skin" // osu! skin to be used when none is provided.
 	defaultPort  = 4444              // The default OBS websocket port.
+	defaultScene = "Replay Farm"     // Default OBS scene.
+	videoFormat  = ".mp4"            // Video format for exports.
 )
 
 var (
@@ -40,6 +43,8 @@ var (
 	osuCfg      = filepath.Join(config.OsuRoot, fmt.Sprintf("osu.%s.cfg", username)) // osu! config file.
 
 	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags) // Logger for polling.
+
+	obsClient obs.Client // OBS websocket client.
 )
 
 func init() {
@@ -78,9 +83,15 @@ func init() {
 	skinsDir = filepath.Join(config.OsuRoot, "Skins")
 	beatmapsDir = filepath.Join(config.OsuRoot, "Songs")
 	osuCfg = filepath.Join(config.OsuRoot, fmt.Sprintf("osu.%s.cfg", username))
+
+	obsClient = obs.Client{Host: "localhost", Port: config.OBSPort, Password: config.OBSPassword}
+	if err = obsClient.Connect(); err != nil {
+		log.Fatal("couldn't connect to OBS:", err)
+	}
 }
 
 func main() {
+	defer obsClient.Disconnect()
 	log.Println("Worker ID:", workerID)
 	jobs := make(chan Job)
 

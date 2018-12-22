@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"time"
 )
@@ -12,13 +13,20 @@ func (j Job) Record() error {
 		return err
 	}
 
-	if err := StartOsu(osr); err != nil {
-		return err
-	}
+	// log.Println("starting osu!")
+	// if err := StartOsu(osr); err != nil {
+	// 	return err
+	// }
 
 	// Give some time for osu! to start.
 	time.Sleep(time.Second * 10)
 
+	log.Println("setting scene")
+	if err := SetScene(); err != nil {
+		return err
+	}
+
+	log.Println("starting recording")
 	if err := StartRecording(); err != nil {
 		return err
 	}
@@ -27,22 +35,26 @@ func (j Job) Record() error {
 	// it's only here as a backup in case something goes wrong.
 	defer StopRecording()
 
-	mapLength := time.Second // TODO: Get the length of the map.
-	time.Sleep(time.Second)  // Give some time to see the score screen.
-	StartReplay()
+	mapLength := time.Second * 10 // TODO: Get the length of the map.
+	log.Println("waiting...")
+	time.Sleep(time.Second) // Give some time to see the score screen.
+	// StartReplay()
 	time.Sleep(mapLength)
 
 	// TODO: Press ESC to exit replay? We risk losing the score screen at that point.
 
+	log.Println("moving to graph")
 	ShowGraph()
 	time.Sleep(time.Second * 3) // Give some time to see the graph.
+	log.Println("stopping recording")
 	if err := StopRecording(); err != nil {
 		return err
 	}
 
-	if err := ExitOsu(); err != nil {
-		return err
-	}
+	// log.Println("quitting osu!")
+	// if err := ExitOsu(); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }

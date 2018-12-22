@@ -15,7 +15,7 @@ import (
 
 // Prepare downloads and installs all required assets.
 func (j Job) Prepare() error {
-	j.setupSkin()
+	// j.setupSkin()
 	if err := j.saveReplay(); err != nil {
 		return err
 	}

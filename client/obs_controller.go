@@ -6,16 +6,9 @@ import (
 	"github.com/christopher-dG/go-obs-websocket"
 )
 
-const (
-	defaultScene = "Replay Farm" // The name of the OBS scene used when recording.
-	videoFormat  = ".mp4"        // Video format for exports.
-)
-
-var obsClient obsws.Client // The OBS websocket client.
-
 // StartRecording starts recording.
 func StartRecording() error {
-	if err := maybeInitClient(); err != nil {
+	if err := maybeConnect(); err != nil {
 		return err
 	}
 
@@ -34,7 +27,7 @@ func StartRecording() error {
 
 // StopRecording stops recording.
 func StopRecording() error {
-	if err := maybeInitClient(); err != nil {
+	if err := maybeConnect(); err != nil {
 		return err
 	}
 
@@ -50,7 +43,7 @@ func StopRecording() error {
 
 // SetScene sets the scene to the default.
 func SetScene() error {
-	if err := maybeInitClient(); err != nil {
+	if err := maybeConnect(); err != nil {
 		return err
 	}
 
@@ -60,7 +53,7 @@ func SetScene() error {
 
 // GetRecordingFolder gets the recording output folder from OBS.
 func GetRecordingFolder() (string, error) {
-	if err := maybeInitClient(); err != nil {
+	if err := maybeConnect(); err != nil {
 		return "", err
 	}
 
@@ -71,8 +64,8 @@ func GetRecordingFolder() (string, error) {
 	return resp.RecFolder, nil
 }
 
-// maybeInitClient initializes the OBS client if it isn't already running.
-func maybeInitClient() error {
+// maybeConnect initializes the OBS client if it isn't already running.
+func maybeConnect() error {
 	if obsClient.Connected() {
 		return nil
 	}

@@ -39,19 +39,19 @@ func (j Job) Process() {
 	log.SetPrefix(fmt.Sprintf("[job %d] ", j.ID))
 	log.Println("starting job")
 
-	// if err := j.Prepare(); err != nil {
-	// 	j.fail("preparation failed", err)
-	// 	return
-	// }
+	if err := j.Prepare(); err != nil {
+		j.fail("preparation failed", err)
+		return
+	}
 
 	if err := j.updateStatus(StatusRecording, nil); err != nil {
 		log.Println("updating status failed:", err)
 	}
 
-	// if err := j.Record(); err != nil {
-	// 	j.fail("recording failed", err)
-	// 	return
-	// }
+	if err := j.Record(); err != nil {
+		j.fail("recording failed", err)
+		return
+	}
 
 	if err := j.updateStatus(StatusUploading, nil); err != nil {
 		log.Println("updating status failed:", err)
