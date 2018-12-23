@@ -24,8 +24,9 @@ defmodule ReplayFarm.Queue do
     # Logger.info("Processing job queue")
 
     try do
-      clear_stalled()
-      process_pending()
+      clear_stalled!()
+      process_pending!()
+      reschedule_failed!()
     after
       schedule(@interval)
     end
@@ -39,7 +40,7 @@ defmodule ReplayFarm.Queue do
   end
 
   # Unassign stalled jobs from workers.
-  defp clear_stalled do
+  defp clear_stalled! do
     Job.get_stalled!()
     |> Enum.each(fn j ->
       w = Worker.get!(j.worker_id)
@@ -62,9 +63,9 @@ defmodule ReplayFarm.Queue do
   end
 
   # Assign pending jobs to available workers.
-  defp process_pending do
+  defp process_pending! do
     Job.get_pending!()
-    |> Enum.sort_by(fn j -> j.created_at end)
+    |> Enum.sort_by(&Map.get(&1, :created_at))
     |> Enum.each(fn j ->
       case Worker.get_lru!() do
         nil ->
@@ -76,8 +77,17 @@ defmodule ReplayFarm.Queue do
             Job.update!(j, worker_id: w.id, status: Job.status(:assigned))
           end
 
-          Logger.info("Assigned job `#{j.id}` to worker `#{w.id}`.")
+          Logger.info("Assigned job `#{j.id}` to worker `#{w.id}`")
       end
+    end)
+  end
+
+  # Reschedule failed jobs.
+  defp reschedule_failed! do
+    Job.get_failed!()
+    |> Enum.each(fn j ->
+      Job.update!(j, status: :pending)
+      Logger.info("Rescheduled job `#{j.id}`")
     end)
   end
 end

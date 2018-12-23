@@ -7,24 +7,18 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705 // indirect
 	github.com/christopher-dG/go-obs-websocket v0.0.0-20180915002801-5c403325bab9
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 // indirect
 	github.com/go-ole/go-ole v1.2.2 // indirect
 	github.com/go-vgo/robotgo v0.0.0-20180910175435-fa7fc547ce62
-	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/lxn/win v0.0.0-20181015143721-a7f87360b10e // indirect
-	github.com/mholt/archiver v2.1.0+incompatible
 	github.com/mitchellh/mapstructure v1.0.0 // indirect
-	github.com/nwaples/rardecode v0.0.0-20171029023500-e06696f847ae // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 // indirect
 	github.com/otiai10/gosseract v2.2.0+incompatible // indirect
 	github.com/otiai10/mint v1.2.1 // indirect
-	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/shirou/gopsutil v2.17.12+incompatible // indirect
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
 	github.com/stretchr/testify v1.2.2 // indirect
-	github.com/ulikunitz/xz v0.5.4 // indirect
 	github.com/vcaesar/imgo v0.0.0-20180307100924-fece97d8745e // indirect
 	golang.org/x/image v0.0.0-20180708004352-c73c2afc3b81 // indirect
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3 // indirect

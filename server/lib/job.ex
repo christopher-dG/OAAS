@@ -98,6 +98,13 @@ defmodule ReplayFarm.Job do
     |> Enum.map(&struct(__MODULE__, &1))
   end
 
+  @doc "Gets all failed jobs."
+  @spec get_failed! :: [t]
+  def get_failed! do
+    query!("SELECT * FROM #{@table} WHERE STATUS = ?1", x: status(:failed))
+    |> Enum.map(&struct(__MODULE__, &1))
+  end
+
   # It gets pretty ugly from here on down.
 
   # def from_reddit(data) when is_map(data) do
