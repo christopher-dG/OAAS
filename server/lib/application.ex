@@ -18,12 +18,11 @@ defmodule ReplayFarm.Application do
       {ReplayFarm.DB, []},
       {ReplayFarm.Queue, []},
       # {ReplayFarm.Reddit, []},
-      {
-        Plug.Cowboy,
+      Plug.Cowboy.child_spec(
         scheme: :http,
         plug: ReplayFarm.Web.Router,
         options: [port: Application.get_env(:replay_farm, :port)]
-      }
+      )
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

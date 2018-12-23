@@ -1,57 +1,85 @@
 package main
 
 import (
-	"crypto/md5"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 
 	obs "github.com/christopher-dG/go-obs-websocket"
+	"github.com/go-vgo/robotgo"
 	yaml "gopkg.in/yaml.v2"
 )
 
 const (
-	routePoll    = "/poll"           // Endpoint for job polling.
-	routeStatus  = "/status"         // Endpoint for status endpoint.
-	pollInterval = time.Second * 10  // Time between requests to routePoll.
-	defaultSkin  = "rf-default-skin" // osu! skin to be used when none is provided.
-	defaultPort  = 4444              // The default OBS websocket port.
-	defaultScene = "Replay Farm"     // Default OBS scene.
-	videoFormat  = ".mp4"            // Video format for exports.
+	// HTTP stuff.
+	routePoll    = "/poll"          // Endpoint for job polling.
+	routeStatus  = "/status"        // Endpoint for status endpoint.
+	pollInterval = time.Second * 10 // Time between requests to routePoll.
+
+	// OBS stuff.
+	obsPort   = 4444          // The default OBS websocket port.
+	obsScene  = "Replay Farm" // Default OBS scene.
+	obsFormat = ".mp4"        // Video format for exports.
+
+	// osu! stuff.
+	replayScaleX = 0.8546875
+	replayScaleY = 0.7555555555555555
+	graphScaleX  = 0.41354166666666664
+	graphScaleY  = 0.8296296296296296
+
+	// Skin stuff.
+	defaultSkin = "replay-farm.osk"
 )
 
 var (
-	pathFlag = flag.String("c", "", "path to configuration file") // Config path flag.
+	// CLI stuff.
+	pathFlag = flag.String("c", "config.yml", "path to configuration file")
 
-	config   ConfigFile // Runtime configuration.
-	localDir string     // Directory for local data.
-	username string     // Worker's username (used for osu! config file and worker ID).
-	workerID string     // Unique identifier for this worker.
+	// Config stuff.
+	config   ConfigFile
+	workerID string
+	localDir string
 
-	isWorking = false // True whenever the worker is doing a job.
+	// State stuff.
+	isWorking = false
 
-	// Job preparation
-	skinsDir    = filepath.Join(config.OsuRoot, "Skins")                             // Skin directory.
-	beatmapsDir = filepath.Join(config.OsuRoot, "Songs")                             // Beatmap directory.
-	osuCfg      = filepath.Join(config.OsuRoot, fmt.Sprintf("osu.%s.cfg", username)) // osu! config file.
+	// Job prep stuff.
+	replayDir  string
+	skinDir    string
+	beatmapDir string
 
-	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags) // Logger for polling.
+	// osu! stuff.
+	osuExe       string
+	startReplayX int
+	startReplayY int
+	showGraphX   int
+	showGraphY   int
 
-	obsClient obs.Client // OBS websocket client.
+	// Logging stuff.
+	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags)
+
+	// Recording stuff.
+	obsClient obs.Client
+	obsFolder string
 )
 
 func init() {
+	// Parse/validate CLI arguments.
 	flag.Parse()
 	if *pathFlag == "" {
-		log.Fatal("required option -c <config-file> is missing")
+		log.Fatal("option -c <config-file> is missing")
 	}
+
+	// Load the config.
 	b, err := ioutil.ReadFile(*pathFlag)
 	if err != nil {
 		log.Fatal(err)
@@ -64,35 +92,64 @@ func init() {
 	}
 
 	localDir = filepath.Join(config.OsuRoot, "replay-farm")
+	os.MkdirAll(localDir, os.ModePerm)
 
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal("couldn't get username;", err)
+	// Read or create the worker ID.
+	path := filepath.Join(localDir, "rf-id")
+	if b, err = ioutil.ReadFile(path); err == nil {
+		workerID = string(b)
+	} else {
+		// Generate new ID.
+		usr, err := user.Current()
+		if err != nil {
+			log.Fatal("couldn't get username;", err)
+		}
+		token := strconv.Itoa(int(time.Now().UnixNano()))
+		workerID = usr.Username + "-" + token
+		ioutil.WriteFile(path, []byte(workerID), 0400)
 	}
-	username = usr.Username
 
-	path := filepath.Join(localDir, "rf-token")
-	log.Println(path)
-	token, err := ioutil.ReadFile(path)
-	if err != nil {
-		token = []byte(fmt.Sprintf("%x", md5.Sum([]byte(strconv.Itoa(int(time.Now().Unix()))))))[:8]
-		ioutil.WriteFile(path, token, 0400)
-	}
-	workerID = fmt.Sprintf("%s-%s", username, string(token))
+	// Compute/create the necessary directories.
+	beatmapDir = filepath.Join(config.OsuRoot, "Songs")
+	replayDir = filepath.Join(localDir, "osr")
+	skinDir = filepath.Join(localDir, "osk")
+	os.MkdirAll(replayDir, os.ModePerm)
+	os.MkdirAll(skinDir, os.ModePerm)
 
-	skinsDir = filepath.Join(config.OsuRoot, "Skins")
-	beatmapsDir = filepath.Join(config.OsuRoot, "Songs")
-	osuCfg = filepath.Join(config.OsuRoot, fmt.Sprintf("osu.%s.cfg", username))
-
+	// Set up the OBS client, set the scene, and get the recording folder.
 	obsClient = obs.Client{Host: "localhost", Port: config.OBSPort, Password: config.OBSPassword}
 	if err = obsClient.Connect(); err != nil {
 		log.Fatal("couldn't connect to OBS:", err)
 	}
+	_, err = obs.NewSetCurrentSceneRequest(obsScene).SendReceive(obsClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp, err := obs.NewGetRecordingFolderRequest().SendReceive(obsClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+	obsFolder = resp.RecFolder
+
+	// Determine the osu! executable.
+	if runtime.GOOS == "windows" {
+		osuExe = "osu!.exe"
+	} else {
+		osuExe = "osu!"
+	}
+
+	// Compute the pixel offsets.
+	sizeXi, sizeYi := robotgo.GetScreenSize()
+	sizeX, sizeY := float64(sizeXi), float64(sizeYi)
+	startReplayX = int(math.Round(sizeX * replayScaleX))
+	startReplayY = int(math.Round(sizeY * replayScaleY))
+	showGraphX = int(math.Round(sizeX * graphScaleX))
+	showGraphY = int(math.Round(sizeY * graphScaleY))
 }
 
 func main() {
-	defer obsClient.Disconnect()
 	log.Println("Worker ID:", workerID)
+	defer obsClient.Disconnect()
 	jobs := make(chan Job)
 
 	go poll(jobs)
@@ -121,9 +178,5 @@ func httpGetBody(url string) ([]byte, error) {
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("non-200 status code %d", resp.StatusCode)
 	}
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
+	return ioutil.ReadAll(resp.Body)
 }

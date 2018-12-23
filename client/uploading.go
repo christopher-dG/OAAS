@@ -16,8 +16,9 @@ func (j Job) Upload() error {
 		return err
 	}
 
-	// TODO: Delete me.
 	log.Println("video path:", path)
+
+	// TODO
 
 	return nil
 }
@@ -37,7 +38,7 @@ func getNewestVideo() (string, error) {
 	var path string
 	min := time.Hour
 	for _, f := range files {
-		if strings.HasPrefix(f.Name(), videoFormat) {
+		if strings.HasSuffix(f.Name(), obsFormat) {
 			if s := time.Since(f.ModTime()); s < min {
 				min = s
 				path = f.Name()

@@ -3,98 +3,82 @@ package main
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/mholt/archiver"
 )
 
 // Prepare downloads and installs all required assets.
 func (j Job) Prepare() error {
-	// j.setupSkin()
-	if err := j.saveReplay(); err != nil {
+	if err := saveReplay(j); err != nil {
 		return err
 	}
-	return j.getBeatmap()
+	if err := getBeatmap(j); err != nil {
+		return err
+	}
+	setupSkin(j)
+	return nil
 }
 
 // setupSkin downloads and installs the specified skin.
-func (j Job) setupSkin() {
+func setupSkin(j Job) {
 	if j.Skin == nil {
 		log.Println("no skin provided (using default)")
-		setSkin(defaultSkin)
+		loadSkin(defaultSkin)
 		return
 	}
 
-	skinPath := filepath.Join(skinsDir, j.Skin.Name)
-	if f, err := os.Stat(skinPath); err == nil && f.IsDir() {
-		log.Println("found existing skin")
-		setSkin(j.Skin.Name)
-		return
-	}
+	skinPath := filepath.Join(skinDir, j.Skin.Name+".osk")
+	if _, err := os.Stat(skinPath); err != nil {
+		// Download the skin.
+		b, err := httpGetBody(j.Skin.URL)
+		if err != nil {
+			log.Println("couldn't download skin (using default):", err)
+			loadSkin(defaultSkin)
+			return
+		}
 
-	b, err := httpGetBody(j.Skin.URL)
-	if err != nil {
-		log.Println("couldn't download skin (using default):", err)
-		setSkin(defaultSkin)
-		return
-	}
-
-	zipPath := filepath.Join(os.TempDir(), j.Skin.Name+".zip")
-	if err = ioutil.WriteFile(zipPath, b, 0644); err != nil {
-		log.Println("saving skin failed (using default):", err)
-		setSkin(defaultSkin)
-		return
-	}
-
-	if err = archiver.Zip.Open(zipPath, skinPath); err != nil {
-		log.Println("couldn't unzip skin (using default):", err)
-		setSkin(defaultSkin)
-		return
-	}
-
-	setSkin(j.Skin.Name)
-}
-
-// setSkin updates the user config file to install the skin.
-func setSkin(name string) {
-	log.Println("setting skin:", name)
-
-	b, err := ioutil.ReadFile(osuCfg)
-	if err != nil {
-		log.Println("couldn't read config file:", err)
-		return
-	}
-
-	skinLine := "Skin = " + name
-	lines := strings.Split(string(b), "\n")
-	for i, line := range lines {
-		if strings.HasPrefix(line, "Skin =") {
-			if line == skinLine {
-				log.Println("skin is already set")
-				return
-			}
-			lines[i] = "Skin = " + name
-			break
+		if err = ioutil.WriteFile(skinPath, b, 0644); err != nil {
+			log.Println("saving skin failed (using default):", err)
+			loadSkin(defaultSkin)
+			return
 		}
 	}
 
-	newCfg := []byte(strings.Join(lines, "\n"))
-	if err := ioutil.WriteFile(osuCfg, newCfg, os.ModePerm); err != nil {
-		log.Println("couldn't update config file:", err)
+	loadSkin(j.Skin.Name)
+}
+
+func loadSkin(skin string) {
+	skinPath := filepath.Join(skinDir, skin+".osk")
+	if _, err := os.Stat(skinPath); err != nil {
+		log.Println("skin does not exist:", skinPath)
 		return
 	}
 
-	log.Println("set skin to:", name)
+	// Copy the skin (loading it is destructive).
+	b, err := ioutil.ReadFile(skinPath)
+	if err != nil {
+		log.Println("copying skin failed (read):", err)
+		ExecOsu(skinPath)
+		return
+	}
+	if err := ioutil.WriteFile(skin+".osk", b, 0644); err != nil {
+		log.Println("copying skin failed (write):", err)
+		ExecOsu(skinPath)
+		return
+	}
+
+	log.Println("loading skin:", skin)
+	ExecOsu(skin + ".osk")
 }
 
 // getBeatmap ensures that a mapset is downloaded.
-func (j Job) getBeatmap() error {
-	files, err := ioutil.ReadDir(beatmapsDir)
+func getBeatmap(j Job) error {
+	files, err := ioutil.ReadDir(beatmapDir)
 	if err != nil {
 		return err
 	}
@@ -118,14 +102,13 @@ func (j Job) getBeatmap() error {
 }
 
 // saveReplay decodes the job's replay file and saves it.
-func (j Job) saveReplay() error {
-	path := j.replayPath()
-
+func saveReplay(j Job) error {
+	path := filepath.Join(replayDir, fmt.Sprintf("%d.osr", j.ID))
 	if _, err := os.Stat(path); err == nil { // Replay file already exists.
 		return nil
 	}
 
-	osr, err := base64.StdEncoding.DecodeString(j.Replay)
+	osr, err := base64.StdEncoding.DecodeString(j.Replay.Data)
 	if err != nil {
 		return err
 	}

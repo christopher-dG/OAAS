@@ -18,7 +18,7 @@ defmodule ReplayFarm.DB do
       player TEXT NOT NULL,   -- JSON
       beatmap TEXT NOT NULL,  -- JSON
       youtube TEXT NOT NULL,  -- JSON
-      replay TEXT NOT NULL,
+      replay TEXT NOT NULL,   -- JSON
       status INTEGER NOT NULL,
       skin TEXT,  -- JSON
       comment TEXT,

@@ -4,9 +4,9 @@ import "errors"
 
 // ConfigFile contains runtime configuration options.
 type ConfigFile struct {
-	ApiURL      string `yaml:"api_url"`  // Server URL.
-	ApiKey      string `yaml:"api_key"`  // Server API key.
-	OsuRoot     string `yaml:"osu_root"` // Directory of osu! installation.
+	ApiURL      string `yaml:"api_url"`
+	ApiKey      string `yaml:"api_key"`
+	OsuRoot     string `yaml:"osu_root"`
 	OBSPort     int    `yaml:"obs_port"`
 	OBSPassword string `yaml:"obs_password"`
 }
@@ -19,12 +19,9 @@ func (c *ConfigFile) Validate() error {
 	if c.ApiKey == "" {
 		return errors.New("required setting 'api_key' is missing")
 	}
-	if c.OsuRoot == "" {
-		return errors.New("required setting 'osu_root' is missing")
-	}
 
 	if c.OBSPort == 0 {
-		c.OBSPort = defaultPort
+		c.OBSPort = obsPort
 	}
 
 	return nil

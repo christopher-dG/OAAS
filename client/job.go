@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 )
 
 // Job is a recording/uploading job to be completed by the worker.
@@ -24,7 +23,10 @@ type Job struct {
 		Version      string `json:"version"`
 		TotalLength  int    `json:"total_length"`
 	} `json:"beatmap"` // Beatmap data.
-	Replay  string `json:"replay"` // Base64-encoded replay file.
+	Replay struct {
+		Data   string `json:"data"`
+		Length int    `json:"length"`
+	} `json:"replay"` // Base64-encoded replay file.
 	YouTube struct {
 		Title       string `json:"title"`       // Video title.
 		Description string `json:"description"` // Video description.
@@ -58,19 +60,14 @@ func (j Job) Process() {
 		log.Println("updating status failed:", err)
 	}
 
-	// if err := j.Upload(); err != nil {
-	// 	j.fail("uploading failed", err)
-	// 	return
-	// }
+	if err := j.Upload(); err != nil {
+		j.fail("uploading failed", err)
+		return
+	}
 
 	if err := j.updateStatus(StatusSuccessful, nil); err != nil {
 		log.Println("updating status failed:", err)
 	}
-}
-
-// replayPath gets the path to the job's replay file (the file is not guaranteed to exist).
-func (j Job) replayPath() string {
-	return filepath.Join(localDir, "osr", fmt.Sprintf("%d.osr", j.ID))
 }
 
 // updateStatus updates the job's status.

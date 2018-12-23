@@ -4,6 +4,7 @@ defmodule ReplayFarm.Job do
   alias OsuEx.API, as: OsuAPI
   alias OsuEx.Parser
   require Logger
+  use Bitwise, only_operators: true
 
   @doc "Defines the job status enum."
   def status(_s)
@@ -43,8 +44,8 @@ defmodule ReplayFarm.Job do
           player: map,
           # Beatmap data: {id, name, mode}.
           beatmap: map,
-          # The .osr file, as base64.
-          replay: binary,
+          # Replay data: {data, length}.
+          replay: map,
           # YouTube upload data: {title, description}.
           youtube: map,
           # Skin to use: {name, url} (nil means default).
@@ -61,7 +62,7 @@ defmodule ReplayFarm.Job do
           updated_at: integer
         }
 
-  @json_columns [:player, :beatmap, :youtube, :skin]
+  @json_columns [:player, :beatmap, :replay, :youtube, :skin]
 
   use ReplayFarm.Model
 
@@ -109,15 +110,13 @@ defmodule ReplayFarm.Job do
     replay = Parser.osr!(osr)
     player = OsuAPI.get_user!(replay.player)
     beatmap = OsuAPI.get_beatmap!(replay.beatmap_md5)
-    playerskin = skin(player.username)
-    yt = ytdata(player, beatmap, replay) |> IO.inspect()
 
     put!(
       player: player,
       beatmap: beatmap,
-      replay: Base.encode64(osr),
-      youtube: yt,
-      skin: playerskin,
+      replay: %{data: Base.encode64(osr), length: replaytime(beatmap, replay.mods)},
+      youtube: ytdata(player, beatmap, replay),
+      skin: skin(player.username),
       status: status(:pending)
     )
   end
@@ -142,6 +141,14 @@ defmodule ReplayFarm.Job do
       {:error, err} ->
         Logger.warn("Couldn't get skin for user #{username}: #{inspect(err)}")
         nil
+    end
+  end
+
+  defp replaytime(%{total_length: len}, mods) when is_integer(mods) do
+    cond do
+      (mods &&& 64) === 64 -> len / 1.5
+      (mods &&& 256) === 256 -> len * 1.5
+      true -> len
     end
   end
 
@@ -211,7 +218,10 @@ defmodule ReplayFarm.Job do
       when is_map(player) and is_map(beatmap) and is_map(replay) do
     mods = modstring(replay.mods)
     percent = acc(replay)
-    acc_s = if(is_nil(percent), do: nil, else: :erlang.float_to_binary(percent, decimals: 2) <> "%")
+
+    acc_s =
+      if(is_nil(percent), do: nil, else: :erlang.float_to_binary(percent, decimals: 2) <> "%")
+
     fc = if(replay.perfect?, do: "FC", else: nil)
     pp = ppstring(beatmap, replay.mode, replay.mods, percent)
     extra = [mods, acc_s, fc, pp] |> Enum.reject(&is_nil/1) |> Enum.join(" ")

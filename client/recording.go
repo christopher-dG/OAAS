@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-vgo/robotgo"
@@ -10,23 +12,18 @@ import (
 
 // Record records the video.
 func (j Job) Record() error {
-	osr := j.replayPath()
+	osr := filepath.Join(replayDir, fmt.Sprintf("%d.osr", j.ID))
 	if _, err := os.Stat(osr); err != nil {
 		return err
 	}
 
-	// log.Println("starting osu!")
-	// if err := StartOsu(osr); err != nil {
-	// 	return err
-	// }
-
-	// Give some time for osu! to start.
-	time.Sleep(time.Second * 10)
-
-	log.Println("setting scene")
-	if err := SetScene(); err != nil {
+	log.Println("loading replay")
+	if err := ExecOsu(osr); err != nil {
 		return err
 	}
+
+	// Give some time for the replay to load.
+	time.Sleep(time.Second * 5)
 
 	log.Println("starting recording")
 	if err := StartRecording(); err != nil {
@@ -40,34 +37,25 @@ func (j Job) Record() error {
 	// Wait on the results screen for a bit.
 	log.Println("waiting on score screen")
 	time.Sleep(time.Second * 5)
+
+	log.Println("starting replay")
 	StartReplay()
-	// Wait for the map to end.
-	log.Println("waiting for map to end:", j.Beatmap.TotalLength)
-	time.Sleep(time.Second * time.Duration(j.Beatmap.TotalLength))
-	// Small buffer for map ending.
-	log.Println("waiting buffer")
+
+	log.Println("waiting for map to end:", j.Replay.Length)
+	time.Sleep(time.Second * time.Duration(j.Replay.Length))
 	time.Sleep(time.Second * 2)
-	// Move the cursor to the graph.
+
 	log.Println("showing graph")
 	ShowGraph()
-	// Stay on the graph for some time.
+
 	log.Println("waiting on graph")
 	time.Sleep(time.Second * 5)
-	// Press escape to either quit a map's outro or go back to the leaderboard.
-	// Either case is fine.
-	log.Println("pressing esc")
+
+	log.Println("escaping")
 	robotgo.KeyTap("escape")
+
 	log.Println("waiting on score screen/leaderboard")
 	time.Sleep(time.Second * 5)
 
-	if err := StopRecording(); err != nil {
-		return err
-	}
-
-	// log.Println("quitting osu!")
-	// if err := ExitOsu(); err != nil {
-	// 	return err
-	// }
-
-	return nil
+	return StopRecording()
 }
