@@ -6,7 +6,6 @@ defmodule ReplayFarm.Application do
   use Application
 
   def start(_type, _args) do
-    File.mkdir_p("priv")
     # List all child processes to be supervised
     children = [
       # Starts a worker by calling: ReplayFarm.Worker.start_link(arg)
@@ -15,9 +14,10 @@ defmodule ReplayFarm.Application do
           {Sqlitex.Server, :start_link, ["priv/db_#{Mix.env()}.sqlite3", [name: ReplayFarm.DB]]},
         id: Sqlitex.Server
       },
-      {ReplayFarm.DB, []},
-      {ReplayFarm.Queue, []},
-      # {ReplayFarm.Reddit, []},
+      ReplayFarm.DB,
+      ReplayFarm.Queue,
+      ReplayFarm.Discord,
+      # ReplayFarm.Reddit,
       Plug.Cowboy.child_spec(
         scheme: :http,
         plug: ReplayFarm.Web.Router,
