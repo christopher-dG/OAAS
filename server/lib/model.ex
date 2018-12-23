@@ -84,7 +84,7 @@ defmodule ReplayFarm.Model do
 
       # Execute a database query.
       @spec query(binary, keyword) :: list
-      def query(sql, bind \\ []) do
+      defp query(sql, bind \\ []) do
         op =
           sql
           |> String.trim_leading()

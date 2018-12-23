@@ -2,6 +2,7 @@ defmodule JobTest do
   use ExUnit.Case
 
   alias ReplayFarm.Job
+  import ReplayFarm.Job
 
   setup_all do
     Application.ensure_all_started(:httpoison)
@@ -13,67 +14,72 @@ defmodule JobTest do
     {:ok, []}
   end
 
-  defp put!(s \\ :pending, u \\ System.system_time(:millisecond)) do
-    Job.put!(
-      player: %{},
-      beatmap: %{},
-      replay: "",
-      youtube: %{},
-      status: Job.status(s),
-      updated_at: u
-    )
+  defp quickput(s \\ :pending, u \\ System.system_time(:millisecond)) do
+    {:ok, _} =
+      put(
+        player: %{},
+        beatmap: %{},
+        replay: %{},
+        youtube: %{},
+        status: status(s),
+        updated_at: u
+      )
   end
 
-  test "put!/1 (autoincrementing ID)" do
-    %Job{id: id} = put!()
+  test "put/1 (autoincrementing ID)" do
+    {:ok, %Job{id: id}} = quickput()
     next_id = id + 1
-    put!()
+    {:ok, _} = quickput()
 
-    assert [%{id: ^id}, %{id: ^next_id}] = Job.get!()
+    {:ok, [%{id: ^id}, %{id: ^next_id}]} = get()
   end
 
   test "finished/1" do
-    assert not Job.finished(0)
-    assert not Job.finished(1)
-    assert not Job.finished(2)
-    assert not Job.finished(3)
-    assert Job.finished(4)
-    assert Job.finished(5)
+    assert not finished(0)
+    assert not finished(1)
+    assert not finished(2)
+    assert not finished(3)
+    assert finished(4)
+    assert finished(5)
   end
 
   @tag :capture_log
   @tag :net
   test "skin/1" do
-    assert is_nil(Job.skin(""))
-    assert is_nil(Job.skin("i"))
+    nil = skin("")
+    nil = skin("i")
 
-    assert %{name: _n, url: "https://" <> _u} = Job.skin("cookiezi")
+    %{name: _n, url: "https://" <> _u} = skin("cookiezi")
   end
 
-  test "get_stalled!/0" do
+  test "get_stalled/0" do
     now = System.system_time(:millisecond)
 
-    put!(:pending, 0)
-    put!(:assigned, now - 60 * 1000)
-    put!(:recording, now - 9 * 60 * 1000)
-    put!(:uploading, now - 5 - 10 * 60 * 1000)
-    put!(:successful, 0)
-    put!(:failed, 0)
+    {:ok, _} = quickput(:pending, 0)
+    {:ok, _} = quickput(:assigned, now - 60 * 1000)
+    {:ok, _} = quickput(:recording, now - 9 * 60 * 1000)
+    {:ok, _} = quickput(:uploading, now - 5 - 10 * 60 * 1000)
+    {:ok, _} = quickput(:successful, 0)
+    {:ok, _} = quickput(:failed, 0)
 
-    s = Job.status(:uploading)
+    s = status(:uploading)
 
-    assert [%Job{status: ^s}] = Job.get_stalled!()
+    {:ok, [%Job{status: ^s}]} = get_stalled()
   end
 
-  test "get_pending!/0" do
-    put!(:pending, 1)
-    put!(:pending, 1)
-    put!(:assigned)
-    put!(:recording)
-    put!(:uploading)
+  test "get_by_status/1" do
+    {:ok, _} = quickput(:pending, 1)
+    {:ok, _} = quickput(:pending, 1)
+    {:ok, _} = quickput(:assigned, 1)
+    {:ok, _} = quickput(:recording)
+    {:ok, _} = quickput(:uploading)
 
-    s = Job.status(:pending)
+    p = status(:pending)
+    a = status(:assigned)
 
-    assert [%Job{status: ^s, updated_at: 1}, %Job{status: ^s, updated_at: 1}] = Job.get_pending!()
+    {:ok, [%Job{status: ^p, updated_at: 1}, %Job{status: ^p, updated_at: 1}]} =
+      get_by_status(:pending)
+
+    {:ok, [%Job{status: ^a, updated_at: 1}]} = get_by_status(:assigned)
   end
 end

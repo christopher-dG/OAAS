@@ -16,30 +16,19 @@ defmodule TestModel do
 
   use ReplayFarm.Model
 
-  def test_get!(id) do
-    {:ok, rs} =
-      Sqlitex.Server.query(
-        DB,
-        "SELECT * FROM #{@table} WHERE id = ?1",
-        bind: [id],
-        into: %{}
-      )
-
-    case rs do
-      [] -> nil
-      [r] -> r
+  def test_get(id) do
+    case DB.query("SELECT * FROM #{@table} WHERE id = ?1", bind: [id], into: %{}) do
+      {:ok, []} -> {:ok, nil}
+      {:ok, [r]} -> {:ok, r}
+      {:error, err} -> {:error, err}
     end
   end
 
-  def test_put!(id, foo \\ nil, bar \\ nil) do
+  def test_put(id, foo \\ nil, bar \\ nil) do
     now = System.system_time(:millisecond)
 
     {:ok, _} =
-      Sqlitex.Server.query(
-        DB,
-        "INSERT INTO #{@table} VALUES (?1, ?2, ?3, ?4, ?5)",
-        bind: [id, foo, bar, now, now]
-      )
+      DB.query("INSERT INTO #{@table} VALUES (?1, ?2, ?3, ?4, ?5)", bind: [id, foo, bar, now, now])
   end
 end
 
@@ -47,89 +36,76 @@ defmodule ModelTest do
   use ExUnit.Case
 
   alias ReplayFarm.DB
+  import TestModel
 
   @table "model_test"
 
   setup_all do
     {:ok, _} =
-      Sqlitex.Server.query(
-        DB,
-        """
-        CREATE TABLE IF NOT EXISTS #{@table}(
-          id TEXT PRIMARY KEY,
-          foo TEXT,
-          bar INTEGER,
-          created_at INTEGER NOT NULL,
-          updated_at INTEGER NOT NULL
-        )
-        """
+      DB.query("""
+      CREATE TABLE IF NOT EXISTS #{@table}(
+        id TEXT PRIMARY KEY,
+        foo TEXT,
+        bar INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
       )
+      """)
 
-    on_exit(fn -> Sqlitex.Server.query(DB, "DROP TABLE #{@table}") end)
+    on_exit(fn -> DB.query("DROP TABLE #{@table}") end)
 
     {:ok, []}
   end
 
   setup do
-    {:ok, _} = Sqlitex.Server.query(DB, "DELETE FROM #{@table}")
+    {:ok, _} = DB.query("DELETE FROM #{@table}")
   end
 
-  test "get!/0" do
-    assert TestModel.get!() === []
+  test "get/0" do
+    {:ok, []} = get()
 
-    TestModel.test_put!("i", Jason.encode!(%{a: "b"}), 1)
-    assert [%TestModel{id: "i", foo: %{"a" => "b"}, bar: 1}] = TestModel.get!()
+    {:ok, _} = test_put("i", Jason.encode!(%{a: "b"}), 1)
+    {:ok, [%TestModel{id: "i", foo: %{"a" => "b"}, bar: 1}]} = get()
 
-    TestModel.test_put!("i2", Jason.encode!(%{a2: "b2"}), 12)
+    {:ok, _} = test_put("i2", Jason.encode!(%{a2: "b2"}), 12)
 
-    assert [
-             %TestModel{id: "i", foo: %{"a" => "b"}, bar: 1},
-             %TestModel{id: "i2", foo: %{"a2" => "b2"}, bar: 12}
-           ] = TestModel.get!()
+    {:ok,
+     [
+       %TestModel{id: "i", foo: %{"a" => "b"}, bar: 1},
+       %TestModel{id: "i2", foo: %{"a2" => "b2"}, bar: 12}
+     ]} = get()
   end
 
-  test "get!/1" do
-    assert is_nil(TestModel.get!("i"))
+  test "get/1" do
+    {:ok, nil} = get("i")
 
-    TestModel.test_put!("i")
-    assert %TestModel{id: "i", foo: nil, bar: nil} = TestModel.get!("i")
+    {:ok, _} = test_put("i")
+    {:ok, %TestModel{id: "i", foo: nil, bar: nil}} = get("i")
 
-    TestModel.test_put!("i2")
-    assert %TestModel{id: "i", foo: nil, bar: nil} = TestModel.get!("i")
+    {:ok, _} = test_put("i2")
+    {:ok, %TestModel{id: "i", foo: nil, bar: nil}} = get("i")
   end
 
-  test "put!/1" do
-    assert %TestModel{id: "i", foo: nil, bar: nil} = TestModel.put!(id: "i")
-    assert %{id: "i", foo: nil, bar: nil} = TestModel.test_get!("i")
+  test "put/1" do
+    {:ok, %TestModel{id: "i", foo: nil, bar: nil}} = put(id: "i")
+    {:ok, %{id: "i", foo: nil, bar: nil}} = test_get("i")
 
-    assert %TestModel{id: "i2", foo: %{"a" => 1}, bar: 2} =
-             TestModel.put!(id: "i2", foo: %{a: 1}, bar: 2)
+    {:ok, %TestModel{id: "i2", foo: %{"a" => 1}, bar: 2}} = put(id: "i2", foo: %{a: 1}, bar: 2)
 
-    assert %{id: "i2", foo: "{\"a\":1}", bar: 2} = TestModel.test_get!("i2")
+    {:ok, %{id: "i2", foo: "{\"a\":1}", bar: 2}} = test_get("i2")
 
-    assert_raise RuntimeError, fn -> TestModel.put!(id: "i") end
+    {:error, _} = put(id: "i")
   end
 
-  test "update!/2" do
-    TestModel.test_put!("i")
+  test "update/2" do
+    {:ok, _} = test_put("i")
 
-    m = TestModel.get!("i")
-    assert %TestModel{id: "i", foo: %{"a" => 1}, bar: nil} = TestModel.update!(m, foo: %{a: 1})
+    {:ok, m} = get("i")
+    {:ok, %TestModel{id: "i", foo: %{"a" => 1}, bar: nil}} = update(m, foo: %{a: 1})
 
-    m = TestModel.get!("i")
-    assert %TestModel{id: "i", foo: %{"a" => 1}, bar: 1} = TestModel.update!(m, bar: 1)
+    {:ok, m} = get("i")
+    {:ok, %TestModel{id: "i", foo: %{"a" => 1}, bar: 1}} = update(m, bar: 1)
 
-    assert is_nil(TestModel.update!(%TestModel{id: "i2"}, bar: 1))
-  end
-
-  test "query!/2" do
-    TestModel.test_put!("i")
-    TestModel.test_put!("i2", nil, 1)
-    TestModel.test_put!("i3", nil, 2)
-
-    assert [%{id: "i2", bar: 1}, %{id: "i3", bar: 2}] ===
-             TestModel.query!("SELECT id, bar FROM #{@table} WHERE bar NOT NULL")
-
-    assert [%{bar: 2}] === TestModel.query!("SELECT bar FROM #{@table} WHERE bar > ?1", x: 1)
+    {:ok, nil} = update(%TestModel{id: "i2"}, bar: 1)
   end
 end

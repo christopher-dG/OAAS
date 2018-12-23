@@ -1,8 +1,8 @@
 defmodule DBTest do
   use ExUnit.Case
 
+  import ReplayFarm.DB
   alias ReplayFarm.DB
-  require DB
 
   @table "db_test"
 
@@ -28,28 +28,36 @@ defmodule DBTest do
     {:ok, []}
   end
 
-  test "query!/2" do
-    DB.query!("INSERT INTO #{@table} VALUES (?1, ?2)", bind: [1, 2])
-    DB.query!("INSERT INTO #{@table} VALUES (?1, ?2)", bind: [2, 3])
+  test "query/2" do
+    {:ok, _} = query("INSERT INTO #{@table} VALUES (?1, ?2)", bind: [1, 2])
+    {:ok, _} = query("INSERT INTO #{@table} VALUES (?1, ?2)", bind: [2, 3])
 
-    assert DB.query!("SELECT foo FROM #{@table} WHERE id = ?1", bind: [1]) === [[foo: 2]]
+    {:ok, [[foo: 2]]} = query("SELECT foo FROM #{@table} WHERE id = ?1", bind: [1])
   end
 
-  test "transaction!/1" do
-    assert_raise RuntimeError, fn ->
-      DB.transaction! do
-        DB.query!("INSERT INTO #{@table} VALUES (1, 2)")
-        DB.query!("INSERT INTO #{@table} VALUES (1, 2, 3)")
+  test "transaction/1" do
+    {:error, _} =
+      DB.transaction do
+        with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
+             {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2, 3)") do
+          {:ok, nil}
+        else
+          {:error, err} -> {:error, err}
+        end
       end
-    end
 
-    assert DB.query!("SELECT * FROM #{@table}") === []
+    {:ok, []} = query("SELECT * FROM #{@table}")
 
-    DB.transaction! do
-      DB.query!("INSERT INTO #{@table} VALUES (1, 2)")
-      DB.query!("INSERT INTO #{@table} VALUES (2, 3)")
-    end
+    {:ok, _} =
+      transaction do
+        with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
+             {:ok, _} <- query("INSERT INTO #{@table} VALUES (2, 3)") do
+          {:ok, nil}
+        else
+          {:error, err} -> {:error, err}
+        end
+      end
 
-    assert DB.query!("SELECT * FROM #{@table}") === [[id: 1, foo: 2], [id: 2, foo: 3]]
+    assert query("SELECT * FROM #{@table}") === {:ok, [[id: 1, foo: 2], [id: 2, foo: 3]]}
   end
 end

@@ -18,21 +18,21 @@ defmodule ReplayFarm.Utils do
   @spec notify(:info, binary) :: true
   def notify(:info, msg) do
     Logger.info(msg)
-    Task.start(fn -> Discord.send_message("info: #{msg}") end)
+    Task.start(fn -> Mix.env() === :test || Discord.send_message("info: #{msg}") end)
     true
   end
 
   @spec notify(:warn, binary) :: true
   def notify(:warn, msg) do
     Logger.warn(msg)
-    Task.start(fn -> Discord.send_message("warn: #{msg}") end)
+    Task.start(fn -> Mix.env() === :test || Discord.send_message("warn: #{msg}") end)
     true
   end
 
   @spec notify(:error, binary) :: true
   def notify(:error, msg) do
     Logger.error(msg)
-    Task.start(fn -> Discord.send_message("error: #{msg}") end)
+    Task.start(fn -> Mix.env() === :test || Discord.send_message("error: #{msg}") end)
     true
   end
 
