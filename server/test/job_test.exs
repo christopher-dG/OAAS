@@ -34,15 +34,6 @@ defmodule JobTest do
     {:ok, [%{id: ^id}, %{id: ^next_id}]} = get()
   end
 
-  test "finished/1" do
-    assert not finished(0)
-    assert not finished(1)
-    assert not finished(2)
-    assert not finished(3)
-    assert finished(4)
-    assert finished(5)
-  end
-
   @tag :capture_log
   @tag :net
   test "skin/1" do

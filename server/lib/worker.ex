@@ -29,19 +29,23 @@ defmodule ReplayFarm.Worker do
 
   @online_threshold 30 * 1000
 
+  @doc "Determines whether a worker is online."
+  @spec online?(t) :: boolean
+  def online?(%__MODULE__{} = w) do
+    System.system_time(:millisecond) - (w.last_poll || 0) <= @online_threshold
+  end
+
   @doc "Gets all available workers (online + not busy)."
   @spec get_available :: {:ok, [t]} | {:error, term}
   def get_available do
     query(
-      "SELECT * FROM #{@table} WHERE current_job_id IS NULL AND ABS(?1 - last_poll) <= ?2",
+      "SELECT * FROM #{@table} WHERE current_job_id IS NULL AND ?1 - last_poll <= ?2",
       x: System.system_time(:millisecond),
       x: @online_threshold
     )
   end
 
   @doc "Gets the worker's currently assigned job."
-  def get_assigned(_w)
-
   @spec get_assigned(t) :: Job.t() | nil
   def get_assigned(%__MODULE__{current_job_id: nil}) do
     {:ok, nil}
@@ -55,13 +59,6 @@ defmodule ReplayFarm.Worker do
       {:ok, _j} -> {:ok, nil}
       {:error, err} -> {:error, err}
     end
-  end
-
-  @spec get_assigned(binary) :: {:ok, Job.t() | nil} | {:error, term}
-  def get_assigned(id) do
-    id
-    |> get()
-    |> get_assigned()
   end
 
   @doc "Retrieves a worker, or creates a new one."

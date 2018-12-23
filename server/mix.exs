@@ -31,7 +31,8 @@ defmodule ReplayFarm.MixProject do
       {:nostrum, git: "https://github.com/Kraigie/nostrum.git"},
       {:osu_ex, git: "https://github.com/christopher-dG/osu-ex.git"},
       {:plug_cowboy, "~> 2.0"},
-      {:sqlitex, "~> 1.4"}
+      {:sqlitex, "~> 1.4"},
+      {:table_rex, "~> 2.0.0"}
     ]
   end
 end

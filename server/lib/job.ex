@@ -18,6 +18,7 @@ defmodule ReplayFarm.Job do
   def status(:uploading), do: 3
   def status(:successful), do: 4
   def status(:failed), do: 5
+  def status(:deleted), do: 6
 
   @spec status(integer) :: atom
   def status(0), do: :pending
@@ -26,6 +27,7 @@ defmodule ReplayFarm.Job do
   def status(3), do: :uploading
   def status(4), do: :successful
   def status(5), do: :failed
+  def status(6), do: :deleted
 
   @table "jobs"
 
@@ -61,6 +63,12 @@ defmodule ReplayFarm.Job do
   @json_columns [:player, :beatmap, :replay, :youtube, :skin]
 
   use ReplayFarm.Model
+
+  @doc "Deletes ajob."
+  @spec delete(t) :: {:ok, t} | {:error, term}
+  def delete(%__MODULE__{} = j) do
+    update(j, status: status(:deleted))
+  end
 
   @timeouts %{
     assigned: 90 * 1000,
@@ -112,10 +120,10 @@ defmodule ReplayFarm.Job do
     end
   end
 
-  @doc "Checks whether a status indicates that the job is finished."
-  @spec finished(integer) :: boolean
-  def finished(stat) do
-    stat >= status(:successful)
+  @doc "Checks whether a job is finished."
+  @spec finished(t) :: boolean
+  def finished(%__MODULE__{} = j) do
+    j.status >= status(:successful)
   end
 
   @doc "Updates a job's status."
@@ -124,7 +132,7 @@ defmodule ReplayFarm.Job do
     DB.transaction do
       case update(j, status: stat, comment: comment) do
         {:ok, j} ->
-          if finished(stat) do
+          if finished(j) do
             case Worker.update(w, current_job_id: nil) do
               {:ok, _w} -> {:ok, j}
               {:error, err} -> {:error, err}
