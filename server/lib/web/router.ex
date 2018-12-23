@@ -9,11 +9,11 @@ defmodule ReplayFarm.Web.Router do
   use Plug.ErrorHandler
   import Plug.Conn
   import ReplayFarm.Web.Plugs
-  require Logger
 
   alias ReplayFarm.Worker
   alias ReplayFarm.Job
   alias ReplayFarm.DB
+  import ReplayFarm.Utils
   require DB
 
   plug(Plug.Logger)
@@ -25,14 +25,20 @@ defmodule ReplayFarm.Web.Router do
   plug(:dispatch)
 
   post "/poll" do
-    w =
-      conn.body_params["worker"]
-      |> Worker.get_or_put!()
-      |> Worker.update!(last_poll: System.system_time(:millisecond))
+    id = conn.body_params["worker"]
 
-    case Worker.get_assigned!(w) do
-      nil -> send_resp(conn, 204, "")
-      j -> Logger.info("Sending job #{j.id} to worker #{w.id}") && json(conn, 200, j)
+    with {:ok, w} <- Worker.get_or_put(id),
+         {:ok, w} <- Worker.update(w, last_poll: System.system_time(:millisecond)),
+         {:ok, j} <- Worker.get_assigned(w) do
+      case j do
+        nil ->
+          send_resp(conn, 204, "")
+
+        j ->
+          json(conn, 200, j)
+      end
+    else
+      {:error, err} -> notify(:warn, "polling response for worker `#{id}` failed", err)
     end
   end
 
@@ -42,19 +48,28 @@ defmodule ReplayFarm.Web.Router do
       status = conn.body_params["status"]
       comment = conn.body_params["comment"] || j.comment
 
-      if w.current_job_id !== j.id do
-        text(conn, 400, "worker is not assigned that job")
-      else
-        DB.transaction! do
-          Job.update!(j, status: status, comment: comment)
-          Job.finished(status) && Worker.update!(w, current_job_id: nil)
-        end
+      if w.current_job_id === j.id do
+        case Job.update_status(j, w, status, comment) do
+          {:ok, j} ->
+            notify(
+              "job `#{j.id}` updated to status `#{Job.status(j.status)}` by worker `#{w.id}`"
+            )
 
-        Logger.info(
-          "Job `#{j.id}` updated to status `#{Job.status(status)}` by worker `#{w.id}`."
+            send_resp(conn, 204, "")
+
+          {:error, err} ->
+            notify(:error, "updating status for job `#{j.id}` failed", err)
+            error(conn)
+        end
+      else
+        notify(
+          :warn,
+          "Worker `#{w.id}` tried to update job `#{j.id}`, but is assigned job `#{
+            w.current_job_id
+          }`"
         )
 
-        send_resp(conn, 204, "")
+        text(conn, 400, "worker is not assigned that job")
       end
     else
       :error -> error(conn)

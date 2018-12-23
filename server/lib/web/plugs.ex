@@ -2,30 +2,37 @@ defmodule ReplayFarm.Web.Plugs do
   @moduledoc "Helper plugs."
 
   import Plug.Conn
-  require Logger
 
   alias ReplayFarm.Worker
   alias ReplayFarm.Job
   alias ReplayFarm.Key
+  import ReplayFarm.Utils
 
   @doc "Sends a text response."
-  def text(conn, status, text) when is_integer(status) and is_binary(text) do
-    conn |> put_resp_content_type("text/plain") |> send_resp(status, text)
+  @spec text(Conn.t(), integer, binary) :: Conn.t()
+  def text(conn, status, msg) do
+    conn
+    |> put_resp_content_type("text/plain")
+    |> send_resp(status, msg)
   end
 
   @doc "Sends a 500 response."
+  @spec error(Conn.t()) :: Conn.t()
   def error(conn) do
     text(conn, 500, "internal server error")
   end
 
   @doc "Sends a JSON response."
-  def json(conn, status, data) when is_integer(status) do
+  @spec json(Conn.t(), integer, term) :: Conn.t()
+  def json(conn, status, data) do
     case Jason.encode(data) do
       {:ok, encoded} ->
-        conn |> put_resp_content_type("application/json") |> send_resp(status, encoded)
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(status, encoded)
 
       {:error, err} ->
-        Logger.error("Encoding response failed: #{inspect(err)}")
+        notify(:warn, "encoding HTTP response failed", err)
         error(conn)
     end
   end
@@ -43,24 +50,39 @@ defmodule ReplayFarm.Web.Plugs do
     else
       case get_req_header(conn, "authorization") do
         [key] ->
-          try do
-            if key in Key.get!() do
+          case Key.get() do
+            {:ok, keys} ->
+              if key in keys do
+                conn
+              else
+                notify("blocked request with invalid API key `#{key}`")
+
+                conn
+                |> text(400, "invalid API key")
+                |> halt()
+              end
+
+            {:error, err} ->
+              notify(:error, "retrieving keys failed", err)
+
               conn
-            else
-              Logger.info("blocked request with invalid API key")
-              conn |> text(400, "invalid API key") |> halt()
-            end
-          rescue
-            e -> Logger.error("Getting keys failed: #{inspect(e)}") && conn |> error() |> halt()
+              |> error()
+              |> halt()
           end
 
         [] ->
-          Logger.info("blocked request with missing API key")
-          conn |> text(400, "missing API key") |> halt()
+          notify("blocked request with missing API key")
+
+          conn
+          |> text(400, "missing API key")
+          |> halt()
 
         _ ->
-          Logger.info("blocked request with invalid API key")
-          conn |> text(400, "invalid API key") |> halt()
+          notify("blocked request with invalid API key")
+
+          conn
+          |> text(400, "invalid API key")
+          |> halt()
       end
     end
   end
@@ -77,8 +99,13 @@ defmodule ReplayFarm.Web.Plugs do
       case conn.path_info do
         ["poll"] ->
           case conn.body_params do
-            %{"worker" => w} when is_binary(w) -> conn
-            _ -> conn |> text(400, "invalid request body") |> halt()
+            %{"worker" => w} when is_binary(w) ->
+              conn
+
+            _ ->
+              conn
+              |> text(400, "invalid request body")
+              |> halt()
           end
 
         ["status"] ->
@@ -88,7 +115,9 @@ defmodule ReplayFarm.Web.Plugs do
               conn
 
             _ ->
-              conn |> text(400, "invalid request_body") |> halt()
+              conn
+              |> text(400, "invalid request_body")
+              |> halt()
           end
 
         _ ->
@@ -103,49 +132,38 @@ defmodule ReplayFarm.Web.Plugs do
   Preloads parameters passed as IDs into their actual entities.
 
   The entities are stored in the Conn's private storage, and the values are either:
-  - :missing (no such entity)
+  - :missing (no ID provided)
   - :error (something failed)
-  - The successfully-preloaded value
+  - The successfully-preloaded value or nil if it doesn't exist
   """
   def preload(conn, _opts) do
-    w = conn.body_params["worker"]
-    j = conn.body_params["job"]
+    w_id = conn.body_params["worker"]
+    j_id = conn.body_params["job"]
 
     # The preloads map fields will be :missing if they weren't provided in the request.
     # If there's an error preloading, the field is :error.
     # Otherwise, it's the model or nil.
-    conn = put_private(conn, :preloads, %{worker: :missing, job: :missing})
-
-    conn =
-      if is_nil(w) do
-        conn
-      else
-        try do
-          worker = Worker.get!(w)
-          worker || Logger.warn("Tried to preload worker #{w}, does not exist")
-          put_private(conn, :preloads, %{conn.private.preloads | worker: worker})
-        rescue
-          e ->
-            Logger.info("Preloading worker #{w} failed: #{inspect(e)}") &&
-              put_private(conn, :preloads, %{conn.private.preloads | worker: :error})
-        end
-      end
-
-    conn =
-      if is_nil(j) do
-        conn
-      else
-        try do
-          job = Job.get!(j)
-          job || Logger.warn("Tried to preload job #{j}, does not exist")
-          put_private(conn, :preloads, %{conn.private.preloads | job: job})
-        rescue
-          e ->
-            Logger.info("Preloading job #{j} failed: #{inspect(e)}") &&
-              put_private(conn, :preloads, %{conn.private.preloads | job: :error})
-        end
-      end
-
     conn
+    |> put_private(:preloads, %{worker: :missing, job: :missing})
+    |> (fn c ->
+          if is_nil(w_id) do
+            c
+          else
+            case Worker.get(w_id) do
+              {:ok, w} -> put_private(c, :preloads, %{c.private.preloads | worker: w})
+              {:error, err} -> notify(:warn, "preloading worker `#{w_id}` failed", err)
+            end
+          end
+        end).()
+    |> (fn c ->
+          if is_nil(j_id) do
+            c
+          else
+            case Job.get(j_id) do
+              {:ok, j} -> put_private(c, :preloads, %{c.private.preloads | job: j})
+              {:error, err} -> notify(:warn, "preloading job `#{j_id}` failed", err)
+            end
+          end
+        end).()
   end
 end

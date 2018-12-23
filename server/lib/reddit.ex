@@ -2,8 +2,9 @@ defmodule ReplayFarm.Reddit do
   @doc "Manages the Python port which interacts with Reddit."
 
   use GenServer
-  require Logger
   use Export.Python
+
+  import ReplayFarm.Utils
 
   @module "priv.reddit"
 
@@ -22,7 +23,7 @@ defmodule ReplayFarm.Reddit do
 
     case Jason.decode(json) do
       {:ok, p} -> process_post(p)
-      {:error, err} -> Logger.error("Decoding post failed: #{err}")
+      {:error, err} -> notify(:warn, "decoding Reddit post failed", err)
     end
 
     send(self(), :post)
@@ -31,6 +32,6 @@ defmodule ReplayFarm.Reddit do
 
   # Handle a single Reddit post.
   defp process_post(p) do
-    Logger.info("Processing post #{inspect(p)}")
+    notify(:debug, "processing Reddit post #{p.id}")
   end
 end

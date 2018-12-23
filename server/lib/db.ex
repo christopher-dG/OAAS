@@ -43,26 +43,20 @@ defmodule ReplayFarm.DB do
   end
 
   @doc "Wrapper around `Sqlitex.Server.query`."
-  @spec query!(binary, keyword) :: list
-  def query!(sql, opts \\ []) when is_binary(sql) and is_list(opts) do
-    case Sqlitex.Server.query(__MODULE__, sql, opts) do
-      {:ok, results} -> results
-      {:error, err} -> raise inspect(err)
-    end
+  @spec query(binary, keyword) :: {:ok, list} | {:error, term}
+  def query(sql, opts \\ []) do
+    Sqlitex.Server.query(__MODULE__, sql, opts)
   end
 
   @doc "Executes some code inside of a SQL transaction."
-  defmacro transaction!(do: expr) do
+  defmacro transaction(do: expr) do
     quote do
-      import ReplayFarm.DB, only: [query!: 1]
-      query!("BEGIN")
-
-      try do
-        result = unquote(expr)
-        query!("COMMIT")
-        result
-      rescue
-        e -> query!("ROLLBACK") && raise e
+      with {:ok, _} <- ReplayFarm.DB.query("BEGIN"),
+           {:ok, results} <- unquote(expr),
+           {:ok, _} <- ReplayFarm.DB.query("COMMIT") do
+        {:ok, results}
+      else
+        {:error, err} -> ReplayFarm.DB.query("ROLLBACK") && {:error, err}
       end
     end
   end

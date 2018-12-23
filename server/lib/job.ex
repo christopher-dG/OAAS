@@ -1,10 +1,12 @@
 defmodule ReplayFarm.Job do
   @moduledoc "Jobs are recording/uploading tasks to be completed."
 
-  alias OsuEx.API, as: OsuAPI
-  alias OsuEx.Parser
-  require Logger
   use Bitwise, only_operators: true
+
+  alias ReplayFarm.DB
+  alias ReplayFarm.Worker
+  import ReplayFarm.Utils
+  require DB
 
   @doc "Defines the job status enum."
   def status(_s)
@@ -24,12 +26,6 @@ defmodule ReplayFarm.Job do
   def status(3), do: :uploading
   def status(4), do: :successful
   def status(5), do: :failed
-
-  @doc "Checks whether a status indicates that the job is finished."
-  @spec finished(integer) :: boolean
-  def finished(stat) when is_integer(stat) do
-    stat >= status(:successful)
-  end
 
   @table "jobs"
 
@@ -73,70 +69,135 @@ defmodule ReplayFarm.Job do
   }
 
   @doc "Gets all jobs which are running but stalled."
-  @spec get_stalled! :: [t]
-  def get_stalled! do
+  @spec get_stalled :: [t]
+  def get_stalled do
     now = System.system_time(:millisecond)
 
-    query!(
-      "SELECT * FROM #{@table} WHERE status BETWEEN ?1 AND ?2",
-      x: status(:assigned),
-      x: status(:uploading)
-    )
-    |> Enum.flat_map(fn j ->
-      if abs(now - j.updated_at) < @timeouts[status(j.status)] do
-        []
+    case query(
+           "SELECT * FROM #{@table} WHERE status BETWEEN ?1 AND ?2",
+           x: status(:assigned),
+           x: status(:uploading)
+         ) do
+      {:ok, js} ->
+        {:ok, Enum.filter(js, fn j -> abs(now - j.updated_at) > @timeouts[status(j.status)] end)}
+
+      {:error, err} ->
+        {:error, err}
+    end
+  end
+
+  @doc "Gets all jobs with a given status."
+  @spec get_by_status(atom | integer) :: {:ok, [t]} | {:error, term}
+  def get_by_status(stat) when is_atom(stat) do
+    stat
+    |> status()
+    |> get_by_status()
+  end
+
+  def get_by_status(stat) when is_integer(stat) do
+    query("SELECT * FROM #{@table} WHERE status = ?1", x: stat)
+  end
+
+  @doc "Assigns a job to a worker."
+  @spec assign(t, Worker.t()) :: {:ok, t} | {:error, term}
+  def assign(%__MODULE__{} = j, %Worker{} = w) do
+    DB.transaction do
+      with {:ok, _} <-
+             Worker.update(w, current_job_id: j.id, last_job: System.system_time(:millisecond)),
+           {:ok, j} <- update(j, worker_id: w.id, status: status(:assigned)) do
+        {:ok, j}
       else
-        [struct(__MODULE__, j)]
+        {:error, err} -> {:error, err}
       end
-    end)
+    end
   end
 
-  @doc "Gets all pending jobs."
-  @spec get_pending! :: [t]
-  def get_pending! do
-    query!("SELECT * FROM #{@table} WHERE status = ?1", x: status(:pending))
-    |> Enum.map(&struct(__MODULE__, &1))
+  @doc "Checks whether a status indicates that the job is finished."
+  @spec finished(integer) :: boolean
+  def finished(stat) do
+    stat >= status(:successful)
   end
 
-  @doc "Gets all failed jobs."
-  @spec get_failed! :: [t]
-  def get_failed! do
-    query!("SELECT * FROM #{@table} WHERE STATUS = ?1", x: status(:failed))
-    |> Enum.map(&struct(__MODULE__, &1))
+  @doc "Updates a job's status."
+  @spec update_status(t, Worker.t(), integer, binary) :: {:ok, t} | {:error, term}
+  def update_status(%__MODULE__{} = j, %Worker{} = w, stat, comment) do
+    DB.transaction do
+      case update(j, status: stat, comment: comment) do
+        {:ok, j} ->
+          if finished(stat) do
+            case Worker.update(w, current_job_id: nil) do
+              {:ok, _w} -> {:ok, j}
+              {:error, err} -> {:error, err}
+            end
+          else
+            {:ok, j}
+          end
+
+        {:error, err} ->
+          {:error, err}
+      end
+    end
   end
 
-  # It gets pretty ugly from here on down.
+  @doc "Fails a job."
+  @spec fail(t, binary) :: {:ok, t} | {:error, term}
+  def fail(%__MODULE__{} = j, comment \\ "") do
+    DB.transaction do
+      with {:ok, %Worker{} = w} <- Worker.get(j.worker_id),
+           {:ok, _w} <- Worker.update(w, current_job_id: nil),
+           {:ok, j} <- update(j, worker_id: nil, status: status(:failed), comment: comment) do
+        {:ok, j}
+      else
+        {:error, err} -> {:error, err}
+      end
+    end
+  end
 
-  # def from_reddit(data) when is_map(data) do
-  # end
+  @doc "Reschedules a job."
+  @spec reschedule(t) :: {:ok, t} | {:error, term}
+  def reschedule(%__MODULE__{} = j) do
+    unless j.status === status(:failed) do
+      notify(:warn, "rescheduling non-failed job #{j.id} (#{status(j.status)})")
+    end
 
-  # Create a recording job from a replay link.
-  @spec from_osr!(binary) :: t
-  def from_osr!(url) when is_binary(url) do
-    %{body: osr} = HTTPoison.get!(url)
-    replay = Parser.osr!(osr)
-    player = OsuAPI.get_user!(replay.player)
-    beatmap = OsuAPI.get_beatmap!(replay.beatmap_md5)
+    update(j, status: status(:pending), comment: "rescheduled")
+  end
 
-    put!(
-      player: player,
-      beatmap: beatmap,
-      replay: %{data: Base.encode64(osr), length: replaytime(beatmap, replay.mods)},
-      youtube: ytdata(player, beatmap, replay),
-      skin: skin(player.username),
-      status: status(:pending)
-    )
+  @doc "Creates a job from a Reddit post."
+  @spec from_reddit(map) :: {:ok, t} | {:error, term}
+  def from_reddit(_data) do
+    {:error, :todo}
+  end
+
+  @doc "Creates a job from a replay link."
+  @spec from_osr(binary) :: {:ok, t} | {:error, term}
+  def from_osr(url) do
+    with {:ok, %{body: osr}} <- HTTPoison.get(url),
+         {:ok, replay} = OsuEx.Parser.osr(osr),
+         {:ok, player} = OsuEx.API.get_user(replay.player),
+         {:ok, beatmap} = OsuEx.API.get_beatmap(replay.beatmap_md5) do
+      put(
+        player: player,
+        beatmap: beatmap,
+        replay: %{data: Base.encode64(osr), length: replaytime(beatmap, replay.mods)},
+        youtube: ytdata(player, beatmap, replay),
+        skin: skin(player.username),
+        status: status(:pending)
+      )
+    else
+      {:error, err} -> {:error, err}
+    end
   end
 
   @skins_api "https://circle-people.com/skins-api.php?player="
 
   # Get a player's skin.
   @spec skin(binary) :: map | nil
-  def skin(username) when is_binary(username) do
+  def skin(username) do
     case HTTPoison.get(@skins_api <> username) do
       {:ok, resp} ->
         if resp.body === "" do
-          Logger.warn("No skin available for user #{username}")
+          notify("no skin available for user `#{username}`")
           nil
         else
           %{
@@ -146,24 +207,32 @@ defmodule ReplayFarm.Job do
         end
 
       {:error, err} ->
-        Logger.warn("Couldn't get skin for user #{username}: #{inspect(err)}")
+        notify(:warn, "couldn't get skin for user `#{username}`", err)
         nil
     end
   end
 
-  defp replaytime(%{total_length: len}, mods) when is_integer(mods) do
+  @dt 64
+  @ht 256
+
+  # Compute the actual runtime of a replay, given its mods.
+  @spec replaytime(map, integer) :: number
+  defp replaytime(%{total_length: len}, mods) do
     cond do
-      (mods &&& 64) === 64 -> len / 1.5
-      (mods &&& 256) === 256 -> len * 1.5
+      (mods &&& @dt) === @dt -> len / 1.5
+      (mods &&& @ht) === @ht -> len * 1.5
       true -> len
     end
   end
 
   # Convert numeric mods to a string, e.g. 25 -> +HDHR.
   @spec modstring(integer) :: binary | nil
-  defp modstring(0), do: nil
+  defp modstring(0) do
+    nil
+  end
 
-  defp modstring(mods) when is_integer(mods) do
+  defp modstring(_mods) do
+    # TODO
     nil
   end
 
@@ -178,8 +247,8 @@ defmodule ReplayFarm.Job do
 
   # Calculate pp for a play.
   @spec ppstring(map, integer, integer, number) :: binary | nil
-  defp ppstring(beatmap, mode, mods, acc)
-       when is_map(beatmap) and is_integer(mode) and is_integer(mods) and is_number(acc) do
+  defp ppstring(_beatmap, _mode, _mods, _acc) do
+    # TODO
     nil
   end
 
@@ -221,17 +290,23 @@ defmodule ReplayFarm.Job do
 
   @doc "Gets YouTube upload data for a play."
   @spec ytdata(map, map, map) :: map
-  def ytdata(player, beatmap, replay)
-      when is_map(player) and is_map(beatmap) and is_map(replay) do
+  def ytdata(player, beatmap, replay) do
     mods = modstring(replay.mods)
+    fc = if(replay.perfect?, do: "FC", else: nil)
     percent = acc(replay)
+    pp = ppstring(beatmap, replay.mode, replay.mods, percent)
 
     acc_s =
-      if(is_nil(percent), do: nil, else: :erlang.float_to_binary(percent, decimals: 2) <> "%")
+      if is_nil(percent) do
+        nil
+      else
+        :erlang.float_to_binary(percent, decimals: 2) <> "%"
+      end
 
-    fc = if(replay.perfect?, do: "FC", else: nil)
-    pp = ppstring(beatmap, replay.mode, replay.mods, percent)
-    extra = [mods, acc_s, fc, pp] |> Enum.reject(&is_nil/1) |> Enum.join(" ")
+    extra =
+      [mods, acc_s, fc, pp]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
 
     title =
       "#{@modes[replay.mode]} | #{player.username} | #{beatmap.artist} - #{beatmap.title} [#{

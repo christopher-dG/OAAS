@@ -2,11 +2,11 @@ defmodule ReplayFarm.Queue do
   @moduledoc "Manages the job queue."
 
   use GenServer
-  require Logger
 
   alias ReplayFarm.Worker
   alias ReplayFarm.Job
   alias ReplayFarm.DB
+  import ReplayFarm.Utils
   require DB
 
   @interval 10 * 1000
@@ -21,8 +21,6 @@ defmodule ReplayFarm.Queue do
   end
 
   def handle_info(:work, state) do
-    # Logger.info("Processing job queue")
-
     try do
       clear_stalled!()
       process_pending!()
@@ -35,59 +33,74 @@ defmodule ReplayFarm.Queue do
   end
 
   # Schedule work to be done after the interval elapses.
-  defp schedule(interval) when is_integer(interval) and interval > 0 do
-    Process.send_after(self(), :work, interval)
+  defp schedule(ms) do
+    Process.send_after(self(), :work, ms)
   end
 
   # Unassign stalled jobs from workers.
   defp clear_stalled! do
-    Job.get_stalled!()
-    |> Enum.each(fn j ->
-      w = Worker.get!(j.worker_id)
+    case Job.get_stalled() do
+      {:ok, js} ->
+        Enum.each(js, fn j ->
+          status = j.status
 
-      DB.transaction! do
-        Worker.update!(w, current_job_id: nil)
+          case Job.fail(j, "stalled at status #{Job.status(j.status)}") do
+            {:ok, j} ->
+              notify("job `#{j.id}` failed (stalled at `#{Job.status(status)}`)")
 
-        Job.update!(
-          j,
-          worker_id: nil,
-          status: Job.status(:failed),
-          comment: "stalled with status #{Job.status(j.status)}"
-        )
-      end
+            {:error, err} ->
+              notify(:warn, "failing job `#{j.id}` failed", err)
+          end
+        end)
 
-      Logger.info(
-        "unassigned job `#{j.id}` from worker `#{w.id}` (stalled at `#{Job.status(j.status)}`)"
-      )
-    end)
+      {:error, err} ->
+        notify(:warn, "getting stalled jobs failed", err)
+    end
   end
 
   # Assign pending jobs to available workers.
   defp process_pending! do
-    Job.get_pending!()
-    |> Enum.sort_by(&Map.get(&1, :created_at))
-    |> Enum.each(fn j ->
-      case Worker.get_lru!() do
-        nil ->
-          :noop
+    case Job.get_by_status(:pending) do
+      {:ok, js} ->
+        js
+        |> Enum.sort_by(&Map.get(&1, :created_at))
+        |> Enum.each(fn j ->
+          case Worker.get_lru() do
+            {:ok, nil} ->
+              :noop
 
-        w ->
-          DB.transaction! do
-            Worker.update!(w, current_job_id: j.id, last_job: System.system_time(:millisecond))
-            Job.update!(j, worker_id: w.id, status: Job.status(:assigned))
+            {:ok, w} ->
+              case Job.assign(j, w) do
+                {:ok, j} ->
+                  notify("assigned job `#{j.id}` to worker `#{w.id}`")
+
+                {:error, err} ->
+                  notify(:error, "assigning job `#{j.id}` to worker `#{w.id}` failed", err)
+              end
+
+            {:error, err} ->
+              notify(:warn, "getting a worker to assign to job `#{j.id}` failed", err)
           end
+        end)
 
-          Logger.info("Assigned job `#{j.id}` to worker `#{w.id}`")
-      end
-    end)
+      {:error, err} ->
+        notify(:error, "getting pending jobs failed", err)
+    end
   end
 
   # Reschedule failed jobs.
   defp reschedule_failed! do
-    Job.get_failed!()
-    |> Enum.each(fn j ->
-      Job.update!(j, status: :pending)
-      Logger.info("Rescheduled job `#{j.id}`")
-    end)
+    case Job.get_by_status(:failed) do
+      {:ok, js} ->
+        Enum.each(js, fn j ->
+          case Job.reschedule(j) do
+            {:ok, _j} -> notify("rescheduled job `#{j.id}`")
+            {:error, err} -> notify(:error, "rescheduling job `#{j.id}` failed", err)
+          end
+        end)
+
+      {:error, err} ->
+        notify(:error, "getting failed jobs failed", err)
+    end
   end
 end
