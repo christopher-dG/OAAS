@@ -131,7 +131,7 @@ defmodule ReplayFarm.Model do
                      {k, v}
                    end
                  end)
-                 |> Map.new()
+                 |> atom_map()
                end)
                |> Enum.map(&struct(__MODULE__, &1))
              else
@@ -141,6 +141,29 @@ defmodule ReplayFarm.Model do
           {:error, err} ->
             {:error, err}
         end
+      end
+
+      # Convert a map's string keys to atoms.
+      defp atom_map(x) when is_map(x) do
+        x
+        |> Enum.map(&atom_map/1)
+        |> Map.new()
+      end
+
+      defp atom_map(x) when is_list(x) do
+        Enum.map(x, &atom_map/1)
+      end
+
+      defp atom_map({k, v}) when is_binary(k) do
+        {String.to_atom(k), atom_map(v)}
+      end
+
+      defp atom_map({k, v}) do
+        {k, atom_map(v)}
+      end
+
+      defp atom_map(x) do
+        x
       end
     end
   end

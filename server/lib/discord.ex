@@ -59,7 +59,7 @@ defmodule ReplayFarm.Discord do
       {:ok, ws} ->
         ws
         |> Enum.map(&Map.put(&1, :online, Worker.online?(&1)))
-        |> table([:online, :current_job_id], ["online", "job"])
+        |> table([:online, :current_job_id], [:online, :job])
         |> send_message()
 
       {:error, err} ->
@@ -72,9 +72,9 @@ defmodule ReplayFarm.Discord do
     case Job.get() do
       {:ok, js} ->
         js
-        |> Enum.filter(fn j -> not Job.finished(j) end)
+        |> Enum.reject(&Job.finished/1)
         |> Enum.map(fn j -> Map.update!(j, :status, &Job.status/1) end)
-        |> table([:worker_id, :status], ["worker", "status"])
+        |> table([:worker_id, :status, :comment], [:worker, :status, :comment])
         |> send_message()
 
       {:error, err} ->
@@ -82,34 +82,94 @@ defmodule ReplayFarm.Discord do
     end
   end
 
+  # Describe a worker.
+  defp command(["describe", "worker", id], _msg) do
+    case Worker.get(id) do
+      {:ok, %Worker{} = w} ->
+        last_job =
+          if is_nil(w.last_job) do
+            "never"
+          else
+            DateTime.from_unix!(w.last_job, :millisecond)
+          end
+
+        """
+        ```
+        id: #{w.id}
+        online: #{Worker.online?(w)}
+        job: #{w.current_job_id || "none"}
+        last poll: #{DateTime.from_unix!(w.last_poll, :millisecond)}
+        last job: #{last_job}
+        created: #{DateTime.from_unix!(w.created_at, :millisecond)}
+        updated: #{DateTime.from_unix!(w.updated_at, :millisecond)}
+        ```
+        """
+        |> send_message()
+
+      {:ok, nil} ->
+        notify(:error, "no such worker")
+
+      {:error, err} ->
+        notify(:error, "looking up worker failed", err)
+    end
+  end
+
+  # Describe a job.
+  defp command(["describe", "job", id], _msg) do
+    with {id, ""} <- Integer.parse(id),
+         {:ok, %Job{} = j} <- Job.get(id) do
+      """
+      ```
+      id: #{j.id}
+      worker: #{j.worker_id || "none"}
+      status: #{Job.status(j.status)}
+      comment: #{j.comment || "none"}
+      player: https://osu.ppy.sh/u/#{j.player.user_id}
+      beatmap: https://osu.ppy.sh/b/#{j.beatmap.beatmap_id}
+      video: #{j.youtube.title}
+      skin: #{(j.skin || %{})[:name] || "none"}
+      created: #{DateTime.from_unix!(j.created_at, :millisecond)}
+      updated: #{DateTime.from_unix!(j.updated_at, :millisecond)}
+      ```
+      """
+      |> send_message()
+    else
+      :error -> notify(:error, "invalid job id")
+      {:ok, nil} -> notify(:error, "no such job")
+      {:error, err} -> notify(:error, "looking up job failed", err)
+    end
+  end
+
   # Delete a job.
-  defp command(["delete", id], _msg) do
+  defp command(["delete", "job", id], _msg) do
     with {id, ""} <- Integer.parse(id),
          {:ok, j} <- Job.get(id),
          {:ok, j} <- Job.delete(j) do
       notify("deleted job `#{j.id}`")
     else
-      :error -> notify(:error, "invalid job ID")
+      :error -> notify(:error, "invalid job id")
       {:error, err} -> notify(:error, "deleting job failed", err)
     end
   end
 
   # Fallback command.
   defp command(cmd, _msg) do
-    send_message("""
+    """
     ```
     unrecognized command: #{Enum.join(cmd, " ")}
     usage: <mention> <cmd>
     commands:
-    * list workers
-    * list jobs
-    * delete <job id>
+    * list (jobs | workers)
+    * describe (job | worker) <id>
+    * delete job <id>
     or, attach a .osr file to create a new job
     ```
-    """)
+    """
+    |> send_message()
   end
 
-  @spec table([struct], [atom], [binary]) :: binary
+  # Generate an ascii table from a list of models.
+  @spec table([struct], [atom], [atom]) :: binary
   defp table([], _rows, _headers) do
     "no entries"
   end
@@ -125,7 +185,7 @@ defmodule ReplayFarm.Discord do
             DateTime.from_unix!(x.updated_at, :millisecond)
           ]
       end)
-      |> TableRex.quick_render!(["id"] ++ headers ++ ["created", "updated"])
+      |> TableRex.quick_render!([:id] ++ headers ++ [:created, :updated])
 
     "```\n#{t}\n```"
   end

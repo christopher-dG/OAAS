@@ -233,15 +233,42 @@ defmodule ReplayFarm.Job do
     end
   end
 
-  # Convert numeric mods to a string, e.g. 25 -> +HDHR.
+  # This list is sorted in presentation order.
+  @mods [
+    EZ: 1 <<< 1,
+    HD: 1 <<< 3,
+    HT: 1 <<< 8,
+    DT: 1 <<< 6,
+    NC: 1 <<< 6 ||| 1 <<< 9,
+    HR: 1 <<< 4,
+    FL: 1 <<< 10,
+    NF: 1 <<< 0,
+    SD: 1 <<< 5,
+    PF: 1 <<< 5 ||| 1 <<< 14,
+    RX: 1 <<< 7,
+    AP: 1 <<< 13,
+    SO: 1 <<< 12,
+    AT: 1 <<< 11,
+    V2: 1 <<< 29,
+    TD: 1 <<< 2
+  ]
+
+  # Convert numeric mods to a string, e.g. 24 -> +HDHR.
   @spec modstring(integer) :: binary | nil
-  defp modstring(0) do
+  def modstring(0) do
     nil
   end
 
-  defp modstring(_mods) do
-    # TODO
-    nil
+  def modstring(mods) do
+    mods =
+      @mods
+      |> Enum.filter(fn {_m, v} -> (mods &&& v) === v end)
+      |> Keyword.keys()
+
+    mods = if(:NC in mods, do: List.delete(mods, :DT), else: mods)
+    mods = if(:PF in mods, do: List.delete(mods, :SD), else: mods)
+
+    "+" <> Enum.join(mods, ",")
   end
 
   # Convert a replay into its accuracy, in percent.
@@ -251,13 +278,28 @@ defmodule ReplayFarm.Job do
       (300 * replay.n300 + 300 * replay.n100 + 300 * replay.n50 + 300 * replay.nmiss)
   end
 
-  defp acc(_replay), do: nil
+  defp acc(_replay) do
+    nil
+  end
 
   # Calculate pp for a play.
-  @spec ppstring(map, integer, integer, number) :: binary | nil
-  defp ppstring(_beatmap, _mode, _mods, _acc) do
-    # TODO
-    nil
+  @spec ppstring(map, map, map) :: binary | nil
+  defp ppstring(player, beatmap, replay) do
+    case OsuEx.API.get_scores(beatmap.beatmap_id,
+           u: player.user_id,
+           m: replay.mode,
+           mods: replay.mods
+         ) do
+      {:ok, [%{pp: pp}]} when is_number(pp) ->
+        :erlang.float_to_binary(pp + 0.0, decimals: 0) <> "pp"
+
+      {:ok, _scores} ->
+        nil
+
+      {:error, err} ->
+        notify(:warn, "looking up score failed", err)
+        nil
+    end
   end
 
   # Generate the YouTube description.
@@ -275,7 +317,7 @@ defmodule ReplayFarm.Job do
     osu! has online rankings, multiplayer and boasts a community with over 500,000 active users!
 
     Title explanation:
-    PlayerName | Artist - Song [Difficulty] +ModificationOfMap | PlayerAccuracyOnMap% PointsAwardedForThisPlayPP
+    GameMode | PlayerName | Artist - Song [Difficulty] +ModificationOfMap | PlayerAccuracyOnMap% PointsAwardedForThisPlayPP
 
     Want to support what we do? Check out our Patreon!
     https://www.patreon.com/circlepeople
@@ -302,7 +344,7 @@ defmodule ReplayFarm.Job do
     mods = modstring(replay.mods)
     fc = if(replay.perfect?, do: "FC", else: nil)
     percent = acc(replay)
-    pp = ppstring(beatmap, replay.mode, replay.mods, percent)
+    pp = ppstring(player, beatmap, replay)
 
     acc_s =
       if is_nil(percent) do

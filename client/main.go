@@ -138,6 +138,9 @@ func init() {
 		osuExe = "osu!"
 	}
 
+	// Start osu!.
+	ExecOsu()
+
 	// Compute the pixel offsets.
 	sizeXi, sizeYi := robotgo.GetScreenSize()
 	sizeX, sizeY := float64(sizeXi), float64(sizeYi)
