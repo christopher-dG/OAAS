@@ -10,8 +10,7 @@ defmodule OAAS.Application do
     children = [
       # Starts a worker by calling: OAAS.Worker.start_link(arg)
       %{
-        start:
-          {Sqlitex.Server, :start_link, ["priv/db_#{Mix.env()}.sqlite3", [name: OAAS.DB]]},
+        start: {Sqlitex.Server, :start_link, ["priv/db_#{Mix.env()}.sqlite3", [name: OAAS.DB]]},
         id: Sqlitex.Server
       },
       OAAS.DB,
