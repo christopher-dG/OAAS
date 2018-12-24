@@ -31,9 +31,10 @@ $ docker create --name oaas -p 4000:4000 oaas
 $ docker start oaas
 ```
 
-Add or delete API keys like so:
+List, add or delete API keys like so:
 
 ```sh
+$ docker exec oaas mix key.list
 $ docker exec oaas mix key.add <key>
 $ docker exec oaas mix key.delete <key>
 ```

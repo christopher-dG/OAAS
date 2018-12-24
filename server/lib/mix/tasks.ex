@@ -1,3 +1,22 @@
+defmodule Mix.Tasks.Key.List do
+  use Mix.Task
+
+  @shortdoc "Lists API keys."
+  def run(_arg) do
+    with {:ok, _} <- Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: OAAS.DB),
+         {:ok, _} <- OAAS.DB.start_link([]),
+         {:ok, keys} <- OAAS.Key.get() do
+      keys
+      |> Enum.join("\n")
+      |> IO.puts()
+    else
+      {:error, reason} ->
+        IO.puts("listing keys failed: #{inspect(reason)}")
+        exit({:shutdown, 1})
+    end
+  end
+end
+
 defmodule Mix.Tasks.Key.Add do
   use Mix.Task
 

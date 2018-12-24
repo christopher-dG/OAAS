@@ -46,7 +46,7 @@ defmodule OAAS.Worker do
   end
 
   @doc "Gets the worker's currently assigned job."
-  @spec get_assigned(t) :: Job.t() | nil
+  @spec get_assigned(t) :: {:ok, Job.t() | nil} | {:error, term}
   def get_assigned(%__MODULE__{current_job_id: nil}) do
     {:ok, nil}
   end
@@ -78,7 +78,7 @@ defmodule OAAS.Worker do
   end
 
   @doc "Chooses an online worker by LRU."
-  @spec get_lru :: t | nil
+  @spec get_lru :: {:ok, t | nil} | {:error, term}
   def get_lru do
     case get_available() do
       {:ok, []} ->
