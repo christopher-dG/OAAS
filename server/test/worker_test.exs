@@ -18,13 +18,13 @@ defmodule WorkerTest do
 
     assert {:ok, _} = put(id: "a", last_poll: now)
     assert {:ok, _} = put(id: "b", last_poll: now - 15_000)
-    assert {:ok, _} = put(id: "c", last_poll: now - 29_900)
+    assert {:ok, _} = put(id: "c", last_poll: now - 29_500)
     assert {:ok, _} = put(id: "d", last_poll: now - 35_000)
     assert {:ok, _} = put(id: "e", last_poll: now - 29_900, current_job_id: 1)
 
     assert {:ok, [%Worker{id: "a"}, %Worker{id: "b"}, %Worker{id: "c"}]} = get_available()
 
-    Process.sleep(300)
+    Process.sleep(1000)
 
     assert {:ok, [%Worker{id: "a"}, %Worker{id: "b"}]} = get_available()
   end

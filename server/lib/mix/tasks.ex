@@ -3,8 +3,7 @@ defmodule Mix.Tasks.Key.List do
 
   @shortdoc "Lists API keys."
   def run(_arg) do
-    with {:ok, _} <- Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: OAAS.DB),
-         {:ok, _} <- OAAS.DB.start_link([]),
+    with :ok <- OAAS.Utils.start_db(),
          {:ok, keys} <- OAAS.Key.get() do
       keys
       |> Enum.join("\n")
@@ -19,16 +18,26 @@ end
 
 defmodule Mix.Tasks.Key.Add do
   use Mix.Task
+  require OAAS.DB
 
-  @shortdoc "Adds an API key to the database."
-  def run(key) do
-    with {:ok, _} <- Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: OAAS.DB),
-         {:ok, _} <- OAAS.DB.start_link([]),
-         {:ok, key} <- OAAS.Key.put(key) do
-      IO.puts("added key #{key}")
+  @shortdoc "Adds API keys (space-delimited) to the database."
+  def run(keys) do
+    with :ok <- OAAS.Utils.start_db(),
+         {:ok, keys} <-
+           (OAAS.DB.transaction do
+              Enum.each(keys, fn k ->
+                case OAAS.Key.put(k) do
+                  {:ok, _} -> :noop
+                  {:error, reason} -> throw(reason)
+                end
+              end)
+
+              {:ok, keys}
+            end) do
+      IO.puts("added #{length(keys)} key(s)")
     else
       {:error, reason} ->
-        IO.puts("adding key failed: #{inspect(reason)}")
+        IO.puts("adding keys failed: #{inspect(reason)}")
         exit({:shutdown, 1})
     end
   end
@@ -36,16 +45,26 @@ end
 
 defmodule Mix.Tasks.Key.Delete do
   use Mix.Task
+  require OAAS.DB
 
-  @shortdoc "Deletes an API key to the database."
-  def run(key) do
-    with {:ok, _} <- Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: OAAS.DB),
-         {:ok, _} <- OAAS.DB.start_link([]),
-         {:ok, key} <- OAAS.Key.delete(key) do
-      IO.puts("deleted key #{key}")
+  @shortdoc "Deletes API keys (space-delimited) from the database."
+  def run(keys) do
+    with :ok <- OAAS.Utils.start_db(),
+         {:ok, keys} <-
+           (OAAS.DB.transaction do
+              Enum.each(keys, fn k ->
+                case OAAS.Key.delete(k) do
+                  {:ok, _} -> :noop
+                  {:error, reason} -> throw(reason)
+                end
+              end)
+
+              {:ok, keys}
+            end) do
+      IO.puts("deleted #{length(keys)} key(s)")
     else
       {:error, reason} ->
-        IO.puts("deleting key failed: #{inspect(reason)}")
+        IO.puts("deleting keys failed: #{inspect(reason)}")
         exit({:shutdown, 1})
     end
   end

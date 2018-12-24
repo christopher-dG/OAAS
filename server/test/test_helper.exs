@@ -1,3 +1,7 @@
-Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: OAAS.DB)
-OAAS.DB.start_link([])
+case OAAS.Utils.start_db() do
+  :ok -> :noop
+  {:error, {:already_started, _pid}} -> :noop
+  {:error, reason} -> throw reason
+end
+
 ExUnit.start()

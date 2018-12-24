@@ -4,6 +4,17 @@ defmodule OAAS.Utils do
   alias OAAS.Discord
   require Logger
 
+  @doc "Starts the database."
+  @spec start_db :: :ok | {:error, term}
+  def start_db do
+    with {:ok, _} <- Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: OAAS.DB),
+         {:ok, _} <- OAAS.DB.start_link([]) do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   @doc "Converts a map's string keys to atoms."
   @spec atom_map(map) :: map
   def atom_map(x) when is_map(x) do

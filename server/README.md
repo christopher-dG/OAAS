@@ -35,8 +35,8 @@ List, add or delete API keys like so:
 
 ```sh
 $ docker exec oaas mix key.list
-$ docker exec oaas mix key.add <key>
-$ docker exec oaas mix key.delete <key>
+$ docker exec oaas mix key.add [keys...]
+$ docker exec oaas mix key.delete [keys...]
 ```
 
 Note: Don't share the built image, as it contains your `.env` file.
