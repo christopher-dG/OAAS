@@ -29,35 +29,40 @@ defmodule DBTest do
   end
 
   test "query/2" do
-    {:ok, _} = query("INSERT INTO #{@table} VALUES (?1, ?2)", bind: [1, 2])
-    {:ok, _} = query("INSERT INTO #{@table} VALUES (?1, ?2)", bind: [2, 3])
+    assert {:ok, _} = query("INSERT INTO #{@table} VALUES (?1, ?2)", bind: [1, 2])
+    assert {:ok, _} = query("INSERT INTO #{@table} VALUES (?1, ?2)", bind: [2, 3])
 
-    {:ok, [[foo: 2]]} = query("SELECT foo FROM #{@table} WHERE id = ?1", bind: [1])
+    assert {:ok, [[foo: 2]]} = query("SELECT foo FROM #{@table} WHERE id = ?1", bind: [1])
   end
 
   test "transaction/1" do
-    {:error, _} =
-      DB.transaction do
-        with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
-             {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2, 3)") do
-          {:ok, nil}
-        else
-          {:error, err} -> {:error, err}
-        end
-      end
+    assert {:error, _} =
+             (DB.transaction do
+                with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
+                     {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2, 3)") do
+                  {:ok, nil}
+                else
+                  {:error, err} -> {:error, err}
+                end
+              end)
 
-    {:ok, []} = query("SELECT * FROM #{@table}")
+    assert {:ok, []} = query("SELECT * FROM #{@table}")
 
-    {:ok, _} =
-      transaction do
-        with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
-             {:ok, _} <- query("INSERT INTO #{@table} VALUES (2, 3)") do
-          {:ok, nil}
-        else
-          {:error, err} -> {:error, err}
-        end
-      end
+    assert {:ok, _} =
+             (DB.transaction do
+                with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
+                     {:ok, _} <- query("INSERT INTO #{@table} VALUES (2, 3)") do
+                  {:ok, nil}
+                else
+                  {:error, err} -> {:error, err}
+                end
+              end)
 
-    assert query("SELECT * FROM #{@table}") === {:ok, [[id: 1, foo: 2], [id: 2, foo: 3]]}
+    assert {:ok, [[id: 1, foo: 2], [id: 2, foo: 3]]} = query("SELECT * FROM #{@table}")
+
+    assert {:error, :foo} =
+             (DB.transaction do
+                throw(:foo)
+              end)
   end
 end

@@ -65,12 +65,12 @@ defmodule ReplayFarm.Worker do
   @spec get_or_put(binary) :: {:ok, t} | {:error, term}
   def get_or_put(id) do
     case get(id) do
-      {:ok, nil} ->
-        notify("inserting new worker `#{id}`")
-        put(id: id)
-
       {:ok, w} ->
         {:ok, w}
+
+      {:error, :no_such_entity} ->
+        notify("inserting new worker `#{id}`")
+        put(id: id)
 
       {:error, reason} ->
         {:error, reason}

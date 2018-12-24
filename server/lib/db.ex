@@ -49,6 +49,7 @@ defmodule ReplayFarm.DB do
   end
 
   @doc "Executes some code inside of a SQL transaction."
+  @spec transaction(term) :: {:ok, term} | {:error, term}
   defmacro transaction(do: expr) do
     quote do
       with {:ok, _} <- ReplayFarm.DB.query("BEGIN"),

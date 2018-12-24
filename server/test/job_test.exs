@@ -27,50 +27,41 @@ defmodule JobTest do
   end
 
   test "put/1 (autoincrementing ID)" do
-    {:ok, %Job{id: id}} = quickput()
+    assert {:ok, %Job{id: id}} = quickput()
     next_id = id + 1
-    {:ok, _} = quickput()
+    assert {:ok, _} = quickput()
 
-    {:ok, [%{id: ^id}, %{id: ^next_id}]} = get()
-  end
-
-  @tag :capture_log
-  @tag :net
-  test "skin/1" do
-    nil = skin("")
-    nil = skin("i")
-
-    %{name: _n, url: "https://" <> _u} = skin("cookiezi")
+    assert {:ok, [%{id: ^id}, %{id: ^next_id}]} = get()
   end
 
   test "get_stalled/0" do
     now = System.system_time(:millisecond)
 
-    {:ok, _} = quickput(:pending, 0)
-    {:ok, _} = quickput(:assigned, now - 60 * 1000)
-    {:ok, _} = quickput(:recording, now - 9 * 60 * 1000)
-    {:ok, _} = quickput(:uploading, now - 5 - 10 * 60 * 1000)
-    {:ok, _} = quickput(:successful, 0)
-    {:ok, _} = quickput(:failed, 0)
+    assert {:ok, _} = quickput(:pending, 0)
+    assert {:ok, _} = quickput(:assigned, now - 60 * 1000)
+    assert {:ok, _} = quickput(:recording, now - 9 * 60 * 1000)
+    assert {:ok, _} = quickput(:uploading, now - 5 - 10 * 60 * 1000)
+    assert {:ok, _} = quickput(:successful, 0)
+    assert {:ok, _} = quickput(:failed, 0)
 
     s = status(:uploading)
 
-    {:ok, [%Job{status: ^s}]} = get_stalled()
+    assert {:ok, [%Job{status: ^s}]} = get_stalled()
   end
 
   test "get_by_status/1" do
-    {:ok, _} = quickput(:pending, 1)
-    {:ok, _} = quickput(:pending, 1)
-    {:ok, _} = quickput(:assigned, 1)
-    {:ok, _} = quickput(:recording)
-    {:ok, _} = quickput(:uploading)
+    assert {:ok, _} = quickput(:pending, 1)
+    assert {:ok, _} = quickput(:pending, 1)
+    assert {:ok, _} = quickput(:assigned, 1)
+    assert {:ok, _} = quickput(:recording)
+    assert {:ok, _} = quickput(:uploading)
 
     p = status(:pending)
     a = status(:assigned)
 
-    {:ok, [%Job{status: ^p, updated_at: 1}, %Job{status: ^p, updated_at: 1}]} =
-      get_by_status(:pending)
+    assert {:ok, [%Job{status: ^p, updated_at: 1}, %Job{status: ^p, updated_at: 1}]} =
+             get_by_status(:pending)
 
-    {:ok, [%Job{status: ^a, updated_at: 1}]} = get_by_status(:assigned)
+    assert {:ok, [%Job{status: ^a, updated_at: 1}]} = get_by_status(:assigned)
   end
 end
