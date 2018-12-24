@@ -10,11 +10,11 @@ use Mix.Config
 
 # You can configure your application as:
 #
-#     config :replay_farm, key: :value
+#     config :oaas, key: :value
 #
 # and access this configuration in your application as:
 #
-#     Application.get_env(:replay_farm, :key)
+#     Application.get_env(:oaas, :key)
 #
 # You can also configure a 3rd-party app:
 #
@@ -35,7 +35,7 @@ config :nostrum, token: System.get_env("DISCORD_TOKEN")
 
 config :osu_ex, api_key: System.get_env("OSU_API_KEY")
 
-config :replay_farm,
+config :oaas,
   port: (System.get_env("PORT") || "4000") |> Integer.parse() |> elem(0),
   discord_user: System.get_env("DISCORD_USER") |> Integer.parse() |> elem(0),
   discord_channel: System.get_env("DISCORD_CHANNEL") |> Integer.parse() |> elem(0)

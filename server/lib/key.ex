@@ -1,7 +1,7 @@
-defmodule ReplayFarm.Key do
+defmodule OAAS.Key do
   @moduledoc "Keys are API keys used by workers."
 
-  alias ReplayFarm.DB
+  alias OAAS.DB
 
   @table "keys"
 

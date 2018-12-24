@@ -30,7 +30,7 @@ func pollOnce(jobs chan Job) {
 		pollLogger.Println("couldn't create request:", err)
 		return
 	}
-	rfHeaders(req)
+	oaasHeaders(req)
 
 	// Make the request.
 	resp, err := http.DefaultClient.Do(req)

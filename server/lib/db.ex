@@ -1,4 +1,4 @@
-defmodule ReplayFarm.DB do
+defmodule OAAS.DB do
   @moduledoc "The database wrapper."
 
   @schema [
@@ -52,7 +52,7 @@ defmodule ReplayFarm.DB do
   @spec transaction(term) :: {:ok, term} | {:error, term}
   defmacro transaction(do: expr) do
     quote do
-      with {:ok, _} <- ReplayFarm.DB.query("BEGIN"),
+      with {:ok, _} <- OAAS.DB.query("BEGIN"),
            {:ok, results} <-
              (try do
                 unquote(expr)
@@ -61,10 +61,10 @@ defmodule ReplayFarm.DB do
               catch
                 reason -> {:error, reason}
               end) do
-        ReplayFarm.DB.commit()
+        OAAS.DB.commit()
         {:ok, results}
       else
-        {:error, reason} -> ReplayFarm.DB.rollback() && {:error, reason}
+        {:error, reason} -> OAAS.DB.rollback() && {:error, reason}
       end
     end
   end
@@ -72,7 +72,7 @@ defmodule ReplayFarm.DB do
   # Commit a transaction.
   @spec commit :: term
   def commit do
-    import ReplayFarm.Utils
+    import OAAS.Utils
 
     case query("COMMIT") do
       {:ok, _} -> :noop
@@ -83,7 +83,7 @@ defmodule ReplayFarm.DB do
   # Roll back a transaction.
   @spec rollback :: term
   def rollback do
-    import ReplayFarm.Utils
+    import OAAS.Utils
 
     case query("ROLLBACK") do
       {:ok, _} -> :noop

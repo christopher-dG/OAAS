@@ -1,10 +1,10 @@
-defmodule ReplayFarm.Reddit do
+defmodule OAAS.Reddit do
   @doc "Manages the Python port which interacts with Reddit."
 
   use GenServer
   use Export.Python
 
-  import ReplayFarm.Utils
+  import OAAS.Utils
 
   @module "priv.reddit"
 

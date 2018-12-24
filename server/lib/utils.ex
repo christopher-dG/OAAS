@@ -1,7 +1,7 @@
-defmodule ReplayFarm.Utils do
+defmodule OAAS.Utils do
   @moduledoc "Common utility functions."
 
-  alias ReplayFarm.Discord
+  alias OAAS.Discord
   require Logger
 
   @spec notify(binary) :: true

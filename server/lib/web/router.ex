@@ -1,19 +1,19 @@
-defmodule ReplayFarm.Web.Router do
+defmodule OAAS.Web.Router do
   @moduledoc """
   The web server.
 
-  See the docstrings in ReplayFarm.Web.Plugs for some conventions.
+  See the docstrings in OAAS.Web.Plugs for some conventions.
   """
 
   use Plug.Router
   use Plug.ErrorHandler
   import Plug.Conn
-  import ReplayFarm.Web.Plugs
+  import OAAS.Web.Plugs
 
-  alias ReplayFarm.Worker
-  alias ReplayFarm.Job
-  alias ReplayFarm.DB
-  import ReplayFarm.Utils
+  alias OAAS.Worker
+  alias OAAS.Job
+  alias OAAS.DB
+  import OAAS.Utils
   require DB
 
   plug(Plug.Logger)

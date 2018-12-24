@@ -1,8 +1,8 @@
 defmodule JobTest do
   use ExUnit.Case
 
-  alias ReplayFarm.Job
-  import ReplayFarm.Job
+  alias OAAS.Job
+  import OAAS.Job
 
   setup_all do
     Application.ensure_all_started(:httpoison)
@@ -10,7 +10,7 @@ defmodule JobTest do
   end
 
   setup do
-    {:ok, _} = Sqlitex.Server.query(ReplayFarm.DB, "DELETE FROM jobs")
+    {:ok, _} = Sqlitex.Server.query(OAAS.DB, "DELETE FROM jobs")
     {:ok, []}
   end
 

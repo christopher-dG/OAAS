@@ -1,4 +1,4 @@
-module github.com/christopher-dG/replay-farm
+module github.com/christopher-dG/oaas
 
 require (
 	bou.ke/monkey v1.0.1 // indirect

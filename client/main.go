@@ -26,9 +26,9 @@ const (
 	pollInterval = time.Second * 10 // Time between requests to routePoll.
 
 	// OBS stuff.
-	obsPort   = 4444          // The default OBS websocket port.
-	obsScene  = "Replay Farm" // Default OBS scene.
-	obsFormat = ".mp4"        // Video format for exports.
+	obsPort   = 4444   // The default OBS websocket port.
+	obsScene  = "OAAS" // Default OBS scene.
+	obsFormat = ".mp4" // Video format for exports.
 
 	// osu! stuff.
 	replayScaleX = 0.8546875
@@ -37,7 +37,7 @@ const (
 	graphScaleY  = 0.8296296296296296
 
 	// Skin stuff.
-	defaultSkin = "replay-farm.osk"
+	defaultSkin = "oaas.osk"
 )
 
 var (
@@ -91,11 +91,11 @@ func init() {
 		log.Fatal(err)
 	}
 
-	localDir = filepath.Join(config.OsuRoot, "replay-farm")
+	localDir = filepath.Join(config.OsuRoot, "OAAS")
 	os.MkdirAll(localDir, os.ModePerm)
 
 	// Read or create the worker ID.
-	path := filepath.Join(localDir, "rf-id")
+	path := filepath.Join(localDir, "oaas-id")
 	if b, err = ioutil.ReadFile(path); err == nil {
 		workerID = string(b)
 	} else {
@@ -164,8 +164,8 @@ func main() {
 	}
 }
 
-// rfHeaders adds the necessary headers for the Replay Farm API.
-func rfHeaders(r *http.Request) {
+// oaasHeaders adds the necessary headers for the OAAS API.
+func oaasHeaders(r *http.Request) {
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Authorization", config.ApiKey)
 }

@@ -1,12 +1,12 @@
-defmodule ReplayFarm.Web.Plugs do
+defmodule OAAS.Web.Plugs do
   @moduledoc "Helper plugs."
 
   import Plug.Conn
 
-  alias ReplayFarm.Worker
-  alias ReplayFarm.Job
-  alias ReplayFarm.Key
-  import ReplayFarm.Utils
+  alias OAAS.Worker
+  alias OAAS.Job
+  alias OAAS.Key
+  import OAAS.Utils
 
   @doc "Sends a text response."
   @spec text(Conn.t(), integer, binary) :: Conn.t()

@@ -1,12 +1,12 @@
-defmodule ReplayFarm.Queue do
+defmodule OAAS.Queue do
   @moduledoc "Manages the job queue."
 
   use GenServer
 
-  alias ReplayFarm.Worker
-  alias ReplayFarm.Job
-  alias ReplayFarm.DB
-  import ReplayFarm.Utils
+  alias OAAS.Worker
+  alias OAAS.Job
+  alias OAAS.DB
+  import OAAS.Utils
   require DB
 
   @interval 10 * 1000

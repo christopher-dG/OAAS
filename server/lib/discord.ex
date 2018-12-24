@@ -1,14 +1,14 @@
-defmodule ReplayFarm.Discord do
+defmodule OAAS.Discord do
   @moduledoc "The Discord bot."
 
   alias Nostrum.Api
   use Nostrum.Consumer
-  import ReplayFarm.Utils
-  alias ReplayFarm.Job
-  alias ReplayFarm.Worker
+  import OAAS.Utils
+  alias OAAS.Job
+  alias OAAS.Worker
 
-  @me Application.get_env(:replay_farm, :discord_user)
-  @channel Application.get_env(:replay_farm, :discord_channel)
+  @me Application.get_env(:oaas, :discord_user)
+  @channel Application.get_env(:oaas, :discord_channel)
 
   def start_link do
     Consumer.start_link(__MODULE__)

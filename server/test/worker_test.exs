@@ -1,10 +1,10 @@
 defmodule WorkerTest do
   use ExUnit.Case
 
-  import ReplayFarm.Worker
-  alias ReplayFarm.DB
-  alias ReplayFarm.Worker
-  alias ReplayFarm.Job
+  import OAAS.Worker
+  alias OAAS.DB
+  alias OAAS.Worker
+  alias OAAS.Job
 
   setup do
     {:ok, _} = DB.query("DELETE FROM workers")

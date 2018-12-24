@@ -1,7 +1,7 @@
-defmodule ReplayFarm.Worker do
+defmodule OAAS.Worker do
   @moduledoc "Workers are clients that can complete jobs."
 
-  alias ReplayFarm.Job
+  alias OAAS.Job
 
   @table "workers"
 
@@ -25,7 +25,7 @@ defmodule ReplayFarm.Worker do
 
   @json_columns []
 
-  use ReplayFarm.Model
+  use OAAS.Model
 
   @online_threshold 30 * 1000
 

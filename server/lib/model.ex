@@ -1,10 +1,10 @@
-defmodule ReplayFarm.Model do
+defmodule OAAS.Model do
   @moduledoc "A generic database model with some CRUD ops."
 
   defmacro __using__(_) do
     quote do
-      alias ReplayFarm.DB
-      import ReplayFarm.Utils
+      alias OAAS.DB
+      import OAAS.Utils
 
       @model String.slice(@table, 0, String.length(@table) - 1)
 

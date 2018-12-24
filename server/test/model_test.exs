@@ -1,5 +1,5 @@
 defmodule TestModel do
-  alias ReplayFarm.DB
+  alias OAAS.DB
 
   @table "model_test"
 
@@ -14,7 +14,7 @@ defmodule TestModel do
 
   @json_columns [:foo]
 
-  use ReplayFarm.Model
+  use OAAS.Model
 
   def test_get(id) do
     case DB.query("SELECT * FROM #{@table} WHERE id = ?1", bind: [id], into: %{}) do
@@ -35,7 +35,7 @@ end
 defmodule ModelTest do
   use ExUnit.Case
 
-  alias ReplayFarm.DB
+  alias OAAS.DB
   import TestModel
 
   @table "model_test"

@@ -1,11 +1,11 @@
-defmodule ReplayFarm.Job do
+defmodule OAAS.Job do
   @moduledoc "Jobs are recording/uploading tasks to be completed."
 
   use Bitwise, only_operators: true
 
-  alias ReplayFarm.DB
-  alias ReplayFarm.Worker
-  import ReplayFarm.Utils
+  alias OAAS.DB
+  alias OAAS.Worker
+  import OAAS.Utils
   require DB
 
   @doc "Defines the job status enum."
@@ -62,7 +62,7 @@ defmodule ReplayFarm.Job do
 
   @json_columns [:player, :beatmap, :replay, :youtube, :skin]
 
-  use ReplayFarm.Model
+  use OAAS.Model
 
   @doc "Deletes ajob."
   @spec delete(t) :: {:ok, t} | {:error, term}

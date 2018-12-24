@@ -1,9 +1,9 @@
-defmodule ReplayFarm.MixProject do
+defmodule OAAS.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :replay_farm,
+      app: :oaas,
       version: "0.1.0",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
@@ -15,7 +15,7 @@ defmodule ReplayFarm.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {ReplayFarm.Application, []}
+      mod: {OAAS.Application, []}
     ]
   end
 

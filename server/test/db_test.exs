@@ -1,8 +1,8 @@
 defmodule DBTest do
   use ExUnit.Case
 
-  import ReplayFarm.DB
-  alias ReplayFarm.DB
+  import OAAS.DB
+  alias OAAS.DB
 
   @table "db_test"
 
