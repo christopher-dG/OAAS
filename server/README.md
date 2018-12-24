@@ -5,7 +5,7 @@ Setup is most simple with Docker.
 Create a `.env` file:
 
 ```sh
-export PORT=4000
+export PORT="4000"
 export OSU_API_KEY="key"
 export DISCORD_TOKEN="token"
 export DISCORD_CHANNEL="123"

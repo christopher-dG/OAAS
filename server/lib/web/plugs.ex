@@ -150,8 +150,15 @@ defmodule OAAS.Web.Plugs do
             c
           else
             case Worker.get(w_id) do
-              {:ok, w} -> put_private(c, :preloads, %{c.private.preloads | worker: w})
-              {:error, reason} -> notify(:warn, "preloading worker `#{w_id}` failed", reason)
+              {:ok, w} ->
+                put_private(c, :preloads, %{c.private.preloads | worker: w})
+
+              {:error, :no_such_entity} ->
+                put_private(c, :preloads, %{c.private.preloads | worker: nil})
+
+              {:error, reason} ->
+                notify(:warn, "preloading worker `#{w_id}` failed", reason)
+                put_private(c, :preloads, %{c.private.preloads | worker: :error})
             end
           end
         end).()
@@ -160,8 +167,15 @@ defmodule OAAS.Web.Plugs do
             c
           else
             case Job.get(j_id) do
-              {:ok, j} -> put_private(c, :preloads, %{c.private.preloads | job: j})
-              {:error, reason} -> notify(:warn, "preloading job `#{j_id}` failed", reason)
+              {:ok, j} ->
+                put_private(c, :preloads, %{c.private.preloads | job: j})
+
+              {:error, :no_such_entity} ->
+                put_private(c, :preloads, %{c.private.preloads | job: nil})
+
+              {:error, reason} ->
+                notify(:warn, "preloading job `#{j_id}` failed", reason)
+                put_private(c, :preloads, %{c.private.preloads | job: :error})
             end
           end
         end).()
