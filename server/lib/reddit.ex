@@ -3,7 +3,6 @@ defmodule OAAS.Reddit do
 
   use GenServer
   use Export.Python
-
   import OAAS.Utils
 
   @module "priv.reddit"
@@ -22,8 +21,13 @@ defmodule OAAS.Reddit do
     json = Python.call(state, @module, "next_post", [])
 
     case Jason.decode(json) do
-      {:ok, p} -> process_post(p)
-      {:error, reason} -> notify(:warn, "decoding Reddit post failed", reason)
+      {:ok, p} ->
+        p
+        |> atom_map()
+        |> process_post()
+
+      {:error, reason} ->
+        notify(:warn, "decoding reddit post failed", reason)
     end
 
     send(self(), :post)
@@ -32,6 +36,6 @@ defmodule OAAS.Reddit do
 
   # Handle a single Reddit post.
   defp process_post(p) do
-    notify(:debug, "processing Reddit post #{p.id}")
+    notify(:debug, "processing reddit post #{p.id}")
   end
 end

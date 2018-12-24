@@ -4,6 +4,34 @@ defmodule OAAS.Utils do
   alias OAAS.Discord
   require Logger
 
+  @doc "Converts a map's string keys to atoms."
+  @spec atom_map(map) :: map
+  def atom_map(x) when is_map(x) do
+    x
+    |> Enum.map(&atom_map/1)
+    |> Map.new()
+  end
+
+  @spec atom_map(list) :: list
+  def atom_map(x) when is_list(x) do
+    Enum.map(x, &atom_map/1)
+  end
+
+  @spec atom_map({binary, term}) :: {atom, term}
+  def atom_map({k, v}) when is_binary(k) do
+    {String.to_atom(k), atom_map(v)}
+  end
+
+  @spec atom_map({term, term}) :: {term, term}
+  def atom_map({k, v}) do
+    {k, atom_map(v)}
+  end
+
+  @spec atom_map(term) :: term
+  def atom_map(x) do
+    x
+  end
+
   @spec notify(binary) :: true
   def notify(msg) do
     notify(:info, msg)
