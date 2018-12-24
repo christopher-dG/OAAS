@@ -16,17 +16,17 @@ defmodule ReplayFarm.Model do
         query("SELECT * FROM #{@table}")
       end
 
-      @spec get(nil) :: {:error, :noid}
+      @spec get(nil) :: {:error, :no_id}
       def get(nil) do
-        {:error, :noid}
+        {:error, :no_id}
       end
 
-      @spec get(term) :: {:ok, t | nil} | {:error, term}
+      @spec get(term) :: {:ok, t} | {:error, term}
       def get(id) do
         case query("SELECT * FROM #{@table} WHERE id = ?1", id: id) do
-          {:ok, []} -> {:ok, nil}
           {:ok, [m]} -> {:ok, m}
-          {:error, err} -> {:error, err}
+          {:ok, []} -> {:error, :no_such_entity}
+          {:error, reason} -> {:error, reason}
         end
       end
 
@@ -51,13 +51,13 @@ defmodule ReplayFarm.Model do
               case DB.query("SELECT LAST_INSERT_ROWID()") do
                 {:ok, [["LAST_INSERT_ROWID()": i]]} -> i
                 {:ok, _other} -> nil
-                {:error, _err} -> nil
+                {:error, _reason} -> nil
               end
             end)
             |> get()
 
-          {:error, err} ->
-            {:error, err}
+          {:error, reason} ->
+            {:error, reason}
         end
       end
 
@@ -78,7 +78,7 @@ defmodule ReplayFarm.Model do
              {:ok, m} <- get(m.id) do
           {:ok, m}
         else
-          {:error, err} -> {:error, err}
+          {:error, reason} -> {:error, reason}
         end
       end
 
@@ -100,8 +100,8 @@ defmodule ReplayFarm.Model do
                   {:ok, val} ->
                     val
 
-                  {:error, err} ->
-                    notify(:warn, "encoding column #{k} failed", err)
+                  {:error, reason} ->
+                    notify(:warn, "encoding column `#{k}` failed", reason)
                     v
                 end
               else
@@ -123,8 +123,8 @@ defmodule ReplayFarm.Model do
                        {:ok, val} ->
                          {k, val}
 
-                       {:error, err} ->
-                         notify(:warn, "decoding column #{k} failed", err)
+                       {:error, reason} ->
+                         notify(:warn, "decoding column `#{k}` failed", reason)
                          {k, v}
                      end
                    else
@@ -138,8 +138,8 @@ defmodule ReplayFarm.Model do
                results
              end}
 
-          {:error, err} ->
-            {:error, err}
+          {:error, reason} ->
+            {:error, reason}
         end
       end
 

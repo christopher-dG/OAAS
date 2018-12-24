@@ -31,8 +31,8 @@ defmodule ReplayFarm.Web.Plugs do
         |> put_resp_content_type("application/json")
         |> send_resp(status, encoded)
 
-      {:error, err} ->
-        notify(:warn, "encoding HTTP response failed", err)
+      {:error, reason} ->
+        notify(:warn, "encoding HTTP response failed", reason)
         error(conn)
     end
   end
@@ -62,8 +62,8 @@ defmodule ReplayFarm.Web.Plugs do
                 |> halt()
               end
 
-            {:error, err} ->
-              notify(:error, "retrieving keys failed", err)
+            {:error, reason} ->
+              notify(:error, "retrieving keys failed", reason)
 
               conn
               |> error()
@@ -151,7 +151,7 @@ defmodule ReplayFarm.Web.Plugs do
           else
             case Worker.get(w_id) do
               {:ok, w} -> put_private(c, :preloads, %{c.private.preloads | worker: w})
-              {:error, err} -> notify(:warn, "preloading worker `#{w_id}` failed", err)
+              {:error, reason} -> notify(:warn, "preloading worker `#{w_id}` failed", reason)
             end
           end
         end).()
@@ -161,7 +161,7 @@ defmodule ReplayFarm.Web.Plugs do
           else
             case Job.get(j_id) do
               {:ok, j} -> put_private(c, :preloads, %{c.private.preloads | job: j})
-              {:error, err} -> notify(:warn, "preloading job `#{j_id}` failed", err)
+              {:error, reason} -> notify(:warn, "preloading job `#{j_id}` failed", reason)
             end
           end
         end).()

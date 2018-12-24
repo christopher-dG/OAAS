@@ -23,7 +23,7 @@ defmodule ReplayFarm.Reddit do
 
     case Jason.decode(json) do
       {:ok, p} -> process_post(p)
-      {:error, err} -> notify(:warn, "decoding Reddit post failed", err)
+      {:error, reason} -> notify(:warn, "decoding Reddit post failed", reason)
     end
 
     send(self(), :post)

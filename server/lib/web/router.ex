@@ -38,7 +38,7 @@ defmodule ReplayFarm.Web.Router do
           json(conn, 200, j)
       end
     else
-      {:error, err} -> notify(:warn, "polling response for worker `#{id}` failed", err)
+      {:error, reason} -> notify(:warn, "polling response for worker `#{id}` failed", reason)
     end
   end
 
@@ -57,8 +57,8 @@ defmodule ReplayFarm.Web.Router do
 
             send_resp(conn, 204, "")
 
-          {:error, err} ->
-            notify(:error, "updating status for job `#{j.id}` failed", err)
+          {:error, reason} ->
+            notify(:error, "updating status for job `#{j.id}` failed", reason)
             error(conn)
         end
       else

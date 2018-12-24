@@ -25,7 +25,7 @@ defmodule ReplayFarm.Discord do
       ) do
     case Job.from_osr(url) do
       {:ok, j} -> notify("created job `#{j.id}`")
-      {:error, err} -> notify(:error, "creating job failed", err)
+      {:error, reason} -> notify(:error, "creating job failed", reason)
     end
   end
 
@@ -62,8 +62,8 @@ defmodule ReplayFarm.Discord do
         |> table([:online, :current_job_id], [:online, :job])
         |> send_message()
 
-      {:error, err} ->
-        notify(:error, "listing workers failed", err)
+      {:error, reason} ->
+        notify(:error, "listing workers failed", reason)
     end
   end
 
@@ -77,15 +77,15 @@ defmodule ReplayFarm.Discord do
         |> table([:worker_id, :status, :comment], [:worker, :status, :comment])
         |> send_message()
 
-      {:error, err} ->
-        notify(:error, "listing jobs failed", err)
+      {:error, reason} ->
+        notify(:error, "listing jobs failed", reason)
     end
   end
 
   # Describe a worker.
   defp command(["describe", "worker", id], _msg) do
     case Worker.get(id) do
-      {:ok, %Worker{} = w} ->
+      {:ok, w} ->
         last_job =
           if is_nil(w.last_job) do
             "never"
@@ -106,11 +106,8 @@ defmodule ReplayFarm.Discord do
         """
         |> send_message()
 
-      {:ok, nil} ->
-        notify(:error, "no such worker")
-
-      {:error, err} ->
-        notify(:error, "looking up worker failed", err)
+      {:error, reason} ->
+        notify(:error, "looking up worker failed", reason)
     end
   end
 
@@ -118,14 +115,21 @@ defmodule ReplayFarm.Discord do
   defp command(["describe", "job", id], _msg) do
     with {id, ""} <- Integer.parse(id),
          {:ok, %Job{} = j} <- Job.get(id) do
+      player = "#{j.player.username} (https://osu.ppy.sh/u/#{j.player.user_id})"
+
+      beatmap =
+        "#{j.beatmap.artist} - #{j.beatmap.title} [#{j.beatmap.version}] (https://osu.ppy.sh/b/#{
+          j.beatmap.beatmap_id
+        })"
+
       """
       ```
       id: #{j.id}
       worker: #{j.worker_id || "none"}
       status: #{Job.status(j.status)}
       comment: #{j.comment || "none"}
-      player: https://osu.ppy.sh/u/#{j.player.user_id}
-      beatmap: https://osu.ppy.sh/b/#{j.beatmap.beatmap_id}
+      player: #{player}
+      beatmap: #{beatmap}
       video: #{j.youtube.title}
       skin: #{(j.skin || %{})[:name] || "none"}
       created: #{DateTime.from_unix!(j.created_at, :millisecond)}
@@ -136,7 +140,7 @@ defmodule ReplayFarm.Discord do
     else
       :error -> notify(:error, "invalid job id")
       {:ok, nil} -> notify(:error, "no such job")
-      {:error, err} -> notify(:error, "looking up job failed", err)
+      {:error, reason} -> notify(:error, "looking up job failed", reason)
     end
   end
 
@@ -148,7 +152,7 @@ defmodule ReplayFarm.Discord do
       notify("deleted job `#{j.id}`")
     else
       :error -> notify(:error, "invalid job id")
-      {:error, err} -> notify(:error, "deleting job failed", err)
+      {:error, reason} -> notify(:error, "deleting job failed", reason)
     end
   end
 

@@ -52,12 +52,41 @@ defmodule ReplayFarm.DB do
   defmacro transaction(do: expr) do
     quote do
       with {:ok, _} <- ReplayFarm.DB.query("BEGIN"),
-           {:ok, results} <- unquote(expr),
-           {:ok, _} <- ReplayFarm.DB.query("COMMIT") do
+           {:ok, results} <-
+             (try do
+                unquote(expr)
+              rescue
+                reason -> {:error, reason}
+              catch
+                reason -> {:error, reason}
+              end) do
+        ReplayFarm.DB.commit()
         {:ok, results}
       else
-        {:error, err} -> ReplayFarm.DB.query("ROLLBACK") && {:error, err}
+        {:error, reason} -> ReplayFarm.DB.rollback() && {:error, reason}
       end
+    end
+  end
+
+  # Commit a transaction.
+  @spec commit :: term
+  def commit do
+    import ReplayFarm.Utils
+
+    case query("COMMIT") do
+      {:ok, _} -> :noop
+      {:error, reason} -> notify(:error, "transaction commit failed", reason)
+    end
+  end
+
+  # Roll back a transaction.
+  @spec rollback :: term
+  def rollback do
+    import ReplayFarm.Utils
+
+    case query("ROLLBACK") do
+      {:ok, _} -> :noop
+      {:error, reason} -> notify(:error, "transaction rollback failed", reason)
     end
   end
 end

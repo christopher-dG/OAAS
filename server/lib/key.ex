@@ -10,7 +10,7 @@ defmodule ReplayFarm.Key do
   def get do
     case DB.query("SELECT key FROM #{@table}") do
       {:ok, ks} -> Enum.map(ks, &Keyword.get(&1, :key))
-      {:error, err} -> {:error, err}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -19,7 +19,7 @@ defmodule ReplayFarm.Key do
   def put(key) do
     case DB.query("INSERT INTO #{@table} (key) VALUES (?1)", bind: [key]) do
       {:ok, _} -> {:ok, key}
-      {:error, err} -> {:error, err}
+      {:error, reason} -> {:error, reason}
     end
   end
 end

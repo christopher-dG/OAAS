@@ -57,7 +57,7 @@ defmodule ReplayFarm.Worker do
     case Job.get(id) do
       {:ok, %Job{status: ^ass} = j} -> {:ok, j}
       {:ok, _j} -> {:ok, nil}
-      {:error, err} -> {:error, err}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -72,8 +72,8 @@ defmodule ReplayFarm.Worker do
       {:ok, w} ->
         {:ok, w}
 
-      {:error, err} ->
-        {:error, err}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -90,8 +90,8 @@ defmodule ReplayFarm.Worker do
          |> Enum.sort_by(fn w -> w.last_job || 0 end)
          |> hd()}
 
-      {:error, err} ->
-        {:error, err}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

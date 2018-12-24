@@ -48,13 +48,13 @@ defmodule ReplayFarm.Queue do
             {:ok, j} ->
               notify("job `#{j.id}` failed (stalled at `#{Job.status(status)}`)")
 
-            {:error, err} ->
-              notify(:warn, "failing job `#{j.id}` failed", err)
+            {:error, reason} ->
+              notify(:warn, "failing job `#{j.id}` failed", reason)
           end
         end)
 
-      {:error, err} ->
-        notify(:warn, "getting stalled jobs failed", err)
+      {:error, reason} ->
+        notify(:warn, "getting stalled jobs failed", reason)
     end
   end
 
@@ -74,17 +74,17 @@ defmodule ReplayFarm.Queue do
                 {:ok, j} ->
                   notify("assigned job `#{j.id}` to worker `#{w.id}`")
 
-                {:error, err} ->
-                  notify(:error, "assigning job `#{j.id}` to worker `#{w.id}` failed", err)
+                {:error, reason} ->
+                  notify(:error, "assigning job `#{j.id}` to worker `#{w.id}` failed", reason)
               end
 
-            {:error, err} ->
-              notify(:warn, "getting a worker to assign to job `#{j.id}` failed", err)
+            {:error, reason} ->
+              notify(:warn, "getting a worker to assign to job `#{j.id}` failed", reason)
           end
         end)
 
-      {:error, err} ->
-        notify(:error, "getting pending jobs failed", err)
+      {:error, reason} ->
+        notify(:error, "getting pending jobs failed", reason)
     end
   end
 
@@ -95,12 +95,12 @@ defmodule ReplayFarm.Queue do
         Enum.each(js, fn j ->
           case Job.reschedule(j) do
             {:ok, _j} -> notify("rescheduled job `#{j.id}`")
-            {:error, err} -> notify(:error, "rescheduling job `#{j.id}` failed", err)
+            {:error, reason} -> notify(:error, "rescheduling job `#{j.id}` failed", reason)
           end
         end)
 
-      {:error, err} ->
-        notify(:error, "getting failed jobs failed", err)
+      {:error, reason} ->
+        notify(:error, "getting failed jobs failed", reason)
     end
   end
 end

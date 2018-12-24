@@ -67,7 +67,16 @@ defmodule ReplayFarm.Job do
   @doc "Deletes ajob."
   @spec delete(t) :: {:ok, t} | {:error, term}
   def delete(%__MODULE__{} = j) do
-    update(j, status: status(:deleted))
+    DB.transaction do
+      unless is_nil(j.worker_id) do
+        case Worker.update(j, current_job_id: nil) do
+          {:ok, _} -> :noop
+          {:error, reason} -> throw(reason)
+        end
+      end
+
+      update(j, worker_id: nil, status: status(:deleted))
+    end
   end
 
   @timeouts %{
@@ -89,8 +98,8 @@ defmodule ReplayFarm.Job do
       {:ok, js} ->
         {:ok, Enum.filter(js, fn j -> abs(now - j.updated_at) > @timeouts[status(j.status)] end)}
 
-      {:error, err} ->
-        {:error, err}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -115,7 +124,7 @@ defmodule ReplayFarm.Job do
            {:ok, j} <- update(j, worker_id: w.id, status: status(:assigned)) do
         {:ok, j}
       else
-        {:error, err} -> {:error, err}
+        {:error, reason} -> {:error, reason}
       end
     end
   end
@@ -135,14 +144,14 @@ defmodule ReplayFarm.Job do
           if finished(j) do
             case Worker.update(w, current_job_id: nil) do
               {:ok, _w} -> {:ok, j}
-              {:error, err} -> {:error, err}
+              {:error, reason} -> {:error, reason}
             end
           else
             {:ok, j}
           end
 
-        {:error, err} ->
-          {:error, err}
+        {:error, reason} ->
+          {:error, reason}
       end
     end
   end
@@ -151,12 +160,12 @@ defmodule ReplayFarm.Job do
   @spec fail(t, binary) :: {:ok, t} | {:error, term}
   def fail(%__MODULE__{} = j, comment \\ "") do
     DB.transaction do
-      with {:ok, %Worker{} = w} <- Worker.get(j.worker_id),
+      with {:ok, w} <- Worker.get(j.worker_id),
            {:ok, _w} <- Worker.update(w, current_job_id: nil),
            {:ok, j} <- update(j, worker_id: nil, status: status(:failed), comment: comment) do
         {:ok, j}
       else
-        {:error, err} -> {:error, err}
+        {:error, reason} -> {:error, reason}
       end
     end
   end
@@ -185,15 +194,15 @@ defmodule ReplayFarm.Job do
          {:ok, player} = OsuEx.API.get_user(replay.player),
          {:ok, beatmap} = OsuEx.API.get_beatmap(replay.beatmap_md5) do
       put(
-        player: player,
+        player: Map.drop(player, [:events]),
         beatmap: beatmap,
-        replay: %{data: Base.encode64(osr), length: replaytime(beatmap, replay.mods)},
-        youtube: ytdata(player, beatmap, replay),
+        replay: %{data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)},
+        youtube: youtube_data(player, beatmap, replay),
         skin: skin(player.username),
         status: status(:pending)
       )
     else
-      {:error, err} -> {:error, err}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -201,21 +210,24 @@ defmodule ReplayFarm.Job do
 
   # Get a player's skin.
   @spec skin(binary) :: map | nil
-  def skin(username) do
+  defp skin(username) do
     case HTTPoison.get(@skins_api <> username) do
-      {:ok, resp} ->
-        if resp.body === "" do
+      {:ok, %{body: body}} ->
+        if body === "" do
           notify("no skin available for user `#{username}`")
           nil
         else
-          %{
-            name: resp.body |> String.split("/") |> List.last() |> String.trim_trailing(".osk"),
-            url: resp.body
-          }
+          name =
+            body
+            |> String.split("/")
+            |> List.last()
+            |> String.trim_trailing(".osk")
+
+          %{name: name, url: body}
         end
 
-      {:error, err} ->
-        notify(:warn, "couldn't get skin for user `#{username}`", err)
+      {:error, reason} ->
+        notify(:warn, "couldn't get skin for user `#{username}`", reason)
         nil
     end
   end
@@ -224,8 +236,8 @@ defmodule ReplayFarm.Job do
   @ht 256
 
   # Compute the actual runtime of a replay, given its mods.
-  @spec replaytime(map, integer) :: number
-  defp replaytime(%{total_length: len}, mods) do
+  @spec replay_time(map, integer) :: number
+  defp replay_time(%{total_length: len}, mods) do
     cond do
       (mods &&& @dt) === @dt -> len / 1.5
       (mods &&& @ht) === @ht -> len * 1.5
@@ -254,12 +266,8 @@ defmodule ReplayFarm.Job do
   ]
 
   # Convert numeric mods to a string, e.g. 24 -> +HDHR.
-  @spec modstring(integer) :: binary | nil
-  def modstring(0) do
-    nil
-  end
-
-  def modstring(mods) do
+  @spec mod_string(integer) :: binary | nil
+  defp mod_string(mods) do
     mods =
       @mods
       |> Enum.filter(fn {_m, v} -> (mods &&& v) === v end)
@@ -268,23 +276,23 @@ defmodule ReplayFarm.Job do
     mods = if(:NC in mods, do: List.delete(mods, :DT), else: mods)
     mods = if(:PF in mods, do: List.delete(mods, :SD), else: mods)
 
-    "+" <> Enum.join(mods, ",")
+    if(Enum.empty?(mods), do: nil, else: "+" <> Enum.join(mods, ","))
   end
 
   # Convert a replay into its accuracy, in percent.
-  @spec acc(map) :: float | nil
-  defp acc(%{mode: 0} = replay) do
+  @spec accuracy(map) :: float | nil
+  defp accuracy(%{mode: 0} = replay) do
     100.0 * (300 * replay.n300 + 100 * replay.n100 + 50 * replay.n50) /
       (300 * replay.n300 + 300 * replay.n100 + 300 * replay.n50 + 300 * replay.nmiss)
   end
 
-  defp acc(_replay) do
+  defp accuracy(_replay) do
     nil
   end
 
-  # Calculate pp for a play.
-  @spec ppstring(map, map, map) :: binary | nil
-  defp ppstring(player, beatmap, replay) do
+  # Gets pp for a play.
+  @spec pp_string(map, map, map) :: binary | nil
+  defp pp_string(player, beatmap, replay) do
     case OsuEx.API.get_scores(beatmap.beatmap_id,
            u: player.user_id,
            m: replay.mode,
@@ -296,8 +304,8 @@ defmodule ReplayFarm.Job do
       {:ok, _scores} ->
         nil
 
-      {:error, err} ->
-        notify(:warn, "looking up score failed", err)
+      {:error, reason} ->
+        notify(:warn, "looking up score failed", reason)
         nil
     end
   end
@@ -337,14 +345,15 @@ defmodule ReplayFarm.Job do
   end
 
   @modes %{0 => "osu!", 1 => "osu!taiko", 2 => "osu!catch", 3 => "osu!mania"}
+  @title_limit 100
 
-  @doc "Gets YouTube upload data for a play."
-  @spec ytdata(map, map, map) :: map
-  def ytdata(player, beatmap, replay) do
-    mods = modstring(replay.mods)
+  # Get YouTube upload data for a play.
+  @spec youtube_data(map, map, map) :: map
+  defp youtube_data(player, beatmap, replay) do
+    mods = mod_string(replay.mods)
     fc = if(replay.perfect?, do: "FC", else: nil)
-    percent = acc(replay)
-    pp = ppstring(player, beatmap, replay)
+    percent = accuracy(replay)
+    pp = pp_string(player, beatmap, replay)
 
     acc_s =
       if is_nil(percent) do
@@ -363,7 +372,9 @@ defmodule ReplayFarm.Job do
         beatmap.version
       }] #{extra}"
 
+    yt_title = if(String.length(title) > @title_limit, do: "Placeholder Title", else: title)
+
     desc = title <> "\n" <> description(player, beatmap)
-    %{title: title, description: desc}
+    %{title: yt_title, description: desc}
   end
 end
