@@ -5,10 +5,11 @@ defmodule OAAS.Reddit do
   use Export.Python
   import OAAS.Utils
 
-  @module "priv.reddit"
+  @pypath "priv"
+  @module "reddit"
 
   def start_link(_args) do
-    {:ok, pid} = Python.start_link()
+    {:ok, pid} = Python.start_link(python_path: @pypath)
     GenServer.start_link(__MODULE__, pid)
   end
 

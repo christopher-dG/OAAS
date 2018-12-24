@@ -55,7 +55,7 @@ defmodule OAAS.Web.Plugs do
               if key in keys do
                 conn
               else
-                notify("blocked request with invalid API key `#{key}`")
+                notify(:debug, "blocked request with invalid API key `#{key}`")
 
                 conn
                 |> text(400, "invalid API key")
@@ -71,7 +71,7 @@ defmodule OAAS.Web.Plugs do
           end
 
         [] ->
-          notify("blocked request with missing API key")
+          notify(:debug, "blocked request with missing API key")
 
           conn
           |> text(400, "missing API key")

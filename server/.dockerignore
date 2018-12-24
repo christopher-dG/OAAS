@@ -1,0 +1,9 @@
+*
+!.env
+!config/
+!entrypoint.sh
+!lib/
+!mix.exs
+!mix.lock
+!priv/reddit.py
+!test/

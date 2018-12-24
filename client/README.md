@@ -2,7 +2,7 @@
 
 Install the [Go compiler](https://golang.org), and dependencies for [robotgo](https://github.com/go-vgo/robotgo#requirements).
 
-Then, compile the client:
+Compile the client:
 
 ```sh
 $ go build

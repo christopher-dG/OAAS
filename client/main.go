@@ -138,9 +138,6 @@ func init() {
 		osuExe = "osu!"
 	}
 
-	// Start osu!.
-	ExecOsu()
-
 	// Compute the pixel offsets.
 	sizeXi, sizeYi := robotgo.GetScreenSize()
 	sizeX, sizeY := float64(sizeXi), float64(sizeYi)
@@ -151,7 +148,17 @@ func init() {
 }
 
 func main() {
+	ExecOsu()
+	time.Sleep(time.Second * 3)
+
+	fmt.Println("==============================================================================")
+	fmt.Println("==============================================================================")
+	fmt.Println("if you can still read this message, click on the open osu! window to focus it!")
+	fmt.Println("==============================================================================")
+	fmt.Println("==============================================================================")
+
 	log.Println("Worker ID:", workerID)
+
 	defer obsClient.Disconnect()
 	jobs := make(chan Job)
 
