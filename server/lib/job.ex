@@ -190,8 +190,8 @@ defmodule OAAS.Job do
   end
 
   @doc "Creates a job from a replay link."
-  @spec from_osr(binary) :: {:ok, t} | {:error, term}
-  def from_osr(url) do
+  @spec from_osr(binary, binary | nil) :: {:ok, t} | {:error, term}
+  def from_osr(url, skin \\ nil) do
     with {:ok, %{body: osr}} <- HTTPoison.get(url),
          {:ok, replay} = OsuEx.Parser.osr(osr),
          {:ok, player} = OsuEx.API.get_user(replay.player),
@@ -201,7 +201,7 @@ defmodule OAAS.Job do
         beatmap: beatmap,
         replay: %{data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)},
         youtube: youtube_data(player, beatmap, replay),
-        skin: skin(player.username),
+        skin: skin(skin || player.username),
         status: status(:pending)
       )
     else

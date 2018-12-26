@@ -19,11 +19,18 @@ defmodule OAAS.Discord do
         {:MESSAGE_CREATE,
          {%{
             attachments: [%{url: url}],
-            mentions: [%{id: @me}],
-            channel_id: @channel
+            channel_id: @channel,
+            content: content,
+            mentions: [%{id: @me}]
           }}, _state}
       ) do
-    case Job.from_osr(url) do
+    skin =
+      case Regex.run(~r/skin:(.+)/i, content, capture: :all_but_first) do
+        [skin] -> String.trim(skin)
+        nil -> nil
+      end
+
+    case Job.from_osr(url, skin) do
       {:ok, j} -> notify("created job `#{j.id}`")
       {:error, reason} -> notify(:error, "creating job failed", reason)
     end
@@ -34,8 +41,8 @@ defmodule OAAS.Discord do
         {:MESSAGE_CREATE,
          {%{
             content: content,
-            mentions: [%{id: @me}],
-            channel_id: @channel
+            channel_id: @channel,
+            mentions: [%{id: @me}]
           } = msg}, _state}
       ) do
     content
