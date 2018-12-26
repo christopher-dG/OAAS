@@ -2,7 +2,6 @@ package main
 
 import (
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/go-vgo/robotgo"
@@ -10,7 +9,7 @@ import (
 
 // ExecOsu runs some osu! command (open replay, skin, etc.).
 func ExecOsu(args ...string) error {
-	return exec.Command(filepath.Join(config.OsuRoot, osuExe), args...).Start()
+	return exec.Command(osuExe, args...).Start()
 }
 
 func StartReplay() {

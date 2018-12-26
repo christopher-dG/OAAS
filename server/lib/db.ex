@@ -20,7 +20,7 @@ defmodule OAAS.DB do
       youtube TEXT NOT NULL,  -- JSON
       replay TEXT NOT NULL,   -- JSON
       status INTEGER NOT NULL,
-      skin TEXT,  -- JSON
+      skin TEXT NOT NULL,  -- JSON
       comment TEXT,
       worker_id TEXT REFERENCES workers(id),
       created_at INTEGER NOT NULL,

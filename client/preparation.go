@@ -26,25 +26,16 @@ func (j Job) Prepare() error {
 
 // setupSkin downloads and installs the specified skin.
 func setupSkin(j Job) {
-	if j.Skin == nil {
-		log.Println("no skin provided (using default)")
-		loadSkin(defaultSkin)
-		return
-	}
-
 	skinPath := filepath.Join(skinDir, j.Skin.Name+".osk")
 	if _, err := os.Stat(skinPath); err != nil {
-		// Download the skin.
 		b, err := httpGetBody(j.Skin.URL)
 		if err != nil {
-			log.Println("couldn't download skin (using default):", err)
-			loadSkin(defaultSkin)
+			log.Println("couldn't download skin (using current):", err)
 			return
 		}
 
 		if err = ioutil.WriteFile(skinPath, b, 0644); err != nil {
-			log.Println("saving skin failed (using default):", err)
-			loadSkin(defaultSkin)
+			log.Println("saving skin failed (using current):", err)
 			return
 		}
 	}
@@ -52,6 +43,7 @@ func setupSkin(j Job) {
 	loadSkin(j.Skin.Name)
 }
 
+// loadSkin opens a skin.
 func loadSkin(skin string) {
 	skinPath := filepath.Join(skinDir, skin+".osk")
 	if _, err := os.Stat(skinPath); err != nil {
@@ -63,17 +55,23 @@ func loadSkin(skin string) {
 	b, err := ioutil.ReadFile(skinPath)
 	if err != nil {
 		log.Println("copying skin failed (read):", err)
-		ExecOsu(skinPath)
+		if err = ExecOsu(skinPath); err != nil {
+			log.Println("opening skin failed:", err)
+		}
 		return
 	}
 	if err := ioutil.WriteFile(skin+".osk", b, 0644); err != nil {
 		log.Println("copying skin failed (write):", err)
-		ExecOsu(skinPath)
+		if err = ExecOsu(skinPath); err != nil {
+			log.Println("opening skin failed:", err)
+		}
 		return
 	}
 
 	log.Println("loading skin:", skin)
-	ExecOsu(skin + ".osk")
+	if err = ExecOsu(skin + ".osk"); err != nil {
+		log.Println("opening skin failed:", err)
+	}
 }
 
 // getBeatmap ensures that a mapset is downloaded.

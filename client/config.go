@@ -6,7 +6,6 @@ import "errors"
 type ConfigFile struct {
 	ApiURL      string `yaml:"api_url"`
 	ApiKey      string `yaml:"api_key"`
-	OsuRoot     string `yaml:"osu_root"`
 	OBSPort     int    `yaml:"obs_port"`
 	OBSPassword string `yaml:"obs_password"`
 }

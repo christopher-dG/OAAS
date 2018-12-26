@@ -35,9 +35,6 @@ const (
 	replayScaleY = 0.7555555555555555
 	graphScaleX  = 0.41354166666666664
 	graphScaleY  = 0.8296296296296296
-
-	// Skin stuff.
-	defaultSkin = "oaas.osk"
 )
 
 var (
@@ -91,11 +88,8 @@ func init() {
 		log.Fatal(err)
 	}
 
-	localDir = filepath.Join(config.OsuRoot, "OAAS")
-	os.MkdirAll(localDir, os.ModePerm)
-
 	// Read or create the worker ID.
-	path := filepath.Join(localDir, "oaas-id")
+	path := filepath.Join(localDir, "id.txt")
 	if b, err = ioutil.ReadFile(path); err == nil {
 		workerID = string(b)
 	} else {
@@ -109,12 +103,15 @@ func init() {
 		ioutil.WriteFile(path, []byte(workerID), 0400)
 	}
 
-	// Compute/create the necessary directories.
-	beatmapDir = filepath.Join(config.OsuRoot, "Songs")
-	replayDir = filepath.Join(localDir, "osr")
-	skinDir = filepath.Join(localDir, "osk")
-	os.MkdirAll(replayDir, os.ModePerm)
-	os.MkdirAll(skinDir, os.ModePerm)
+	// Compute the necessary directories.
+	cwd, err := filepath.Abs(".")
+	if err != nil {
+		log.Fatal("couldn't get working directory:", err)
+	}
+	osuRoot := filepath.Dir(cwd)
+	beatmapDir = filepath.Join(osuRoot, "Songs")
+	replayDir = filepath.Join(cwd, "osr")
+	skinDir = filepath.Join(cwd, "osk")
 
 	// Set up the OBS client, set the scene, and get the recording folder.
 	obsClient = obs.Client{Host: "localhost", Port: config.OBSPort, Password: config.OBSPassword}
@@ -133,9 +130,9 @@ func init() {
 
 	// Determine the osu! executable.
 	if runtime.GOOS == "windows" {
-		osuExe = "osu!.exe"
+		osuExe = filepath.Join(osuRoot, "osu!.exe")
 	} else {
-		osuExe = "osu!"
+		osuExe = filepath.Join(osuRoot, "osu!")
 	}
 
 	// Compute the pixel offsets.
@@ -148,14 +145,17 @@ func init() {
 }
 
 func main() {
-	ExecOsu()
-	time.Sleep(time.Second * 3)
+	if err := ExecOsu(); err != nil {
+		log.Fatal("couldn't start osu!:", err)
+	}
 
+	time.Sleep(time.Second * 5)
 	fmt.Println("==============================================================================")
 	fmt.Println("==============================================================================")
 	fmt.Println("if you can still read this message, click on the open osu! window to focus it!")
 	fmt.Println("==============================================================================")
 	fmt.Println("==============================================================================")
+	time.Sleep(time.Second * 5)
 
 	log.Println("Worker ID:", workerID)
 

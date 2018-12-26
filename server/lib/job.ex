@@ -32,8 +32,8 @@ defmodule OAAS.Job do
   @table "jobs"
 
   @derive Jason.Encoder
-  @enforce_keys [:id, :player, :beatmap, :replay, :youtube, :status, :created_at, :updated_at]
-  defstruct @enforce_keys ++ [:skin, :comment, :worker_id]
+  @enforce_keys [:id, :player, :beatmap, :replay, :youtube, :skin, :status, :created_at, :updated_at]
+  defstruct @enforce_keys ++ [:comment, :worker_id]
 
   @type t :: %__MODULE__{
           # Job ID.
@@ -46,8 +46,8 @@ defmodule OAAS.Job do
           replay: map,
           # YouTube upload data: {title, description}.
           youtube: map,
-          # Skin to use: {name, url} (nil means default).
-          skin: map | nil,
+          # Skin to use: {name, url}.
+          skin: map,
           # Job status.
           status: integer,
           # Comment from the worker.
@@ -210,15 +210,19 @@ defmodule OAAS.Job do
   end
 
   @skins_api "https://circle-people.com/skins-api.php?player="
+  @default_skin %{
+    name: "CirclePeople Default 2017-08-16",
+    url: "https://circle-people.com/wp-content/Skins/Default Skins/CirclePeople Default 2017-08-16.osk"
+  }
 
   # Get a player's skin.
-  @spec skin(binary) :: map | nil
+  @spec skin(binary) :: map
   defp skin(username) do
     case HTTPoison.get(@skins_api <> username) do
       {:ok, %{body: body}} ->
         if body === "" do
           notify("no skin available for user `#{username}`")
-          nil
+          if(username === "Default Skins", do: @default_skin, else: skin("Default Skins"))
         else
           name =
             body
@@ -231,7 +235,7 @@ defmodule OAAS.Job do
 
       {:error, reason} ->
         notify(:warn, "couldn't get skin for user `#{username}`", reason)
-        nil
+        if(username === "Default Skins", do: @default_skin, else: skin("Default Skins"))
     end
   end
 
