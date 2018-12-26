@@ -64,9 +64,9 @@ defmodule OAAS.Job do
 
   use OAAS.Model
 
-  @doc "Deletes ajob."
-  @spec delete(t) :: {:ok, t} | {:error, term}
-  def delete(%__MODULE__{} = j) do
+  @doc "Marks a job as deleted, but leaves it in the database."
+  @spec mark_deleted(t) :: {:ok, t} | {:error, term}
+  def mark_deleted(%__MODULE__{} = j) do
     DB.transaction do
       unless is_nil(j.worker_id) do
         case Worker.update(j, current_job_id: nil) do

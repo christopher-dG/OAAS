@@ -3,7 +3,9 @@ defmodule OAAS.DB do
 
   @schema [
     "CREATE TABLE IF NOT EXISTS keys(
-      key TEXT PRIMARY KEY
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     )",
     "CREATE TABLE IF NOT EXISTS workers(
       id TEXT PRIMARY KEY,

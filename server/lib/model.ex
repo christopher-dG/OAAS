@@ -62,7 +62,7 @@ defmodule OAAS.Model do
       end
 
       @doc "Updates a #{@model}."
-      @spec update(t, keyword) :: t
+      @spec update(t, keyword) :: {:ok, t} | {:error, term}
       def update(%__MODULE__{} = m, cols) do
         cols = Keyword.put_new(cols, :updated_at, System.system_time(:millisecond))
 
@@ -78,6 +78,17 @@ defmodule OAAS.Model do
              {:ok, m} <- get(m.id) do
           {:ok, m}
         else
+          {:error, reason} -> {:error, reason}
+        end
+      end
+
+      @doc "Deletes a #{@model} by ID."
+      @spec delete(term) :: :ok | {:error, term}
+      def delete(id) do
+        sql = "DELETE FROM #{@table} WHERE id = ?1"
+
+        case query(sql, x: id) do
+          {:ok, _} -> :ok
           {:error, reason} -> {:error, reason}
         end
       end

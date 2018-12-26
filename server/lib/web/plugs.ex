@@ -52,7 +52,7 @@ defmodule OAAS.Web.Plugs do
         [key] ->
           case Key.get() do
             {:ok, keys} ->
-              if key in keys do
+              if key in Enum.map(keys, &Map.get(&1, :id)) do
                 conn
               else
                 notify(:debug, "blocked request with invalid API key `#{key}`")

@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Key.List do
     with :ok <- OAAS.Utils.start_db(),
          {:ok, keys} <- OAAS.Key.get() do
       keys
+      |> Enum.map(&Map.get(&1, :id))
       |> Enum.join("\n")
       |> IO.puts()
     else
@@ -26,7 +27,7 @@ defmodule Mix.Tasks.Key.Add do
          {:ok, _} <-
            (OAAS.DB.transaction do
               Enum.each(keys, fn k ->
-                case OAAS.Key.put(k) do
+                case OAAS.Key.put(id: k) do
                   {:ok, _} -> :noop
                   {:error, reason} -> throw(reason)
                 end

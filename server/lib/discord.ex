@@ -155,7 +155,7 @@ defmodule OAAS.Discord do
   defp command(["delete", "job", id], _msg) do
     with {id, ""} <- Integer.parse(id),
          {:ok, j} <- Job.get(id),
-         {:ok, j} <- Job.delete(j) do
+         {:ok, j} <- Job.mark_deleted(j) do
       notify("deleted job `#{j.id}`")
     else
       :error -> notify(:error, "invalid job id")
