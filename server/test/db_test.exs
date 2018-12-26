@@ -36,25 +36,25 @@ defmodule DBTest do
   end
 
   test "transaction/1" do
-    assert {:error, _} =
+    assert {:error, _reason} =
              (DB.transaction do
                 with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
                      {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2, 3)") do
-                  {:ok, nil}
+                  nil
                 else
-                  {:error, err} -> {:error, err}
+                  {:error, reason} -> throw(reason)
                 end
               end)
 
     assert {:ok, []} = query("SELECT * FROM #{@table}")
 
-    assert {:ok, _} =
+    assert {:ok, nil} =
              (DB.transaction do
                 with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
                      {:ok, _} <- query("INSERT INTO #{@table} VALUES (2, 3)") do
-                  {:ok, nil}
+                  nil
                 else
-                  {:error, err} -> {:error, err}
+                  {:error, reason} -> throw(reason)
                 end
               end)
 

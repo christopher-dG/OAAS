@@ -75,7 +75,10 @@ defmodule OAAS.Job do
         end
       end
 
-      update(j, worker_id: nil, status: status(:deleted))
+      case update(j, worker_id: nil, status: status(:deleted)) do
+        {:ok, j} -> j
+        {:error, reason} -> throw(reason)
+      end
     end
   end
 
@@ -122,9 +125,9 @@ defmodule OAAS.Job do
       with {:ok, _} <-
              Worker.update(w, current_job_id: j.id, last_job: System.system_time(:millisecond)),
            {:ok, j} <- update(j, worker_id: w.id, status: status(:assigned)) do
-        {:ok, j}
+        j
       else
-        {:error, reason} -> {:error, reason}
+        {:error, reason} -> throw(reason)
       end
     end
   end
@@ -143,15 +146,15 @@ defmodule OAAS.Job do
         {:ok, j} ->
           if finished(j) do
             case Worker.update(w, current_job_id: nil) do
-              {:ok, _w} -> {:ok, j}
-              {:error, reason} -> {:error, reason}
+              {:ok, _w} -> j
+              {:error, reason} -> throw(reason)
             end
           else
-            {:ok, j}
+            j
           end
 
         {:error, reason} ->
-          {:error, reason}
+          throw(reason)
       end
     end
   end
@@ -163,9 +166,9 @@ defmodule OAAS.Job do
       with {:ok, w} <- Worker.get(j.worker_id),
            {:ok, _w} <- Worker.update(w, current_job_id: nil),
            {:ok, j} <- update(j, worker_id: nil, status: status(:failed), comment: comment) do
-        {:ok, j}
+        j
       else
-        {:error, reason} -> {:error, reason}
+        {:error, reason} -> throw(reason)
       end
     end
   end

@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Key.Add do
   @shortdoc "Adds API keys (space-delimited) to the database."
   def run(keys) do
     with :ok <- OAAS.Utils.start_db(),
-         {:ok, keys} <-
+         {:ok, _} <-
            (OAAS.DB.transaction do
               Enum.each(keys, fn k ->
                 case OAAS.Key.put(k) do
@@ -31,8 +31,6 @@ defmodule Mix.Tasks.Key.Add do
                   {:error, reason} -> throw(reason)
                 end
               end)
-
-              {:ok, keys}
             end) do
       IO.puts("added #{length(keys)} key(s)")
     else
@@ -50,7 +48,7 @@ defmodule Mix.Tasks.Key.Delete do
   @shortdoc "Deletes API keys (space-delimited) from the database."
   def run(keys) do
     with :ok <- OAAS.Utils.start_db(),
-         {:ok, keys} <-
+         {:ok, _} <-
            (OAAS.DB.transaction do
               Enum.each(keys, fn k ->
                 case OAAS.Key.delete(k) do
@@ -58,8 +56,6 @@ defmodule Mix.Tasks.Key.Delete do
                   {:error, reason} -> throw(reason)
                 end
               end)
-
-              {:ok, keys}
             end) do
       IO.puts("deleted #{length(keys)} key(s)")
     else

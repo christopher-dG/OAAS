@@ -48,46 +48,49 @@ defmodule OAAS.DB do
     Sqlitex.Server.query(__MODULE__, sql, opts)
   end
 
-  @doc "Executes some code inside of a SQL transaction."
+  @doc """
+  Executes some code inside of a SQL transaction.
+  The transaction will roll back if an exception is raised or something is thrown.
+  The return value is either `{:ok, return}` where `return` is the return value of the block,
+  or `{:error, reason}` where `reason` was thrown or raised.
+  """
   @spec transaction(term) :: {:ok, term} | {:error, term}
   defmacro transaction(do: expr) do
     quote do
-      with {:ok, _} <- OAAS.DB.query("BEGIN"),
-           {:ok, results} <-
-             (try do
-                unquote(expr)
-              rescue
-                reason -> {:error, reason}
-              catch
-                reason -> {:error, reason}
-              end) do
-        OAAS.DB.commit()
-        {:ok, results}
-      else
-        {:error, reason} -> OAAS.DB.rollback() && {:error, reason}
+      tx_cmd = fn cmd ->
+        case OAAS.DB.query(String.upcase(cmd)) do
+          {:ok, _} ->
+            :ok
+
+          {:error, reason} ->
+            OAAS.Utils.notify(:error, "transaction #{String.downcase(cmd)} failed", reason)
+            {:error, reason}
+        end
       end
-    end
-  end
 
-  # Commit a transaction.
-  @spec commit :: term
-  def commit do
-    import OAAS.Utils
+      try do
+        case tx_cmd.("begin") do
+          :ok -> :noop
+          {:error, reason} -> throw(reason)
+        end
 
-    case query("COMMIT") do
-      {:ok, _} -> :noop
-      {:error, reason} -> notify(:error, "transaction commit failed", reason)
-    end
-  end
+        results = unquote(expr)
 
-  # Roll back a transaction.
-  @spec rollback :: term
-  def rollback do
-    import OAAS.Utils
+        case tx_cmd.("commit") do
+          :ok -> :noop
+          {:error, reason} -> throw(reason)
+        end
 
-    case query("ROLLBACK") do
-      {:ok, _} -> :noop
-      {:error, reason} -> notify(:error, "transaction rollback failed", reason)
+        {:ok, results}
+      rescue
+        reason ->
+          tx_cmd.("rollback")
+          {:error, reason}
+      catch
+        reason ->
+          tx_cmd.("rollback")
+          {:error, reason}
+      end
     end
   end
 end

@@ -19,5 +19,5 @@ def next_post():
     return json.dumps({
         "id": p.id,
         "title": p.title,
-        "author": p.author.name,
+        "author": p.author.name if p.author else None,
     })

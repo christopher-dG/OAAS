@@ -20,7 +20,7 @@ defmodule TestModel do
     case DB.query("SELECT * FROM #{@table} WHERE id = ?1", bind: [id], into: %{}) do
       {:ok, [r]} -> {:ok, r}
       {:ok, []} -> {:error, :no_such_entity}
-      {:error, err} -> {:error, err}
+      {:error, reason} -> {:error, reason}
     end
   end
 
