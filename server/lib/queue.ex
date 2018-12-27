@@ -15,16 +15,18 @@ defmodule OAAS.Queue do
     GenServer.start_link(__MODULE__, %{})
   end
 
+  @impl true
   def init(state) do
     schedule(@interval)
     {:ok, state}
   end
 
+  @impl true
   def handle_info(:work, state) do
     try do
-      clear_stalled!()
-      process_pending!()
-      reschedule_failed!()
+      clear_stalled()
+      process_pending()
+      reschedule_failed()
     after
       schedule(@interval)
     end
@@ -38,7 +40,7 @@ defmodule OAAS.Queue do
   end
 
   # Unassign stalled jobs from workers.
-  defp clear_stalled! do
+  defp clear_stalled do
     case Job.get_stalled() do
       {:ok, js} ->
         Enum.each(js, fn j ->
@@ -59,7 +61,7 @@ defmodule OAAS.Queue do
   end
 
   # Assign pending jobs to available workers.
-  defp process_pending! do
+  defp process_pending do
     case Job.get_by_status(:pending) do
       {:ok, js} ->
         js
@@ -89,7 +91,7 @@ defmodule OAAS.Queue do
   end
 
   # Reschedule failed jobs.
-  defp reschedule_failed! do
+  defp reschedule_failed do
     case Job.get_by_status(:failed) do
       {:ok, js} ->
         Enum.each(js, fn j ->

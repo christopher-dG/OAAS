@@ -32,7 +32,17 @@ defmodule OAAS.Job do
   @table "jobs"
 
   @derive Jason.Encoder
-  @enforce_keys [:id, :player, :beatmap, :replay, :youtube, :skin, :status, :created_at, :updated_at]
+  @enforce_keys [
+    :id,
+    :player,
+    :beatmap,
+    :replay,
+    :youtube,
+    :skin,
+    :status,
+    :created_at,
+    :updated_at
+  ]
   defstruct @enforce_keys ++ [:comment, :worker_id]
 
   @type t :: %__MODULE__{
@@ -212,7 +222,8 @@ defmodule OAAS.Job do
   @skins_api "https://circle-people.com/skins-api.php?player="
   @default_skin %{
     name: "CirclePeople Default 2017-08-16",
-    url: "https://circle-people.com/wp-content/Skins/Default Skins/CirclePeople Default 2017-08-16.osk"
+    url:
+      "https://circle-people.com/wp-content/Skins/Default Skins/CirclePeople Default 2017-08-16.osk"
   }
 
   # Get a player's skin.

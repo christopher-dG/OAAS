@@ -11,13 +11,26 @@ reddit = praw.Reddit(
 )
 subreddit = reddit.subreddit(os.getenv("REDDIT_SUBREDDIT"))
 stream = subreddit.stream.submissions()
+posts = {}
 
 
 def next_post():
-    """Return the next post."""
+    """Return the next unsaved post."""
     p = next(stream)
+    while p.saved:
+        p = next(stream)
+    posts[p.id] = p
+
     return json.dumps({
         "id": p.id,
         "title": p.title,
         "author": p.author.name if p.author else None,
     })
+
+
+def save_post(id):
+    """Save a post."""
+    if id in posts:
+        posts[id].save()
+        return True
+    return False

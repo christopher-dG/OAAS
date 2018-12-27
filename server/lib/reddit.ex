@@ -13,11 +13,13 @@ defmodule OAAS.Reddit do
     GenServer.start_link(__MODULE__, pid)
   end
 
+  @impl true
   def init(state) do
     send(self(), :post)
     {:ok, state}
   end
 
+  @impl true
   def handle_info(:post, state) do
     json = Python.call(state, @module, "next_post", [])
 
@@ -35,8 +37,19 @@ defmodule OAAS.Reddit do
     {:noreply, state}
   end
 
+  @impl true
+  def handle_cast({:save, id}, state) do
+    Python.call(state, @module, "save_post", [id])
+    {:noreply, state}
+  end
+
+  # Saves a Reddit post by ID.
+  defp save_post(id) do
+    GenServer.cast(self(), {:save, id})
+  end
+
   # Handle a single Reddit post.
-  defp process_post(p) do
-    notify(:debug, "processing reddit post #{p.id}")
+  defp process_post(%{id: id, title: _title, author: _author}) do
+    notify(:debug, "processing reddit post https://redd.it/#{id}")
   end
 end
