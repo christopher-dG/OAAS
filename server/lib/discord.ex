@@ -93,22 +93,15 @@ defmodule OAAS.Discord do
   defp command(["describe", "worker", id], _msg) do
     case Worker.get(id) do
       {:ok, w} ->
-        last_job =
-          if is_nil(w.last_job) do
-            "never"
-          else
-            DateTime.from_unix!(w.last_job, :millisecond)
-          end
-
         """
         ```
         id: #{w.id}
         online: #{Worker.online?(w)}
         job: #{w.current_job_id || "none"}
-        last poll: #{DateTime.from_unix!(w.last_poll, :millisecond)}
-        last job: #{last_job}
-        created: #{DateTime.from_unix!(w.created_at, :millisecond)}
-        updated: #{DateTime.from_unix!(w.updated_at, :millisecond)}
+        last poll: #{relative_time(w.last_poll)}
+        last job: #{relative_time(w.last_job)}
+        created: #{relative_time(w.created_at)}
+        updated: #{relative_time(w.updated_at)}
         ```
         """
         |> send_message()
@@ -139,8 +132,8 @@ defmodule OAAS.Discord do
       beatmap: #{beatmap}
       video: #{j.youtube.title}
       skin: #{(j.skin || %{})[:name] || "none"}
-      created: #{DateTime.from_unix!(j.created_at, :millisecond)}
-      updated: #{DateTime.from_unix!(j.updated_at, :millisecond)}
+      created: #{relative_time(j.created_at)}
+      updated: #{relative_time(j.updated_at)}
       ```
       """
       |> send_message()
@@ -191,13 +184,25 @@ defmodule OAAS.Discord do
       |> Enum.map(fn x ->
         [x.id] ++
           Enum.map(rows, &Map.get(x, &1)) ++
-          [
-            DateTime.from_unix!(x.created_at, :millisecond),
-            DateTime.from_unix!(x.updated_at, :millisecond)
-          ]
+          [relative_time(x.created_at), relative_time(x.updated_at)]
       end)
       |> TableRex.quick_render!([:id] ++ headers ++ [:created, :updated])
 
     "```\n#{t}\n```"
+  end
+
+  @spec relative_time(nil) :: binary
+  defp relative_time(nil) do
+    "never"
+  end
+
+  @spec relative_time(non_neg_integer) :: binary
+  defp relative_time(ms) do
+    dt = Timex.from_unix(ms, :millisecond)
+
+    case Timex.Format.DateTime.Formatters.Relative.format(dt, "{relative}") do
+      {:ok, rel} -> rel
+      {:error, _reason} -> to_string(dt)
+    end
   end
 end

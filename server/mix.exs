@@ -28,7 +28,8 @@ defmodule OAAS.MixProject do
       {:osu_ex, git: "https://github.com/christopher-dG/osu-ex.git"},
       {:plug_cowboy, "~> 2.0"},
       {:sqlitex, "~> 1.4"},
-      {:table_rex, "~> 2.0.0"}
+      {:table_rex, "~> 2.0.0"},
+      {:timex, "~> 3.4"}
     ]
   end
 end
