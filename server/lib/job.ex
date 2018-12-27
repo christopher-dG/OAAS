@@ -79,8 +79,10 @@ defmodule OAAS.Job do
   def mark_deleted(%__MODULE__{} = j) do
     DB.transaction do
       unless is_nil(j.worker_id) do
-        case Worker.update(j, current_job_id: nil) do
-          {:ok, _} -> :noop
+        with {:ok, w} <- Worker.get(j.worker_id),
+             {:ok, _} <- Worker.update(w, current_job_id: nil) do
+          :noop
+        else
           {:error, reason} -> throw(reason)
         end
       end
@@ -190,7 +192,7 @@ defmodule OAAS.Job do
       notify(:warn, "rescheduling non-failed job #{j.id} (#{status(j.status)})")
     end
 
-    update(j, status: status(:pending), comment: "rescheduled")
+    update(j, status: status(:pending))
   end
 
   @doc "Creates a job from a Reddit post."
