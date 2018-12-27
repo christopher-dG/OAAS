@@ -36,8 +36,9 @@ defmodule WorkerTest do
              Job.put(
                player: %{},
                beatmap: %{},
-               replay: "",
+               replay: %{},
                youtube: %{},
+               skin: %{},
                status: Job.status(:pending)
              )
 

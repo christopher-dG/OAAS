@@ -27,3 +27,6 @@ oaas-*.tar
 
 # Ignore Python cache.
 __pycache__/
+
+# Ignore credential files.
+*.env

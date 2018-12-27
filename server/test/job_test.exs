@@ -21,6 +21,7 @@ defmodule JobTest do
         beatmap: %{},
         replay: %{},
         youtube: %{},
+        skin: %{},
         status: status(s),
         updated_at: u
       )
