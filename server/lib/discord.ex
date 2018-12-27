@@ -5,6 +5,7 @@ defmodule OAAS.Discord do
   use Nostrum.Consumer
   import OAAS.Utils
   alias OAAS.Job
+  alias OAAS.Reddit
   alias OAAS.Worker
 
   @me Application.get_env(:oaas, :discord_user)
@@ -62,11 +63,30 @@ defmodule OAAS.Discord do
       ) do
     case Api.get_channel_message(@channel, message) do
       {:ok, %{author: %{id: @me}, content: "reddit post:" <> content}} ->
-        with [id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, content, capture: :all_but_first),
+        with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, content, capture: :all_but_first),
              [title] <- Regex.run(~r/title: (.+)/i, content, capture: :all_but_first) do
-          case Job.from_reddit(id, title) do
-            {:ok, j} -> notify("created job `#{j.id}`")
-            {:error, reason} -> notify(:error, "creating job failed", reason)
+          case Job.from_reddit(p_id, title) do
+            {:ok, %{replay: replay, id: j_id}} ->
+              notify("created job `#{j_id}`")
+
+              """
+              job `#{j_id}`'s downloaded replay has the following properties:
+              ```yml
+              player: #{replay.player}
+              mode:  #{Job.mode(replay.mode)}
+              mods:  #{Job.mod_string(replay.mods)}
+              combo: #{replay.combo}
+              score: #{replay.score}
+              accuracy: #{Job.accuracy(replay)}
+              ```
+              please ensure that this is accurate, otherwise run `delete job #{j_id}` immediately
+              """
+              |> send_message()
+
+              Reddit.save_post(p_id)
+
+            {:error, reason} ->
+              notify(:error, "creating job failed", reason)
           end
         else
           nil -> notify(:warn, "parsing message failed")

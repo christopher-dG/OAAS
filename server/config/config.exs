@@ -8,8 +8,9 @@ config :nostrum, token: System.get_env("DISCORD_TOKEN")
 # Your osu! API key.
 config :osu_ex, api_key: System.get_env("OSU_API_KEY")
 
-# Your HTTP server port, Discord bot user ID, and Discord interaction channel ID.
+# Your HTTP server port, path to replay downloader, Discord bot user ID, and Discord interaction channel ID,
 config :oaas,
+  osr_downloader: System.get_env("OSR_DOWNLOADER"),
   port: (System.get_env("PORT") || "4000") |> Integer.parse() |> elem(0),
   discord_user: (System.get_env("DISCORD_USER") || "0") |> Integer.parse() |> elem(0),
   discord_channel: (System.get_env("DISCORD_CHANNEL") || "0") |> Integer.parse() |> elem(0)

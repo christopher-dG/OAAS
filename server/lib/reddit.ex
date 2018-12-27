@@ -26,9 +26,15 @@ defmodule OAAS.Reddit do
 
     case Jason.decode(json) do
       {:ok, p} ->
-        p
-        |> atom_map()
-        |> process_post()
+        %{id: id, title: title, author: author} = atom_map(p)
+
+        """
+        reddit post: https://redd.it/#{id}
+        title: `#{title}`
+        author: `/u/#{author}`
+        react :+1: if we should record
+        """
+        |> Discord.send_message()
 
       {:error, reason} ->
         notify(:warn, "decoding reddit post failed", reason)
@@ -44,19 +50,9 @@ defmodule OAAS.Reddit do
     {:noreply, state}
   end
 
-  # Saves a Reddit post by ID.
-  defp save_post(id) do
+  @doc "Saves a Reddit post by ID."
+  @spec save_post(binary) :: term
+  def save_post(id) do
     GenServer.cast(self(), {:save, id})
-  end
-
-  # Handle a single Reddit post.
-  defp process_post(%{id: id, title: title, author: author}) do
-    """
-    reddit post: https://redd.it/#{id}
-    title: `#{title}`
-    author: `/u/#{author}`
-    react :+1: if we should record
-    """
-    |> Discord.send_message()
   end
 end

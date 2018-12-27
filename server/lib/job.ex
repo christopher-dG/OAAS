@@ -199,13 +199,31 @@ defmodule OAAS.Job do
 
   @doc "Creates a job from a Reddit post."
   @spec from_reddit(binary, binary) :: {:ok, t} | {:error, term}
-  def from_reddit(_id, _title) do
-    {:error, :todo}
+  def from_reddit(id, title) do
+    with {:ok, username} <- extract_username(title),
+         {:ok, map_name} <- extract_map_name(title),
+         {:ok, %{} = player} <- OsuEx.API.get_user(username, event_days: 31),
+         {:ok, beatmap} <- search_beatmap(player, map_name),
+         {:ok, osr} <- get_osr(player, beatmap),
+         {:ok, replay} <- OsuEx.Parser.osr(osr) do
+      put(
+        player: Map.drop(player, [:events]),
+        beatmap: beatmap,
+        replay: %{data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)},
+        youtube: youtube_data(player, beatmap, replay),
+        skin: skin(player.username),
+        status: status(:pending),
+        reddit_id: id
+      )
+    else
+      {:ok, nil} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @doc "Creates a job from a replay link."
   @spec from_osr(binary, binary | nil) :: {:ok, t} | {:error, term}
-  def from_osr(url, skin \\ nil) do
+  def from_osr(url, skin_override \\ nil) do
     with {:ok, %{body: osr}} <- HTTPoison.get(url),
          {:ok, replay} = OsuEx.Parser.osr(osr),
          {:ok, player} = OsuEx.API.get_user(replay.player),
@@ -215,7 +233,7 @@ defmodule OAAS.Job do
         beatmap: beatmap,
         replay: %{data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)},
         youtube: youtube_data(player, beatmap, replay),
-        skin: skin(skin || player.username),
+        skin: skin(skin_override || player.username),
         status: status(:pending)
       )
     else
@@ -287,9 +305,9 @@ defmodule OAAS.Job do
     TD: 1 <<< 2
   ]
 
-  # Convert numeric mods to a string, e.g. 24 -> +HDHR.
+  @doc "Convert numeric mods to a string, e.g. 24 -> +HDHR."
   @spec mod_string(integer) :: binary | nil
-  defp mod_string(mods) do
+  def mod_string(mods) do
     mods =
       @mods
       |> Enum.filter(fn {_m, v} -> (mods &&& v) === v end)
@@ -301,9 +319,9 @@ defmodule OAAS.Job do
     if(Enum.empty?(mods), do: nil, else: "+" <> Enum.join(mods, ","))
   end
 
-  # Convert a replay into its accuracy, in percent.
+  @doc "Convert a replay into its accuracy, in percent."
   @spec accuracy(map) :: float | nil
-  defp accuracy(%{mode: 0} = replay) do
+  def accuracy(%{mode: 0} = replay) do
     100.0 * (300 * replay.n300 + 100 * replay.n100 + 50 * replay.n50) /
       (300 * replay.n300 + 300 * replay.n100 + 300 * replay.n50 + 300 * replay.nmiss)
   end
@@ -366,7 +384,13 @@ defmodule OAAS.Job do
     """
   end
 
-  @modes %{0 => "osu!", 1 => "osu!taiko", 2 => "osu!catch", 3 => "osu!mania"}
+  @doc "Defines the game mode enum."
+  @spec mode(integer) :: binary
+  def mode(0), do: "osu!"
+  def mode(1), do: "osu!taiko"
+  def mode(2), do: "osu!catch"
+  def mode(3), do: "osu!mania"
+
   @title_limit 100
 
   # Get YouTube upload data for a play.
@@ -390,7 +414,7 @@ defmodule OAAS.Job do
       |> Enum.join(" ")
 
     title =
-      "#{@modes[replay.mode]} | #{player.username} | #{beatmap.artist} - #{beatmap.title} [#{
+      "#{mode(replay.mode)} | #{player.username} | #{beatmap.artist} - #{beatmap.title} [#{
         beatmap.version
       }] #{extra}"
 
@@ -398,5 +422,121 @@ defmodule OAAS.Job do
 
     desc = title <> "\n" <> description(player, beatmap)
     %{title: yt_title, description: desc}
+  end
+
+  @spec extract_username(binary) :: {:ok, binary} | {:error, :no_player_match}
+  defp extract_username(title) do
+    case Regex.run(~r/(.+?)\|/, title, capture: :all_but_first) do
+      [cap] ->
+        {:ok,
+         cap
+         |> (&Regex.replace(~r/\(.*?\)/, &1, "")).()
+         |> String.trim()}
+
+      nil ->
+        {:error, :no_player_match}
+    end
+  end
+
+  @spec extract_map_name(binary) :: {:ok, binary} | {:error, :no_map_match}
+  defp extract_map_name(title) do
+    case Regex.run(~r/\|(.+?)-(.+?)\[(.+?)\]/, title, capture: :all_but_first) do
+      [artist, title, diff] ->
+        {:ok, "#{String.trim(artist)} - #{String.trim(title)} [#{String.trim(diff)}]"}
+
+      nil ->
+        {:error, :no_map_match}
+    end
+  end
+
+  @spec search_beatmap(map, binary) :: {:ok, map} | {:error, term}
+  defp search_beatmap(player, map_name) do
+    notify(:debug, "searching for: #{map_name}")
+    map_name = String.downcase(map_name)
+
+    try do
+      case search_events(player, map_name) do
+        {:ok, beatmap} -> throw(beatmap)
+        _ -> nil
+      end
+
+      case search_recent(player, map_name) do
+        {:ok, beatmap} -> throw(beatmap)
+        _ -> nil
+      end
+
+      case search_best(player, map_name) do
+        {:ok, beatmap} -> throw(beatmap)
+        _ -> nil
+      end
+
+      nil
+    catch
+      beatmap -> {:ok, beatmap}
+    end
+  end
+
+  # Search a player's recent events for a beatmap.
+  @spec search_events(map, binary) :: {:ok, map} | {:error, term}
+  defp search_events(%{events: events}, map_name) do
+    case Enum.find(events, fn %{display_html: html} ->
+           html
+           |> String.downcase()
+           |> String.contains?(map_name)
+         end) do
+      %{beatmap_id: id} -> OsuEx.API.get_beatmap(id)
+      _ -> {:error, nil}
+    end
+  end
+
+  # Search a player's recent plays for a beatmap.
+  @spec search_recent(map, binary) :: {:ok, map} | {:error, term}
+  defp search_recent(%{user_id: id}, map_name) do
+    case OsuEx.API.get_user_recent(id) do
+      {:ok, scores} -> search_scores(scores, map_name)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Search a player's best plays for a beatmap.
+  @spec search_best(map, binary) :: {:ok, map} | {:error, term}
+  defp search_best(%{user_id: id}, map_name) do
+    case OsuEx.API.get_user_best(id) do
+      {:ok, scores} -> search_scores(scores, map_name)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Search a list of scores for a beatmap.
+  @spec search_scores(map, binary) :: {:ok, map} | {:error, term}
+  defp search_scores(scores, map_name) do
+    Enum.find_value(scores, {:error, :not_found}, fn %{beatmap_id: map_id} ->
+      case OsuEx.API.get_beatmap(map_id) do
+        {:ok, %{artist: artist, title: title, version: version} = beatmap} ->
+          if String.downcase("#{artist} - #{title} [#{version}]") === map_name do
+            beatmap
+          else
+            false
+          end
+
+        _ ->
+          false
+      end
+    end)
+  end
+
+  @downloader Application.get_env(:oaas, :osr_downloader)
+
+  # Download a .osr replay file.
+  @spec get_osr(map, map) :: {:ok, binary} | {:error, {:exit_code, integer}}
+  defp get_osr(%{user_id: user}, %{beatmap_id: beatmap}) do
+    args =
+      [@downloader, "-k", Application.get_env(:osu_ex, :api_key), "-u", user, "-b", beatmap]
+      |> Enum.map(&to_string/1)
+
+    case System.cmd(@downloader, args) do
+      {osr, 0} -> {:ok, osr}
+      {_, n} -> {:error, {:exit_code, n}}
+    end
   end
 end
