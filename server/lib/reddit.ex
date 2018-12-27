@@ -4,6 +4,7 @@ defmodule OAAS.Reddit do
   use GenServer
   use Export.Python
   import OAAS.Utils
+  alias OAAS.Discord
 
   @pypath "priv"
   @module "reddit"
@@ -49,7 +50,13 @@ defmodule OAAS.Reddit do
   end
 
   # Handle a single Reddit post.
-  defp process_post(%{id: id, title: _title, author: _author}) do
-    notify(:debug, "processing reddit post https://redd.it/#{id}")
+  defp process_post(%{id: id, title: title, author: author}) do
+    """
+    reddit post: https://redd.it/#{id}
+    title: `#{title}`
+    author: `/u/#{author}`
+    react :+1: if we should record
+    """
+    |> Discord.send_message()
   end
 end

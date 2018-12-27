@@ -43,7 +43,7 @@ defmodule OAAS.Job do
     :created_at,
     :updated_at
   ]
-  defstruct @enforce_keys ++ [:comment, :worker_id]
+  defstruct @enforce_keys ++ [:reddit_id, :comment, :worker_id]
 
   @type t :: %__MODULE__{
           # Job ID.
@@ -60,6 +60,8 @@ defmodule OAAS.Job do
           skin: map,
           # Job status.
           status: integer,
+          # Reddit post ID.
+          reddit_id: binary | nil,
           # Comment from the worker.
           comment: binary | nil,
           # Assigned worker.
@@ -196,8 +198,8 @@ defmodule OAAS.Job do
   end
 
   @doc "Creates a job from a Reddit post."
-  @spec from_reddit(map) :: {:ok, t} | {:error, term}
-  def from_reddit(_data) do
+  @spec from_reddit(binary, binary) :: {:ok, t} | {:error, term}
+  def from_reddit(_id, _title) do
     {:error, :todo}
   end
 

@@ -1,6 +1,7 @@
 import json
 import os
 import praw
+import re
 
 reddit = praw.Reddit(
     user_agent=os.getenv("REDDIT_USER_AGENT"),
@@ -11,13 +12,14 @@ reddit = praw.Reddit(
 )
 subreddit = reddit.subreddit(os.getenv("REDDIT_SUBREDDIT"))
 stream = subreddit.stream.submissions()
+title = re.compile(".+\|.+-.+\[.+\]")
 posts = {}
 
 
 def next_post():
-    """Return the next unsaved post."""
+    """Return the next post to process."""
     p = next(stream)
-    while p.saved:
+    while should_skip(p):
         p = next(stream)
     posts[p.id] = p
 
@@ -33,4 +35,11 @@ def save_post(id):
     if id in posts:
         posts[id].save()
         return True
+    return False
+
+
+def should_skip(p):
+    """Determine whether a post should be skipped."""
+    if p.saved: return True
+    if not title.match(p.title): return True
     return False

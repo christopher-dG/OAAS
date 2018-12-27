@@ -9,6 +9,7 @@ defmodule OAAS.Discord do
 
   @me Application.get_env(:oaas, :discord_user)
   @channel Application.get_env(:oaas, :discord_channel)
+  @plusone "👍"
 
   def start_link do
     Consumer.start_link(__MODULE__)
@@ -49,6 +50,34 @@ defmodule OAAS.Discord do
     |> String.split()
     |> tl()
     |> command(msg)
+  end
+
+  def handle_event(
+        {:MESSAGE_REACTION_ADD,
+         {%{
+            channel_id: @channel,
+            emoji: %{name: @plusone},
+            message_id: message
+          }}, _state}
+      ) do
+    case Api.get_channel_message(@channel, message) do
+      {:ok, %{author: %{id: @me}, content: "reddit post:" <> content}} ->
+        with [id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, content, capture: :all_but_first),
+             [title] <- Regex.run(~r/title: (.+)/i, content, capture: :all_but_first) do
+          case Job.from_reddit(id, title) do
+            {:ok, j} -> notify("created job `#{j.id}`")
+            {:error, reason} -> notify(:error, "creating job failed", reason)
+          end
+        else
+          nil -> notify(:warn, "parsing message failed")
+        end
+
+      {:ok, msg} ->
+        notify(:debug, "message #{msg.id} is not a reddit notification")
+
+      {:error, reason} ->
+        notify(:warn, "getting message #{message} failed", reason)
+    end
   end
 
   # Fallback event handler.

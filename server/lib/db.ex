@@ -23,6 +23,7 @@ defmodule OAAS.DB do
       replay TEXT NOT NULL,   -- JSON
       status INTEGER NOT NULL,
       skin TEXT NOT NULL,  -- JSON
+      reddit_id TEXT,
       comment TEXT,
       worker_id TEXT REFERENCES workers(id),
       created_at INTEGER NOT NULL,
