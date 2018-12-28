@@ -202,14 +202,19 @@ defmodule OAAS.Job do
   def from_reddit(id, title) do
     with {:ok, username} <- extract_username(title),
          {:ok, map_name} <- extract_map_name(title),
+         {:ok, mods} <- extract_mods(title),
          {:ok, %{} = player} <- OsuEx.API.get_user(username, event_days: 31),
          {:ok, %{} = beatmap} <- search_beatmap(player, map_name),
-         {:ok, osr} <- get_osr(player, beatmap),
+         {:ok, osr} <- get_osr(player, beatmap, mods),
          {:ok, replay} <- OsuEx.Parser.osr(osr) do
       put(
         player: Map.drop(player, [:events]),
         beatmap: beatmap,
-        replay: Map.merge(replay, %{replay_data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)}),
+        replay:
+          Map.merge(replay, %{
+            replay_data: Base.encode64(osr),
+            length: replay_time(beatmap, replay.mods)
+          }),
         youtube: youtube_data(player, beatmap, replay),
         skin: skin(player.username),
         status: status(:pending),
@@ -231,7 +236,11 @@ defmodule OAAS.Job do
       put(
         player: Map.drop(player, [:events]),
         beatmap: beatmap,
-        replay: Map.merge(replay, %{replay_data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)}),
+        replay:
+          Map.merge(replay, %{
+            replay_data: Base.encode64(osr),
+            length: replay_time(beatmap, replay.mods)
+          }),
         youtube: youtube_data(player, beatmap, replay),
         skin: skin(skin_override || player.username),
         status: status(:pending)
@@ -424,6 +433,7 @@ defmodule OAAS.Job do
     %{title: yt_title, description: desc}
   end
 
+  # Get the player name from a post title.
   @spec extract_username(binary) :: {:ok, binary} | {:error, :no_player_match}
   defp extract_username(title) do
     case Regex.run(~r/(.+?)\|/, title, capture: :all_but_first) do
@@ -438,6 +448,7 @@ defmodule OAAS.Job do
     end
   end
 
+  # Get the beatmap name from a post title.
   @spec extract_map_name(binary) :: {:ok, binary} | {:error, :no_map_match}
   defp extract_map_name(title) do
     case Regex.run(~r/\|(.+?)-(.+?)\[(.+?)\]/, title, capture: :all_but_first) do
@@ -449,6 +460,28 @@ defmodule OAAS.Job do
     end
   end
 
+  # Get the mods (as a number) from a post title.
+  @spec extract_mods(binary) :: {:ok, non_neg_integer | nil}
+  defp extract_mods(title) do
+    {:ok,
+     case Regex.run(~r/\+([A-Z,]+)/, title, capture: :all_but_first) do
+       [mods] ->
+         mods
+         |> String.replace(",", "")
+         |> String.to_charlist()
+         |> Enum.chunk_every(2)
+         |> Enum.map(&to_string/1)
+         |> Enum.reduce(0, fn mod, acc ->
+           acc + Keyword.get(@mods, String.to_atom(mod), 0)
+         end)
+
+       nil ->
+         # On no match, we return nil rather than 0 because we're not really sure that it's nomod.
+         nil
+     end}
+  end
+
+  # Look for a beatmap by name in a player's activity.
   @spec search_beatmap(map, binary) :: {:ok, map} | {:error, term}
   defp search_beatmap(player, map_name) do
     notify(:debug, "searching for: #{map_name}")
@@ -528,10 +561,12 @@ defmodule OAAS.Job do
   @downloader Application.get_env(:oaas, :osr_downloader)
 
   # Download a .osr replay file.
-  @spec get_osr(map, map) :: {:ok, binary} | {:error, {:exit_code, integer}}
-  defp get_osr(%{user_id: user}, %{beatmap_id: beatmap}) do
+  @spec get_osr(map, map, non_neg_integer | nil) ::
+          {:ok, binary} | {:error, {:exit_code, integer}}
+  defp get_osr(%{user_id: user}, %{beatmap_id: beatmap}, mods) do
     args =
-      [@downloader, "-k", Application.get_env(:osu_ex, :api_key), "-u", user, "-b", beatmap]
+      ([@downloader, "-k", Application.get_env(:osu_ex, :api_key), "-u", user, "-b", beatmap] ++
+         if(is_nil(mods), do: [], else: ["--mods", mods]))
       |> Enum.map(&to_string/1)
 
     case System.cmd(@downloader, args) do
