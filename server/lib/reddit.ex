@@ -10,13 +10,13 @@ defmodule OAAS.Reddit do
   @module "reddit"
 
   def start_link(_args) do
-    {:ok, pid} = Python.start_link(python_path: @pypath)
-    GenServer.start_link(__MODULE__, pid)
+    {:ok, pid} = Python.start_link(python_path: Path.absname(@pypath))
+    GenServer.start_link(__MODULE__, pid, name: __MODULE__)
   end
 
   @impl true
   def init(state) do
-    send(self(), :post)
+    send(__MODULE__, :post)
     {:ok, state}
   end
 
@@ -27,6 +27,7 @@ defmodule OAAS.Reddit do
     case Jason.decode(json) do
       {:ok, p} ->
         %{id: id, title: title, author: author} = atom_map(p)
+        Python.call(state, @module, "save_post", [id])
 
         """
         reddit post: https://redd.it/#{id}
@@ -40,19 +41,7 @@ defmodule OAAS.Reddit do
         notify(:warn, "decoding reddit post failed", reason)
     end
 
-    send(self(), :post)
+    send(__MODULE__, :post)
     {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:save, id}, state) do
-    Python.call(state, @module, "save_post", [id])
-    {:noreply, state}
-  end
-
-  @doc "Saves a Reddit post by ID."
-  @spec save_post(binary) :: term
-  def save_post(id) do
-    GenServer.cast(self(), {:save, id})
   end
 end

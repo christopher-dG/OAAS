@@ -15,7 +15,6 @@ stream = subreddit.stream.submissions()
 title = re.compile(".+\|.+-.+\[.+\]")
 posts = {}
 
-
 def next_post():
     """Return the next post to process."""
     p = next(stream)
@@ -31,7 +30,8 @@ def next_post():
 
 
 def save_post(id):
-    """Save a post."""
+    """Save a post by ID."""
+    id = id.decode("utf-8")
     if id in posts:
         posts[id].save()
         return True

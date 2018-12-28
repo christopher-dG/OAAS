@@ -5,7 +5,6 @@ defmodule OAAS.Discord do
   use Nostrum.Consumer
   import OAAS.Utils
   alias OAAS.Job
-  alias OAAS.Reddit
   alias OAAS.Worker
 
   @me Application.get_env(:oaas, :discord_user)
@@ -84,8 +83,6 @@ defmodule OAAS.Discord do
               """
               |> send_message()
 
-              Reddit.save_post(p_id)
-
             {:error, reason} ->
               notify(:error, "creating job failed", reason)
           end
@@ -106,8 +103,17 @@ defmodule OAAS.Discord do
     :noop
   end
 
+  @doc "Sends a Discord message."
+  @spec send_message(binary) :: {:ok, Nostrum.Struct.Message.t} | {:error, term}
   def send_message(content) do
-    Api.create_message(@channel, content)
+    case Api.create_message(@channel, content) do
+      {:ok, msg} ->
+        {:ok, msg}
+
+      {:error, reason} ->
+        notify(:debug, "sending message failed", reason)
+        {:error, reason}
+    end
   end
 
   # List workers.
@@ -166,6 +172,7 @@ defmodule OAAS.Discord do
     with {id, ""} <- Integer.parse(id),
          {:ok, %Job{} = j} <- Job.get(id) do
       player = "#{j.player.username} (https://osu.ppy.sh/u/#{j.player.user_id})"
+      reddit = if(is_nil(j.reddit_id), do: "none", else: "https://redd.it/#{j.reddit_id}")
 
       beatmap =
         "#{j.beatmap.artist} - #{j.beatmap.title} [#{j.beatmap.version}] (https://osu.ppy.sh/b/#{
@@ -182,6 +189,7 @@ defmodule OAAS.Discord do
       beatmap: #{beatmap}
       video: #{j.youtube.title}
       skin: #{(j.skin || %{})[:name] || "none"}
+      reddit: #{reddit}
       created: #{relative_time(j.created_at)}
       updated: #{relative_time(j.updated_at)}
       ```
