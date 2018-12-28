@@ -52,7 +52,7 @@ defmodule OAAS.Job do
           player: map,
           # Beatmap data: {id, name, mode}.
           beatmap: map,
-          # Replay data: {data, length}.
+          # Replay data: Everything from OsuEx.Parser.osr/1 + full replay_data and length.
           replay: map,
           # YouTube upload data: {title, description}.
           youtube: map,
@@ -203,20 +203,20 @@ defmodule OAAS.Job do
     with {:ok, username} <- extract_username(title),
          {:ok, map_name} <- extract_map_name(title),
          {:ok, %{} = player} <- OsuEx.API.get_user(username, event_days: 31),
-         {:ok, beatmap} <- search_beatmap(player, map_name),
+         {:ok, %{} = beatmap} <- search_beatmap(player, map_name),
          {:ok, osr} <- get_osr(player, beatmap),
          {:ok, replay} <- OsuEx.Parser.osr(osr) do
       put(
         player: Map.drop(player, [:events]),
         beatmap: beatmap,
-        replay: %{data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)},
+        replay: Map.merge(replay, %{replay_data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)}),
         youtube: youtube_data(player, beatmap, replay),
         skin: skin(player.username),
         status: status(:pending),
         reddit_id: id
       )
     else
-      {:ok, nil} -> {:error, :not_found}
+      {:ok, nil} -> {:error, :player_found}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -231,7 +231,7 @@ defmodule OAAS.Job do
       put(
         player: Map.drop(player, [:events]),
         beatmap: beatmap,
-        replay: %{data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)},
+        replay: Map.merge(replay, %{replay_data: Base.encode64(osr), length: replay_time(beatmap, replay.mods)}),
         youtube: youtube_data(player, beatmap, replay),
         skin: skin(skin_override || player.username),
         status: status(:pending)
@@ -326,7 +326,7 @@ defmodule OAAS.Job do
       (300 * replay.n300 + 300 * replay.n100 + 300 * replay.n50 + 300 * replay.nmiss)
   end
 
-  defp accuracy(_replay) do
+  def accuracy(_replay) do
     nil
   end
 
@@ -470,7 +470,7 @@ defmodule OAAS.Job do
         _ -> nil
       end
 
-      nil
+      {:error, :beatmap_not_found}
     catch
       beatmap -> {:ok, beatmap}
     end
@@ -501,7 +501,7 @@ defmodule OAAS.Job do
   # Search a player's best plays for a beatmap.
   @spec search_best(map, binary) :: {:ok, map} | {:error, term}
   defp search_best(%{user_id: id}, map_name) do
-    case OsuEx.API.get_user_best(id) do
+    case OsuEx.API.get_user_best(id, limit: 100) do
       {:ok, scores} -> search_scores(scores, map_name)
       {:error, reason} -> {:error, reason}
     end
@@ -514,7 +514,7 @@ defmodule OAAS.Job do
       case OsuEx.API.get_beatmap(map_id) do
         {:ok, %{artist: artist, title: title, version: version} = beatmap} ->
           if String.downcase("#{artist} - #{title} [#{version}]") === map_name do
-            beatmap
+            {:ok, beatmap}
           else
             false
           end

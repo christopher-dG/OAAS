@@ -53,6 +53,7 @@ defmodule OAAS.Discord do
     |> command(msg)
   end
 
+  # Add a job via a reaction on a Reddit post notification.
   def handle_event(
         {:MESSAGE_REACTION_ADD,
          {%{
@@ -64,7 +65,7 @@ defmodule OAAS.Discord do
     case Api.get_channel_message(@channel, message) do
       {:ok, %{author: %{id: @me}, content: "reddit post:" <> content}} ->
         with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, content, capture: :all_but_first),
-             [title] <- Regex.run(~r/title: (.+)/i, content, capture: :all_but_first) do
+             [title] <- Regex.run(~r/title: `(.+)`/i, content, capture: :all_but_first) do
           case Job.from_reddit(p_id, title) do
             {:ok, %{replay: replay, id: j_id}} ->
               notify("created job `#{j_id}`")
@@ -143,7 +144,7 @@ defmodule OAAS.Discord do
     case Worker.get(id) do
       {:ok, w} ->
         """
-        ```
+        ```yml
         id: #{w.id}
         online: #{Worker.online?(w)}
         job: #{w.current_job_id || "none"}
@@ -172,7 +173,7 @@ defmodule OAAS.Discord do
         })"
 
       """
-      ```
+      ```yml
       id: #{j.id}
       worker: #{j.worker_id || "none"}
       status: #{Job.status(j.status)}

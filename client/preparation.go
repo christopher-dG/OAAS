@@ -106,7 +106,7 @@ func saveReplay(j Job) error {
 		return nil
 	}
 
-	osr, err := base64.StdEncoding.DecodeString(j.Replay.Data)
+	osr, err := base64.StdEncoding.DecodeString(j.Replay.ReplayData)
 	if err != nil {
 		return err
 	}
