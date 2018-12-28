@@ -5,6 +5,7 @@ defmodule OAAS.Discord do
   use Nostrum.Consumer
   import OAAS.Utils
   alias OAAS.Job
+  alias OAAS.Job.Replay
   alias OAAS.Worker
 
   @me Application.get_env(:oaas, :discord_user)
@@ -31,7 +32,7 @@ defmodule OAAS.Discord do
         nil -> nil
       end
 
-    case Job.from_osr(url, skin) do
+    case Replay.from_osr(url, skin) do
       {:ok, j} -> notify("created job `#{j.id}`")
       {:error, reason} -> notify(:error, "creating job failed", reason)
     end
@@ -65,23 +66,14 @@ defmodule OAAS.Discord do
       {:ok, %{author: %{id: @me}, content: "reddit post:" <> content}} ->
         with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, content, capture: :all_but_first),
              [title] <- Regex.run(~r/title: `(.+)`/i, content, capture: :all_but_first) do
-          case Job.from_reddit(p_id, title) do
-            {:ok, %{replay: replay, id: j_id}} ->
-              notify("created job `#{j_id}`")
-
-              """
-              job `#{j_id}`'s downloaded replay has the following properties:
-              ```yml
-              player: #{replay.player}
-              mode:  #{Job.mode(replay.mode)}
-              mods:  #{Job.mod_string(replay.mods)}
-              combo: #{replay.combo}
-              score: #{replay.score}
-              accuracy: #{Job.accuracy(replay)}
-              ```
-              please ensure that this is accurate, otherwise run `delete job #{j_id}` immediately
-              """
-              |> send_message()
+          case Replay.from_reddit(p_id, title) do
+            {:ok, j} ->
+              notify(
+                """
+                created job `#{j.id}`
+                ensure that this is accurate, or run `delete job #{j.id}` immediately
+                """ <> "\n" <> Replay.describe(j)
+              )
 
             {:error, reason} ->
               notify(:error, "creating job failed", reason)
@@ -104,7 +96,7 @@ defmodule OAAS.Discord do
   end
 
   @doc "Sends a Discord message."
-  @spec send_message(binary) :: {:ok, Nostrum.Struct.Message.t} | {:error, term}
+  @spec send_message(binary) :: {:ok, Nostrum.Struct.Message.t()} | {:error, term}
   def send_message(content) do
     case Api.create_message(@channel, content) do
       {:ok, msg} ->
@@ -149,17 +141,8 @@ defmodule OAAS.Discord do
   defp command(["describe", "worker", id], _msg) do
     case Worker.get(id) do
       {:ok, w} ->
-        """
-        ```yml
-        id: #{w.id}
-        online: #{Worker.online?(w)}
-        job: #{w.current_job_id || "none"}
-        last poll: #{relative_time(w.last_poll)}
-        last job: #{relative_time(w.last_job)}
-        created: #{relative_time(w.created_at)}
-        updated: #{relative_time(w.updated_at)}
-        ```
-        """
+        w
+        |> Worker.describe()
         |> send_message()
 
       {:error, reason} ->
@@ -170,34 +153,12 @@ defmodule OAAS.Discord do
   # Describe a job.
   defp command(["describe", "job", id], _msg) do
     with {id, ""} <- Integer.parse(id),
-         {:ok, %Job{} = j} <- Job.get(id) do
-      player = "#{j.player.username} (https://osu.ppy.sh/u/#{j.player.user_id})"
-      reddit = if(is_nil(j.reddit_id), do: "none", else: "https://redd.it/#{j.reddit_id}")
-
-      beatmap =
-        "#{j.beatmap.artist} - #{j.beatmap.title} [#{j.beatmap.version}] (https://osu.ppy.sh/b/#{
-          j.beatmap.beatmap_id
-        })"
-
-      """
-      ```yml
-      id: #{j.id}
-      worker: #{j.worker_id || "none"}
-      status: #{Job.status(j.status)}
-      comment: #{j.comment || "none"}
-      player: #{player}
-      beatmap: #{beatmap}
-      video: #{j.youtube.title}
-      skin: #{(j.skin || %{})[:name] || "none"}
-      reddit: #{reddit}
-      created: #{relative_time(j.created_at)}
-      updated: #{relative_time(j.updated_at)}
-      ```
-      """
+         {:ok, j} <- Job.get(id) do
+      j
+      |> Replay.describe()
       |> send_message()
     else
       :error -> notify(:error, "invalid job id")
-      {:ok, nil} -> notify(:error, "no such job")
       {:error, reason} -> notify(:error, "looking up job failed", reason)
     end
   end
@@ -247,20 +208,5 @@ defmodule OAAS.Discord do
       |> TableRex.quick_render!([:id] ++ headers ++ [:created, :updated])
 
     "```\n#{t}\n```"
-  end
-
-  @spec relative_time(nil) :: binary
-  defp relative_time(nil) do
-    "never"
-  end
-
-  @spec relative_time(non_neg_integer) :: binary
-  defp relative_time(ms) do
-    dt = Timex.from_unix(ms, :millisecond)
-
-    case Timex.Format.DateTime.Formatters.Relative.format(dt, "{relative}") do
-      {:ok, rel} -> rel
-      {:error, _reason} -> to_string(dt)
-    end
   end
 end

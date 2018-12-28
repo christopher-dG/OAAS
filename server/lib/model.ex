@@ -63,7 +63,7 @@ defmodule OAAS.Model do
 
       @doc "Updates a #{@model}."
       @spec update(t, keyword) :: {:ok, t} | {:error, term}
-      def update(%__MODULE__{} = m, cols) do
+      def update(m, cols) do
         cols = Keyword.put_new(cols, :updated_at, System.system_time(:millisecond))
 
         # Construct a SQL query: "UPDATE t SET x = ?1, y = ?2, z = ?3 WHERE id = ?4".

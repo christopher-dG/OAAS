@@ -37,12 +37,7 @@ defmodule OAAS.Web.Plugs do
     end
   end
 
-  @doc """
-  Authenticates a request with an API key.
-
-  In dev mode, authorization is ignored.
-  Otherwise, the "Authorization" header is verified.
-  """
+  @doc "Authenticates a request with an API key."
   def authenticate(conn, _opts) do
     if Mix.env() === :dev do
       # Don't worry about auth for development.
@@ -87,13 +82,7 @@ defmodule OAAS.Web.Plugs do
     end
   end
 
-  @doc """
-  Validates the request body.
-
-  Required bodies look like:
-  - poll: {worker: worker_id}
-  - status: {worker: worker_id, job: job_id, status: status, comment: comment}
-  """
+  @doc "Validates the request body."
   def validate(conn, _opts) do
     if conn.method === "POST" do
       case conn.path_info do
@@ -128,21 +117,11 @@ defmodule OAAS.Web.Plugs do
     end
   end
 
-  @doc """
-  Preloads parameters passed as IDs into their actual entities.
-
-  The entities are stored in the Conn's private storage, and the values are either:
-  - :missing (no ID provided)
-  - :error (something failed)
-  - The successfully-preloaded value or nil if it doesn't exist
-  """
+  @doc "Preloads parameters passed as IDs into their actual entities."
   def preload(conn, _opts) do
     w_id = conn.body_params["worker"]
     j_id = conn.body_params["job"]
 
-    # The preloads map fields will be :missing if they weren't provided in the request.
-    # If there's an error preloading, the field is :error.
-    # Otherwise, it's the model or nil.
     conn
     |> put_private(:preloads, %{worker: :missing, job: :missing})
     |> (fn c ->
@@ -150,15 +129,9 @@ defmodule OAAS.Web.Plugs do
             c
           else
             case Worker.get(w_id) do
-              {:ok, w} ->
-                put_private(c, :preloads, %{c.private.preloads | worker: w})
-
-              {:error, :no_such_entity} ->
-                put_private(c, :preloads, %{c.private.preloads | worker: nil})
-
-              {:error, reason} ->
-                notify(:warn, "preloading worker `#{w_id}` failed", reason)
-                put_private(c, :preloads, %{c.private.preloads | worker: :error})
+              {:ok, w} -> put_private(c, :preloads, Map.put(c.private.preloads, :worker, w))
+              {:error, :no_such_entity} -> :noop
+              {:error, reason} -> notify(:warn, "preloading worker `#{w_id}` failed", reason)
             end
           end
         end).()
@@ -167,15 +140,9 @@ defmodule OAAS.Web.Plugs do
             c
           else
             case Job.get(j_id) do
-              {:ok, j} ->
-                put_private(c, :preloads, %{c.private.preloads | job: j})
-
-              {:error, :no_such_entity} ->
-                put_private(c, :preloads, %{c.private.preloads | job: nil})
-
-              {:error, reason} ->
-                notify(:warn, "preloading job `#{j_id}` failed", reason)
-                put_private(c, :preloads, %{c.private.preloads | job: :error})
+              {:ok, j} -> put_private(c, :preloads, Map.put(c.private.preloads, :job, j))
+              {:error, :no_such_entity} -> :noop
+              {:error, reason} -> notify(:warn, "preloading job `#{j_id}` failed", reason)
             end
           end
         end).()

@@ -11,9 +11,6 @@ RUN curl -sL https://deb.nodesource.com/setup_11.x | bash && \
     pip install praw && \
     git clone https://github.com/omkelderman/osu-replay-downloader /root/osr-dl && \
     cd /root/osr-dl && \
-    tr '\r' ' ' < fetch.js | cat > fetch2.js && \
-    mv fetch2.js fetch.js && \
-    chmod +x fetch.js && \
     npm install
 
 COPY . .

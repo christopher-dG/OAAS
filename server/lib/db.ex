@@ -17,13 +17,9 @@ defmodule OAAS.DB do
     )",
     "CREATE TABLE IF NOT EXISTS jobs(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      player TEXT NOT NULL,   -- JSON
-      beatmap TEXT NOT NULL,  -- JSON
-      youtube TEXT NOT NULL,  -- JSON
-      replay TEXT NOT NULL,   -- JSON
+      type INTEGER NOT NULL,
+      data TEXT NOT NULL,  -- JSON
       status INTEGER NOT NULL,
-      skin TEXT NOT NULL,  -- JSON
-      reddit_id TEXT,
       comment TEXT,
       worker_id TEXT REFERENCES workers(id),
       created_at INTEGER NOT NULL,

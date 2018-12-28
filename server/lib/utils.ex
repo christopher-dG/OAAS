@@ -89,4 +89,20 @@ defmodule OAAS.Utils do
   def notify(:error, msg, err) do
     notify(:error, "#{msg}: `#{inspect(err)}`")
   end
+
+  @doc "Humanizes a timestamp."
+  @spec relative_time(nil) :: binary
+  def relative_time(nil) do
+    "never"
+  end
+
+  @spec relative_time(non_neg_integer) :: binary
+  def relative_time(ms) do
+    dt = Timex.from_unix(ms, :millisecond)
+
+    case Timex.Format.DateTime.Formatters.Relative.format(dt, "{relative}") do
+      {:ok, rel} -> rel
+      {:error, _reason} -> to_string(dt)
+    end
+  end
 end

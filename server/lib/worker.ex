@@ -9,17 +9,11 @@ defmodule OAAS.Worker do
   defstruct @enforce_keys ++ [:last_job, :current_job_id]
 
   @type t :: %__MODULE__{
-          # Worker ID.
           id: binary,
-          # Last poll time (unix).
           last_poll: integer,
-          # Last job time (unix).
           last_job: integer,
-          # Current job.
           current_job_id: integer,
-          # Worker creation time.
           created_at: integer,
-          # Worker update time.
           updated_at: integer
         }
 
@@ -27,11 +21,27 @@ defmodule OAAS.Worker do
 
   use OAAS.Model
 
+  @doc "Describes the worker."
+  @spec describe(t) :: binary
+  def describe(w) do
+    """
+    ```yml
+    id: #{w.id}
+    online: #{online?(w)}
+    job: #{w.current_job_id || "none"}
+    last poll: #{relative_time(w.last_poll)}
+    last job: #{relative_time(w.last_job)}
+    created: #{relative_time(w.created_at)}
+    updated: #{relative_time(w.updated_at)}
+    ```
+    """
+  end
+
   @online_threshold 30 * 1000
 
   @doc "Determines whether a worker is online."
   @spec online?(t) :: boolean
-  def online?(%__MODULE__{} = w) do
+  def online?(w) do
     System.system_time(:millisecond) - (w.last_poll || 0) <= @online_threshold
   end
 
@@ -47,11 +57,11 @@ defmodule OAAS.Worker do
 
   @doc "Gets the worker's currently assigned job."
   @spec get_assigned(t) :: {:ok, Job.t() | nil} | {:error, term}
-  def get_assigned(%__MODULE__{current_job_id: nil}) do
+  def get_assigned(%{current_job_id: nil}) do
     {:ok, nil}
   end
 
-  def get_assigned(%__MODULE__{current_job_id: id}) do
+  def get_assigned(%{current_job_id: id}) do
     ass = Job.status(:assigned)
 
     case Job.get(id) do

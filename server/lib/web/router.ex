@@ -12,9 +12,7 @@ defmodule OAAS.Web.Router do
 
   alias OAAS.Worker
   alias OAAS.Job
-  alias OAAS.DB
   import OAAS.Utils
-  require DB
 
   plug(Plug.Logger)
   plug(Plug.Parsers, parsers: [:json], pass: ["*/*"], json_decoder: Jason)
@@ -43,8 +41,8 @@ defmodule OAAS.Web.Router do
   end
 
   post "/status" do
-    with %Worker{} = w <- conn.private.preloads.worker,
-         %Job{} = j <- conn.private.preloads.job do
+    with %{} = w <- conn.private.preloads[:worker],
+         %{} = j <- conn.private.preloads[:job] do
       status = conn.body_params["status"]
       comment = conn.body_params["comment"] || j.comment
 
