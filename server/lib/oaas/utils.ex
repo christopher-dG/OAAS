@@ -28,7 +28,7 @@ defmodule OAAS.Utils do
     Enum.map(x, &atom_map/1)
   end
 
-  @spec atom_map({binary, term}) :: {atom, term}
+  @spec atom_map({String.t(), term}) :: {atom, term}
   def atom_map({k, v}) when is_binary(k) do
     {String.to_atom(k), atom_map(v)}
   end
@@ -43,60 +43,60 @@ defmodule OAAS.Utils do
     x
   end
 
-  @spec notify(binary) :: true
+  @spec notify(String.t()) :: true
   def notify(msg) do
     notify(:info, msg)
   end
 
-  @spec notify(:debug, binary) :: true
+  @spec notify(:debug, String.t()) :: true
   def notify(:debug, msg) do
     Logger.debug(msg)
     true
   end
 
-  @spec notify(:info, binary) :: true
+  @spec notify(:info, String.t()) :: true
   def notify(:info, msg) do
     Logger.info(msg)
     Task.start(fn -> Mix.env() === :test || Discord.send_message("info: #{msg}") end)
     true
   end
 
-  @spec notify(:warn, binary) :: true
+  @spec notify(:warn, String.t()) :: true
   def notify(:warn, msg) do
     Logger.warn(msg)
     Task.start(fn -> Mix.env() === :test || Discord.send_message("warn: #{msg}") end)
     true
   end
 
-  @spec notify(:error, binary) :: true
+  @spec notify(:error, String.t()) :: true
   def notify(:error, msg) do
     Logger.error(msg)
     Task.start(fn -> Mix.env() === :test || Discord.send_message("error: #{msg}") end)
     true
   end
 
-  @spec notify(:debug, binary, term) :: true
+  @spec notify(:debug, String.t(), term) :: true
   def notify(:debug, msg, err) do
     notify(:debug, "#{msg}: `#{inspect(err)}`")
   end
 
-  @spec notify(:warn, binary, term) :: true
+  @spec notify(:warn, String.t(), term) :: true
   def notify(:warn, msg, err) do
     notify(:warn, "#{msg}: `#{inspect(err)}`")
   end
 
-  @spec notify(:error, binary, term) :: true
+  @spec notify(:error, String.t(), term) :: true
   def notify(:error, msg, err) do
     notify(:error, "#{msg}: `#{inspect(err)}`")
   end
 
   @doc "Humanizes a timestamp."
-  @spec relative_time(nil) :: binary
+  @spec relative_time(nil) :: String.t()
   def relative_time(nil) do
     "never"
   end
 
-  @spec relative_time(non_neg_integer) :: binary
+  @spec relative_time(non_neg_integer) :: String.t()
   def relative_time(ms) do
     dt = Timex.from_unix(ms, :millisecond)
 

@@ -7,7 +7,7 @@ defmodule OAAS.Job.Replay do
   use Bitwise, only_operators: true
 
   @doc "Describes the job."
-  @spec describe(Job.t()) :: binary
+  @spec describe(Job.t()) :: String.t()
   def describe(j) do
     player = "#{j.data.player.username} (https://osu.ppy.sh/u/#{j.data.player.user_id})"
     reddit = if(is_nil(j.reddit_id), do: "none", else: "https://redd.it/#{j.reddit_id}")
@@ -40,7 +40,7 @@ defmodule OAAS.Job.Replay do
   end
 
   @doc "Creates a replay job from a Reddit post."
-  @spec from_reddit(binary, binary) :: {:ok, Job.t()} | {:error, term}
+  @spec from_reddit(String.t(), String.t()) :: {:ok, Job.t()} | {:error, term}
   def from_reddit(id, title) do
     with {:ok, username} <- extract_username(title),
          {:ok, map_name} <- extract_map_name(title),
@@ -72,7 +72,7 @@ defmodule OAAS.Job.Replay do
   end
 
   @doc "Creates a replay job from a replay link."
-  @spec from_osr(binary, binary | nil) :: {:ok, Job.t()} | {:error, term}
+  @spec from_osr(String.t(), String.t() | nil) :: {:ok, Job.t()} | {:error, term}
   def from_osr(url, skin_override \\ nil) do
     with {:ok, %{body: osr}} <- HTTPoison.get(url),
          {:ok, replay} = OsuEx.Parser.osr(osr),
@@ -99,7 +99,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Get pp for a play as a string.
-  @spec pp_string(map, map, map) :: binary | nil
+  @spec pp_string(map, map, map) :: String.t() | nil
   defp pp_string(player, beatmap, replay) do
     case Osu.pp(player, beatmap, replay) do
       {:ok, pp} ->
@@ -112,7 +112,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Generate the YouTube description.
-  @spec description(map, map) :: binary
+  @spec description(map, map) :: String.t()
   defp description(%{username: username, user_id: user_id}, %{beatmap_id: beatmap_id}) do
     """
     #{username}'s Profile: https://osu.ppy.sh/u/#{user_id} | #{username}'s Skin: https://circle-people.com/skins | Map: https://osu.ppy.sh/b/#{
@@ -180,7 +180,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Get the player name from a post title.
-  @spec extract_username(binary) :: {:ok, binary} | {:error, :no_player_match}
+  @spec extract_username(String.t()) :: {:ok, String.t()} | {:error, :no_player_match}
   defp extract_username(title) do
     case Regex.run(~r/(.+?)\|/, title, capture: :all_but_first) do
       [cap] ->
@@ -195,7 +195,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Get the beatmap name from a post title.
-  @spec extract_map_name(binary) :: {:ok, binary} | {:error, :no_map_match}
+  @spec extract_map_name(String.t()) :: {:ok, String.t()} | {:error, :no_map_match}
   defp extract_map_name(title) do
     case Regex.run(~r/\|(.+?)-(.+?)\[(.+?)\]/, title, capture: :all_but_first) do
       [artist, title, diff] ->
@@ -207,7 +207,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Get the mods (as a number) from a post title.
-  @spec extract_mods(binary) :: {:ok, non_neg_integer | nil}
+  @spec extract_mods(String.t()) :: {:ok, integer | nil}
   defp extract_mods(title) do
     {:ok,
      case Regex.run(~r/\+([A-Z,]+)/, title, capture: :all_but_first) do
@@ -217,7 +217,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Look for a beatmap by name in a player's activity.
-  @spec search_beatmap(map, binary) :: {:ok, map} | {:error, term}
+  @spec search_beatmap(map, binary) :: {:ok, map} | {:error, :beatmap_not_found}
   defp search_beatmap(player, map_name) do
     notify(:debug, "searching for: #{map_name}")
     map_name = String.downcase(map_name)
@@ -245,7 +245,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Search a player's recent events for a beatmap.
-  @spec search_events(map, binary) :: {:ok, map} | {:error, term}
+  @spec search_events(map, String.t()) :: {:ok, map} | {:error, term}
   defp search_events(%{events: events}, map_name) do
     case Enum.find(events, fn %{display_html: html} ->
            html
@@ -258,7 +258,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Search a player's recent plays for a beatmap.
-  @spec search_recent(map, binary) :: {:ok, map} | {:error, term}
+  @spec search_recent(%{user_id: non_neg_integer}, String.t()) :: {:ok, map} | {:error, term}
   defp search_recent(%{user_id: id}, map_name) do
     case OsuEx.API.get_user_recent(id) do
       {:ok, scores} -> search_scores(scores, map_name)
@@ -267,7 +267,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Search a player's best plays for a beatmap.
-  @spec search_best(map, binary) :: {:ok, map} | {:error, term}
+  @spec search_best(map, String.t()) :: {:ok, map} | {:error, term}
   defp search_best(%{user_id: id}, map_name) do
     case OsuEx.API.get_user_best(id, limit: 100) do
       {:ok, scores} -> search_scores(scores, map_name)
@@ -276,7 +276,7 @@ defmodule OAAS.Job.Replay do
   end
 
   # Search a list of scores for a beatmap.
-  @spec search_scores(map, binary) :: {:ok, map} | {:error, term}
+  @spec search_scores([map], String.t()) :: {:ok, map} | {:error, :not_found}
   defp search_scores(scores, map_name) do
     Enum.find_value(scores, {:error, :not_found}, fn %{beatmap_id: map_id} ->
       case OsuEx.API.get_beatmap(map_id) do

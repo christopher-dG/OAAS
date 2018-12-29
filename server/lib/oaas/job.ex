@@ -5,7 +5,6 @@ defmodule OAAS.Job do
   alias OAAS.Job.Replay
   alias OAAS.Worker
   import OAAS.Utils
-
   require DB
 
   @table "jobs"
@@ -19,8 +18,8 @@ defmodule OAAS.Job do
           type: integer,
           data: map,
           status: integer,
-          comment: binary | nil,
-          worker_id: binary | nil,
+          comment: String.t() | nil,
+          worker_id: String.t() | nil,
           created_at: integer,
           updated_at: integer
         }
@@ -87,7 +86,7 @@ defmodule OAAS.Job do
   }
 
   @doc "Gets all jobs which are running but stalled."
-  @spec get_stalled :: [t]
+  @spec get_stalled :: {:ok, [t]} | {:error, term}
   def get_stalled do
     now = System.system_time(:millisecond)
 
@@ -131,7 +130,7 @@ defmodule OAAS.Job do
   end
 
   @doc "Updates a job's status."
-  @spec update_status(t, Worker.t(), integer, binary) :: {:ok, t} | {:error, term}
+  @spec update_status(t, Worker.t(), integer, String.t()) :: {:ok, t} | {:error, term}
   def update_status(j, w, stat, comment) do
     DB.transaction do
       case update(j, status: stat, comment: comment) do
@@ -152,7 +151,7 @@ defmodule OAAS.Job do
   end
 
   @doc "Fails a job."
-  @spec fail(t, binary) :: {:ok, t} | {:error, term}
+  @spec fail(t, String.t()) :: {:ok, t} | {:error, term}
   def fail(j, comment \\ "") do
     DB.transaction do
       with {:ok, w} <- Worker.get(j.worker_id),

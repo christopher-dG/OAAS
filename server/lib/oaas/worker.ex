@@ -9,10 +9,10 @@ defmodule OAAS.Worker do
   defstruct @enforce_keys ++ [:last_job, :current_job_id]
 
   @type t :: %__MODULE__{
-          id: binary,
+          id: String.t(),
           last_poll: integer,
-          last_job: integer,
-          current_job_id: integer,
+          last_job: integer | nil,
+          current_job_id: integer | nil,
           created_at: integer,
           updated_at: integer
         }
@@ -22,7 +22,7 @@ defmodule OAAS.Worker do
   use OAAS.Model
 
   @doc "Describes the worker."
-  @spec describe(t) :: binary
+  @spec describe(t) :: String.t()
   def describe(w) do
     """
     ```yml
@@ -72,7 +72,7 @@ defmodule OAAS.Worker do
   end
 
   @doc "Retrieves a worker, or creates a new one."
-  @spec get_or_put(binary) :: {:ok, t} | {:error, term}
+  @spec get_or_put(String.t()) :: {:ok, t} | {:error, term}
   def get_or_put(id) do
     case get(id) do
       {:ok, w} ->

@@ -4,7 +4,7 @@ defmodule OAAS.Osu do
   use Bitwise, only_operators: true
 
   @doc "Defines the game mode enum."
-  @spec mode(integer) :: binary
+  @spec mode(integer) :: String.t()
   def mode(0), do: "osu!"
   def mode(1), do: "osu!taiko"
   def mode(2), do: "osu!catch"
@@ -31,7 +31,7 @@ defmodule OAAS.Osu do
   ]
 
   @doc "Converts numeric mods to a string, e.g. 24 -> +HDHR"
-  @spec mods_to_string(integer) :: binary
+  @spec mods_to_string(integer) :: String.t()
   def mods_to_string(mods) do
     mods =
       @mods
@@ -45,7 +45,7 @@ defmodule OAAS.Osu do
   end
 
   @doc "Converts a mod string into its numeric value."
-  @spec mods_from_string(binary) :: non_neg_integer
+  @spec mods_from_string(String.t()) :: integer
   def mods_from_string(mods) do
     mods
     |> String.replace(",", "")
@@ -58,7 +58,7 @@ defmodule OAAS.Osu do
   end
 
   @doc "Computes the actual runtime of a beatmap, given its mods."
-  @spec map_time(map, non_neg_integer) :: number
+  @spec map_time(map, integer) :: float
   def map_time(%{total_length: len}, mods) do
     dt = Keyword.get(@mods, :DT)
     ht = Keyword.get(@mods, :HT)
@@ -66,7 +66,7 @@ defmodule OAAS.Osu do
     cond do
       (mods &&& dt) === dt -> len / 1.5
       (mods &&& ht) === ht -> len * 1.5
-      true -> len
+      true -> len + 0.0
     end
   end
 
@@ -89,7 +89,7 @@ defmodule OAAS.Osu do
   }
 
   @doc "Gets a player's skin."
-  @spec skin(binary) :: map
+  @spec skin(String.t()) :: map
   def skin(username) do
     case HTTPoison.get(@skins_api <> username) do
       {:ok, %{body: body}} ->
@@ -111,7 +111,7 @@ defmodule OAAS.Osu do
   end
 
   @doc "Gets pp for a play."
-  @spec pp(map, map, map) :: {:ok, number} | {:error, term}
+  @spec pp(map, map, map) :: {:ok, float} | {:error, term}
   def pp(player, beatmap, replay) do
     case OsuEx.API.get_scores(beatmap.beatmap_id,
            u: player.user_id,
@@ -124,14 +124,13 @@ defmodule OAAS.Osu do
     end
   end
 
-  @downloader Application.get_env(:oaas, :osr_downloader)
+  @downloader Application.get_env(:oaas, :osr_downloader) || "fetch.js"
 
   @doc "Downloads a .osr replay file."
-  @spec get_osr(map, map, non_neg_integer | nil) ::
-          {:ok, binary} | {:error, {:exit_code, integer}}
+  @spec get_osr(map, map, integer) :: {:ok, binary} | {:error, {:exit_code, integer}}
   def get_osr(%{user_id: user}, %{beatmap_id: beatmap}, mods) do
     args =
-      ([@downloader, "-k", Application.get_env(:osu_ex, :api_key), "-u", user, "-b", beatmap] ++
+      (["-k", Application.get_env(:osu_ex, :api_key), "-u", user, "-b", beatmap] ++
          if(is_nil(mods), do: [], else: ["--mods", mods]))
       |> Enum.map(&to_string/1)
 

@@ -9,7 +9,7 @@ defmodule OAAS.Web.Plugs do
   import OAAS.Utils
 
   @doc "Sends a text response."
-  @spec text(Conn.t(), integer, binary) :: Conn.t()
+  @spec text(Conn.t(), integer, String.t()) :: Conn.t()
   def text(conn, status, msg) do
     conn
     |> put_resp_content_type("text/plain")

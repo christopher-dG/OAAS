@@ -42,7 +42,7 @@ defmodule OAAS.DB do
   end
 
   @doc "Wrapper around `Sqlitex.Server.query`."
-  @spec query(binary, keyword) :: {:ok, list} | {:error, term}
+  @spec query(String.t(), keyword) :: {:ok, list} | {:error, term}
   def query(sql, opts \\ []) do
     Sqlitex.Server.query(__MODULE__, sql, opts)
   end

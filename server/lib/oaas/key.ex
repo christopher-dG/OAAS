@@ -6,7 +6,7 @@ defmodule OAAS.Key do
   @enforce_keys [:id]
   defstruct @enforce_keys
 
-  @type t :: %__MODULE__{id: binary}
+  @type t :: %__MODULE__{id: String.t()}
 
   @json_columns []
 

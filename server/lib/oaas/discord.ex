@@ -96,7 +96,7 @@ defmodule OAAS.Discord do
   end
 
   @doc "Sends a Discord message."
-  @spec send_message(binary) :: {:ok, Nostrum.Struct.Message.t()} | {:error, term}
+  @spec send_message(String.t()) :: {:ok, Nostrum.Struct.Message.t()} | {:error, term}
   def send_message(content) do
     case Api.create_message(@channel, content) do
       {:ok, msg} ->
@@ -192,11 +192,12 @@ defmodule OAAS.Discord do
   end
 
   # Generate an ascii table from a list of models.
-  @spec table([struct], [atom], [atom]) :: binary
+  @spec table([], [atom], [atom]) :: String.t()
   defp table([], _rows, _headers) do
     "no entries"
   end
 
+  @spec table([struct], [atom], [atom]) :: String.t()
   defp table(structs, rows, headers) do
     t =
       structs

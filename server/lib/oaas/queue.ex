@@ -96,7 +96,7 @@ defmodule OAAS.Queue do
       {:ok, js} ->
         Enum.each(js, fn j ->
           case Job.reschedule(j) do
-            {:ok, _j} -> notify("rescheduled job `#{j.id}`")
+            {:ok, j} -> notify("rescheduled job `#{j.id}`")
             {:error, reason} -> notify(:error, "rescheduling job `#{j.id}` failed", reason)
           end
         end)

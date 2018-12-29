@@ -21,7 +21,7 @@ defmodule OAAS.Model do
         {:error, :no_id}
       end
 
-      @spec get(term) :: {:ok, t} | {:error, term}
+      @spec get(integer | String.t()) :: {:ok, t} | {:error, term}
       def get(id) do
         case query("SELECT * FROM #{@table} WHERE id = ?1", id: id) do
           {:ok, [m]} -> {:ok, m}
@@ -94,7 +94,7 @@ defmodule OAAS.Model do
       end
 
       # Execute a database query.
-      @spec query(binary, keyword) :: list
+      @spec query(String.t(), keyword) :: {:ok, list} | {:error, term}
       defp query(sql, bind \\ []) do
         op =
           sql
