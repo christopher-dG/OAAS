@@ -11,6 +11,7 @@ defmodule OAAS.Discord do
   @me Application.get_env(:oaas, :discord_user)
   @channel Application.get_env(:oaas, :discord_channel)
   @plusone "👍"
+  @shutdown_message "react #{@plusone} to shut down"
 
   def start_link do
     Consumer.start_link(__MODULE__)
@@ -53,7 +54,7 @@ defmodule OAAS.Discord do
     |> command(msg)
   end
 
-  # Add a job via a reaction on a Reddit post notification.
+  # Add a job via a reaction on a Reddit post notification, or confirm a shutdown.
   def handle_event(
         {:MESSAGE_REACTION_ADD,
          {%{
@@ -63,6 +64,9 @@ defmodule OAAS.Discord do
           }}, _state}
       ) do
     case Api.get_channel_message(@channel, message) do
+      {:ok, %{author: %{id: @me}, content: @shutdown_message}} ->
+        :init.stop()
+
       {:ok, %{author: %{id: @me}, content: "reddit post:" <> content}} ->
         with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, content, capture: :all_but_first),
              [title] <- Regex.run(~r/title: `(.+)`/i, content, capture: :all_but_first) do
@@ -75,7 +79,7 @@ defmodule OAAS.Discord do
         end
 
       {:ok, msg} ->
-        notify(:debug, "message #{msg.id} is not a reddit notification")
+        notify(:debug, "message #{msg.id} is not a shutdown command or reddit notification")
 
       {:error, reason} ->
         notify(:warn, "getting message #{message} failed", reason)
@@ -167,6 +171,10 @@ defmodule OAAS.Discord do
     end
   end
 
+  defp command(["shutdown"], _msg) do
+    send_message(@shutdown_message)
+  end
+
   # Fallback command.
   defp command(cmd, _msg) do
     """
@@ -177,6 +185,7 @@ defmodule OAAS.Discord do
     * list (jobs | workers)
     * describe (job | worker) <id>
     * delete job <id>
+    * shutdown
     or, attach a .osr file to create a new job
     ```
     """
