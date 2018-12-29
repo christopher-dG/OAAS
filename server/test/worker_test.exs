@@ -31,17 +31,7 @@ defmodule WorkerTest do
 
   test "get_assigned/1" do
     assert {:ok, w} = put(id: "i")
-
-    assert {:ok, j} =
-             Job.put(
-               player: %{},
-               beatmap: %{},
-               replay: %{},
-               youtube: %{},
-               skin: %{},
-               status: Job.status(:pending)
-             )
-
+    assert {:ok, j} = Job.put(type: 0, status: Job.status(:pending), data: %{})
     assert {:ok, nil} = get_assigned(w)
 
     assert {:ok, w} = update(w, current_job_id: j.id)

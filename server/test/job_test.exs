@@ -15,16 +15,7 @@ defmodule JobTest do
   end
 
   defp quickput(s \\ :pending, u \\ System.system_time(:millisecond)) do
-    {:ok, _} =
-      put(
-        player: %{},
-        beatmap: %{},
-        replay: %{},
-        youtube: %{},
-        skin: %{},
-        status: status(s),
-        updated_at: u
-      )
+    {:ok, _} = put(type: 0, status: status(s), updated_at: u, data: %{})
   end
 
   test "put/1 (autoincrementing ID)" do
