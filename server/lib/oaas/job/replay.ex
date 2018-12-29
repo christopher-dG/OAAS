@@ -6,11 +6,29 @@ defmodule OAAS.Job.Replay do
   alias OAAS.Job
   use Bitwise, only_operators: true
 
+  @derive Jason.Encoder
+  @enforce_keys [:player, :beatmap, :replay, :youtube, :skin]
+  defstruct @enforce_keys ++ [:reddit_id]
+
+  @type t :: %__MODULE__{
+          player: %{user_id: integer, username: String.t()},
+          beatmap: %{
+            beatmap_id: integer,
+            artist: String.t(),
+            title: String.t(),
+            version: String.t()
+          },
+          replay: %{replay_data: String.t(), length: float},
+          youtube: %{title: String.t(), description: String.t()},
+          skin: %{name: String.t(), url: String.t()},
+          reddit_id: String.t() | nil
+        }
+
   @doc "Describes the job."
   @spec describe(Job.t()) :: String.t()
   def describe(j) do
     player = "#{j.data.player.username} (https://osu.ppy.sh/u/#{j.data.player.user_id})"
-    reddit = if(is_nil(j.reddit_id), do: "none", else: "https://redd.it/#{j.reddit_id}")
+    reddit = if(is_nil(j.data.reddit_id), do: "none", else: "https://redd.it/#{j.data.reddit_id}")
 
     beatmap =
       "#{j.data.beatmap.artist} - #{j.data.beatmap.title} [#{j.data.beatmap.version}] (https://osu.ppy.sh/b/#{
@@ -23,13 +41,13 @@ defmodule OAAS.Job.Replay do
     worker: #{j.worker_id || "none"}
     status: #{Job.status(j.status)}
     comment: #{j.comment || "none"}
+    created: #{relative_time(j.created_at)}
+    updated: #{relative_time(j.updated_at)}
     player: #{player}
     beatmap: #{beatmap}
     video: #{j.data.youtube.title}
     skin: #{(j.data.skin || %{})[:name] || "none"}
     reddit: #{reddit}
-    created: #{relative_time(j.created_at)}
-    updated: #{relative_time(j.updated_at)}
     replay:
       mods: #{Osu.mods_to_string(j.data.replay.mods)}
       combo: #{j.data.replay.combo}
@@ -52,7 +70,7 @@ defmodule OAAS.Job.Replay do
       Job.put(
         type: Job.type(__MODULE__),
         status: Job.status(:pending),
-        data: %{
+        data: %__MODULE__{
           player: Map.drop(player, [:events]),
           beatmap: beatmap,
           replay:
@@ -81,7 +99,7 @@ defmodule OAAS.Job.Replay do
       Job.put(
         type: Job.type(__MODULE__),
         status: Job.status(:pending),
-        data: %{
+        data: %__MODULE__{
           player: Map.drop(player, [:events]),
           beatmap: beatmap,
           replay:
@@ -210,7 +228,7 @@ defmodule OAAS.Job.Replay do
   @spec extract_mods(String.t()) :: {:ok, integer | nil}
   defp extract_mods(title) do
     {:ok,
-     case Regex.run(~r/\+([A-Z,]+)/, title, capture: :all_but_first) do
+     case Regex.run(~r/\+ ?([A-Z,]+)/, title, capture: :all_but_first) do
        [mods] -> Osu.mods_from_string(mods)
        nil -> nil
      end}

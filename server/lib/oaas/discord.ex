@@ -33,7 +33,7 @@ defmodule OAAS.Discord do
       end
 
     case Replay.from_osr(url, skin) do
-      {:ok, j} -> notify("created job `#{j.id}`")
+      {:ok, j} -> notify("created job `#{j.id}`:\n#{Replay.describe(j)}")
       {:error, reason} -> notify(:error, "creating job failed", reason)
     end
   end
@@ -67,16 +67,8 @@ defmodule OAAS.Discord do
         with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, content, capture: :all_but_first),
              [title] <- Regex.run(~r/title: `(.+)`/i, content, capture: :all_but_first) do
           case Replay.from_reddit(p_id, title) do
-            {:ok, j} ->
-              notify(
-                """
-                created job `#{j.id}`
-                ensure that this is accurate, or run `delete job #{j.id}` immediately
-                """ <> "\n" <> Replay.describe(j)
-              )
-
-            {:error, reason} ->
-              notify(:error, "creating job failed", reason)
+            {:ok, j} -> notify("created job `#{j.id}`:\n#{Replay.describe(j)}")
+            {:error, reason} -> notify(:error, "creating job failed", reason)
           end
         else
           nil -> notify(:warn, "parsing message failed")

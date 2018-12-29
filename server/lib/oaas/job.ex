@@ -24,7 +24,7 @@ defmodule OAAS.Job do
           updated_at: integer
         }
 
-  @json_columns [:player, :beatmap, :replay, :youtube, :skin]
+  @json_columns [:data]
 
   use OAAS.Model
 

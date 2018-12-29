@@ -18,7 +18,7 @@ defmodule OAAS.DB do
     "CREATE TABLE IF NOT EXISTS jobs(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type INTEGER NOT NULL,
-      data TEXT NOT NULL,  -- JSON
+      data TEXT NOT NULL,
       status INTEGER NOT NULL,
       comment TEXT,
       worker_id TEXT REFERENCES workers(id),
