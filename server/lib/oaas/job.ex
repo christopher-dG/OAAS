@@ -163,14 +163,4 @@ defmodule OAAS.Job do
       end
     end
   end
-
-  @doc "Reschedules a job."
-  @spec reschedule(t) :: {:ok, t} | {:error, term}
-  def reschedule(j) do
-    unless j.status === status(:failed) do
-      notify(:warn, "rescheduling non-failed job #{j.id} (#{status(j.status)})")
-    end
-
-    update(j, status: status(:pending))
-  end
 end

@@ -112,7 +112,7 @@ defmodule OAAS.Model do
                     val
 
                   {:error, reason} ->
-                    notify(:warn, "encoding column `#{k}` failed", reason)
+                    notify(:warn, "encoding column `#{k}` of `#{@table}` failed", reason)
                     v
                 end
               else
@@ -135,7 +135,7 @@ defmodule OAAS.Model do
                          {k, val}
 
                        {:error, reason} ->
-                         notify(:warn, "decoding column `#{k}` failed", reason)
+                         notify(:warn, "decoding column `#{k}` of `#{@table}` failed", reason)
                          {k, v}
                      end
                    else

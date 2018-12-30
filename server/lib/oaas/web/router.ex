@@ -1,9 +1,5 @@
 defmodule OAAS.Web.Router do
-  @moduledoc """
-  The web server.
-
-  See the docstrings in OAAS.Web.Plugs for some conventions.
-  """
+  @moduledoc "The web server."
 
   use Plug.Router
   use Plug.ErrorHandler
@@ -29,11 +25,8 @@ defmodule OAAS.Web.Router do
          {:ok, w} <- Worker.update(w, last_poll: System.system_time(:millisecond)),
          {:ok, j} <- Worker.get_assigned(w) do
       case j do
-        nil ->
-          send_resp(conn, 204, "")
-
-        j ->
-          json(conn, 200, j)
+        nil -> send_resp(conn, 204, "")
+        j -> json(conn, 200, j)
       end
     else
       {:error, reason} -> notify(:warn, "polling response for worker `#{id}` failed", reason)

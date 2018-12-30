@@ -121,10 +121,10 @@ defmodule OAAS.Job.Replay do
   defp pp_string(player, beatmap, replay) do
     case Osu.pp(player, beatmap, replay) do
       {:ok, pp} ->
-        :erlang.float_to_binary(pp, decimals: 2) <> "pp"
+        :erlang.float_to_binary(pp, decimals: 0) <> "pp"
 
       {:error, reason} ->
-        notify(:warn, "looking up score failed", reason)
+        notify(:warn, "looking up score for pp value failed", reason)
         nil
     end
   end
@@ -191,6 +191,7 @@ defmodule OAAS.Job.Replay do
         beatmap.version
       }] #{extra}"
 
+    notify(:debug, "computed video title: #{title}")
     yt_title = if(String.length(title) > @title_limit, do: "Placeholder Title", else: title)
 
     desc = title <> "\n" <> description(player, beatmap)
@@ -202,10 +203,13 @@ defmodule OAAS.Job.Replay do
   defp extract_username(title) do
     case Regex.run(~r/(.+?)\|/, title, capture: :all_but_first) do
       [cap] ->
-        {:ok,
-         cap
-         |> (&Regex.replace(~r/\(.*?\)/, &1, "")).()
-         |> String.trim()}
+        username =
+          cap
+          |> (&Regex.replace(~r/\(.*?\)/, &1, "")).()
+          |> String.trim()
+
+        notify(:debug, "extracted username #{username}")
+        {:ok, username}
 
       nil ->
         {:error, :no_player_match}
@@ -217,7 +221,9 @@ defmodule OAAS.Job.Replay do
   defp extract_map_name(title) do
     case Regex.run(~r/\|(.+?)-(.+?)\[(.+?)\]/, title, capture: :all_but_first) do
       [artist, title, diff] ->
-        {:ok, "#{String.trim(artist)} - #{String.trim(title)} [#{String.trim(diff)}]"}
+        s = "#{String.trim(artist)} - #{String.trim(title)} [#{String.trim(diff)}]"
+        notify(:debug, "extracted map name: #{s}")
+        {:ok, s}
 
       nil ->
         {:error, :no_map_match}
@@ -229,8 +235,12 @@ defmodule OAAS.Job.Replay do
   defp extract_mods(title) do
     {:ok,
      case Regex.run(~r/\+ ?([A-Z,]+)/, title, capture: :all_but_first) do
-       [mods] -> Osu.mods_from_string(mods)
-       nil -> nil
+       [mods] ->
+         notify(:debug, "extracted mods: #{mods}")
+         Osu.mods_from_string(mods)
+
+       nil ->
+         nil
      end}
   end
 
@@ -243,22 +253,24 @@ defmodule OAAS.Job.Replay do
     try do
       case search_events(player, map_name) do
         {:ok, beatmap} -> throw(beatmap)
-        _ -> nil
+        _ -> :noop
       end
 
       case search_recent(player, map_name) do
         {:ok, beatmap} -> throw(beatmap)
-        _ -> nil
+        _ -> :noop
       end
 
       case search_best(player, map_name) do
         {:ok, beatmap} -> throw(beatmap)
-        _ -> nil
+        _ -> :noop
       end
 
       {:error, :beatmap_not_found}
     catch
-      beatmap -> {:ok, beatmap}
+      beatmap ->
+        notify(:debug, "found beatmap #{beatmap.beatmap_id}")
+        {:ok, beatmap}
     end
   end
 

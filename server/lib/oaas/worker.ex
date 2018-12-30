@@ -75,15 +75,9 @@ defmodule OAAS.Worker do
   @spec get_or_put(String.t()) :: {:ok, t} | {:error, term}
   def get_or_put(id) do
     case get(id) do
-      {:ok, w} ->
-        {:ok, w}
-
-      {:error, :no_such_entity} ->
-        notify("inserting new worker `#{id}`")
-        put(id: id)
-
-      {:error, reason} ->
-        {:error, reason}
+      {:ok, w} -> {:ok, w}
+      {:error, :no_such_entity} -> put(id: id)
+      {:error, reason} -> {:error, reason}
     end
   end
 

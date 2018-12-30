@@ -27,6 +27,7 @@ defmodule OAAS.Reddit do
     case Jason.decode(json) do
       {:ok, p} ->
         %{id: id, title: title, author: author} = atom_map(p)
+        notify(:debug, "processing reddit post https://redd.it/#{id}")
         Python.call(state, @module, "save_post", [id])
 
         """

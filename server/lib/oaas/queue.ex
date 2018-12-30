@@ -51,12 +51,12 @@ defmodule OAAS.Queue do
               notify("job `#{j.id}` failed (stalled at `#{Job.status(status)}`)")
 
             {:error, reason} ->
-              notify(:warn, "failing job `#{j.id}` failed", reason)
+              notify(:error, "failing job `#{j.id}` failed", reason)
           end
         end)
 
       {:error, reason} ->
-        notify(:warn, "getting stalled jobs failed", reason)
+        notify(:error, "getting stalled jobs failed", reason)
     end
   end
 
@@ -81,7 +81,7 @@ defmodule OAAS.Queue do
               end
 
             {:error, reason} ->
-              notify(:warn, "getting a worker to assign to job `#{j.id}` failed", reason)
+              notify(:error, "getting a worker to assign to job `#{j.id}` failed", reason)
           end
         end)
 
@@ -95,7 +95,7 @@ defmodule OAAS.Queue do
     case Job.get_by_status(:failed) do
       {:ok, js} ->
         Enum.each(js, fn j ->
-          case Job.reschedule(j) do
+          case Job.update(j, status: Job.status(:pending)) do
             {:ok, j} -> notify("rescheduled job `#{j.id}`")
             {:error, reason} -> notify(:error, "rescheduling job `#{j.id}` failed", reason)
           end

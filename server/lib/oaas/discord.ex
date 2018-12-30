@@ -27,10 +27,17 @@ defmodule OAAS.Discord do
             mentions: [%{id: @me}]
           }}, _state}
       ) do
+    notify(:debug, "received attachment: #{url}")
+
     skin =
       case Regex.run(~r/skin:(.+)/i, content, capture: :all_but_first) do
-        [skin] -> String.trim(skin)
-        nil -> nil
+        [skin] ->
+          s = String.trim(skin)
+          notify(:debug, "skin override: #{s}")
+          s
+
+        nil ->
+          nil
       end
 
     case Replay.from_osr(url, skin) do
@@ -48,6 +55,8 @@ defmodule OAAS.Discord do
             mentions: [%{id: @me}]
           } = msg}, _state}
       ) do
+    notify(:debug, "received message mention: #{content}")
+
     content
     |> String.split()
     |> tl()
@@ -63,23 +72,32 @@ defmodule OAAS.Discord do
             message_id: message
           }}, _state}
       ) do
-    case Api.get_channel_message(@channel, message) do
-      {:ok, %{author: %{id: @me}, content: @shutdown_message}} ->
-        :init.stop()
+    notify(:debug, "received +1 reaction on message #{message}")
 
-      {:ok, %{author: %{id: @me}, content: "reddit post:" <> content}} ->
-        with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, content, capture: :all_but_first),
-             [title] <- Regex.run(~r/title: `(.+)`/i, content, capture: :all_but_first) do
-          case Replay.from_reddit(p_id, title) do
-            {:ok, j} -> notify("created job `#{j.id}`:\n#{Replay.describe(j)}")
-            {:error, reason} -> notify(:error, "creating job failed", reason)
-          end
-        else
-          nil -> notify(:warn, "parsing message failed")
+    case Api.get_channel_message(@channel, message) do
+      {:ok, %{author: %{id: @me}, content: content}} ->
+        notify(:debug, "message contents: #{content}")
+
+        case content do
+          @shutdown_message ->
+            notify("shutting down")
+            :init.stop()
+
+          "reddit post:" <> rest ->
+            with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, rest, capture: :all_but_first),
+                 [title] <- Regex.run(~r/title: `(.+)`/i, rest, capture: :all_but_first) do
+              case Replay.from_reddit(p_id, title) do
+                {:ok, j} -> notify("created job `#{j.id}`:\n#{Replay.describe(j)}")
+                {:error, reason} -> notify(:error, "creating job failed", reason)
+              end
+            end
+
+          _ ->
+            notify(:debug, "not a shutdown command or reddit notification")
         end
 
-      {:ok, msg} ->
-        notify(:debug, "message #{msg.id} is not a shutdown command or reddit notification")
+      {:ok, _msg} ->
+        :noop
 
       {:error, reason} ->
         notify(:warn, "getting message #{message} failed", reason)
@@ -120,6 +138,8 @@ defmodule OAAS.Discord do
 
   # List jobs.
   defp command(["list", "jobs"], _msg) do
+    notify(:debug, "listing jobs")
+
     case Job.get() do
       {:ok, js} ->
         js
@@ -135,6 +155,8 @@ defmodule OAAS.Discord do
 
   # Describe a worker.
   defp command(["describe", "worker", id], _msg) do
+    notify(:debug, "describing worker #{id}")
+
     case Worker.get(id) do
       {:ok, w} ->
         w
@@ -148,6 +170,8 @@ defmodule OAAS.Discord do
 
   # Describe a job.
   defp command(["describe", "job", id], _msg) do
+    notify(:debug, "describing job #{id}")
+
     with {id, ""} <- Integer.parse(id),
          {:ok, j} <- Job.get(id) do
       j
@@ -161,6 +185,8 @@ defmodule OAAS.Discord do
 
   # Delete a job.
   defp command(["delete", "job", id], _msg) do
+    notify(:debug, "deleting job #{id}")
+
     with {id, ""} <- Integer.parse(id),
          {:ok, j} <- Job.get(id),
          {:ok, j} <- Job.mark_deleted(j) do
@@ -172,11 +198,14 @@ defmodule OAAS.Discord do
   end
 
   defp command(["shutdown"], _msg) do
+    notify(:debug, "initalizing shutdown sequence")
     send_message(@shutdown_message)
   end
 
   # Fallback command.
   defp command(cmd, _msg) do
+    notify(:debug, "unrecognized command (showing help)")
+
     """
     ```
     unrecognized command: #{Enum.join(cmd, " ")}

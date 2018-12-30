@@ -77,7 +77,7 @@ defmodule OAAS.Utils do
 
   @spec notify(:debug, String.t(), term) :: true
   def notify(:debug, msg, err) do
-    notify(:debug, "#{msg}: `#{inspect(err)}`")
+    notify(:debug, "#{msg}: #{inspect(err)}")
   end
 
   @spec notify(:warn, String.t(), term) :: true

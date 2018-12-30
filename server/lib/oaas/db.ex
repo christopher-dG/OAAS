@@ -1,5 +1,7 @@
 defmodule OAAS.DB do
-  @moduledoc "The database wrapper."
+  @moduledoc "Wraps the SQLite3 database."
+
+  import OAAS.Utils
 
   @schema [
     "CREATE TABLE IF NOT EXISTS keys(
@@ -37,14 +39,36 @@ defmodule OAAS.DB do
   end
 
   def start_link(_opts) do
-    Enum.each(@schema, fn sql -> Sqlitex.Server.query(__MODULE__, sql) end)
+    Enum.each(@schema, fn sql ->
+      case Sqlitex.Server.query(__MODULE__, sql) do
+        {:ok, _} -> :noop
+        {:error, reason} -> notify(:debug, "schema query failed: #{inspect(reason)}\n#{sql}")
+      end
+    end)
+
     {:ok, self()}
   end
 
   @doc "Wrapper around `Sqlitex.Server.query`."
   @spec query(String.t(), keyword) :: {:ok, list} | {:error, term}
   def query(sql, opts \\ []) do
-    Sqlitex.Server.query(__MODULE__, sql, opts)
+    s = "sql: #{sql}"
+    nobind = Keyword.drop(opts, [:bind])
+    s = if(Enum.empty?(nobind), do: s, else: "#{s}\nopts: #{inspect(nobind)}")
+    bind = Keyword.get(opts, :bind, [])
+    bind_s = inspect(bind, pretty: true, printable_limit: 80)
+    s = if(Enum.empty?(bind), do: s, else: "#{s}\nbind: #{bind_s}")
+    notify(:debug, s)
+
+    case Sqlitex.Server.query(__MODULE__, sql, opts) do
+      {:ok, results} ->
+        notify(:debug, "query ok: #{length(results)} result(s)")
+        {:ok, results}
+
+      {:error, reason} ->
+        notify(:debug, "query error", reason)
+        {:error, reason}
+    end
   end
 
   @doc """
