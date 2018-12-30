@@ -50,8 +50,7 @@ defmodule OAAS.Worker do
   def get_available do
     query(
       "SELECT * FROM #{@table} WHERE current_job_id IS NULL AND ?1 - last_poll <= ?2",
-      x: System.system_time(:millisecond),
-      x: @online_threshold
+      [System.system_time(:millisecond), @online_threshold]
     )
   end
 

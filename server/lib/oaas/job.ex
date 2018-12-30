@@ -90,11 +90,10 @@ defmodule OAAS.Job do
   def get_stalled do
     now = System.system_time(:millisecond)
 
-    case query(
-           "SELECT * FROM #{@table} WHERE status BETWEEN ?1 AND ?2",
-           x: status(:assigned),
-           x: status(:uploading)
-         ) do
+    case query("SELECT * FROM #{@table} WHERE status BETWEEN ?1 AND ?2", [
+           status(:assigned),
+           status(:uploading)
+         ]) do
       {:ok, js} ->
         {:ok, Enum.filter(js, fn j -> abs(now - j.updated_at) > @timeouts[status(j.status)] end)}
 
@@ -112,7 +111,7 @@ defmodule OAAS.Job do
   end
 
   def get_by_status(stat) when is_integer(stat) do
-    query("SELECT * FROM #{@table} WHERE status = ?1", x: stat)
+    query("SELECT * FROM #{@table} WHERE status = ?1", [stat])
   end
 
   @doc "Assigns a job to a worker."

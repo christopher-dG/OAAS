@@ -23,7 +23,7 @@ defmodule OAAS.Model do
 
       @spec get(integer | String.t()) :: {:ok, t} | {:error, term}
       def get(id) do
-        case query("SELECT * FROM #{@table} WHERE id = ?1", id: id) do
+        case query("SELECT * FROM #{@table} WHERE id = ?1", [id]) do
           {:ok, [m]} -> {:ok, m}
           {:ok, []} -> {:error, :no_such_entity}
           {:error, reason} -> {:error, reason}
@@ -85,72 +85,105 @@ defmodule OAAS.Model do
       @doc "Deletes a #{@model} by ID."
       @spec delete(term) :: :ok | {:error, term}
       def delete(id) do
-        sql = "DELETE FROM #{@table} WHERE id = ?1"
-
-        case query(sql, x: id) do
+        case query("DELETE FROM #{@table} WHERE id = ?1", [id]) do
           {:ok, _} -> :ok
           {:error, reason} -> {:error, reason}
         end
       end
 
-      # Execute a database query.
+      @supported_ops ["INSERT", "SELECT", "UPDATE", "DELETE"]
+
+      # Execute an INSERT query.
+      @spec query(String.t(), list) :: {:ok, list} | {:error, term}
+      defp query("INSERT" <> _s = sql, bind) do
+        bind
+        |> Enum.map(&maybe_encode/1)
+        |> (&DB.query(sql, bind: &1)).()
+      end
+
+      # Execute a SELECT query.
       @spec query(String.t(), keyword) :: {:ok, list} | {:error, term}
-      defp query(sql, bind \\ []) do
-        op =
-          sql
-          |> String.trim_leading()
-          |> String.split()
-          |> hd()
-          |> String.upcase()
-
-        bind =
-          if op === "INSERT" or op === "UPDATE" do
-            Enum.map(bind, fn {k, v} ->
-              if k in @json_columns do
-                case Jason.encode(v) do
-                  {:ok, val} ->
-                    val
-
-                  {:error, reason} ->
-                    notify(:warn, "encoding column `#{k}` of `#{@table}` failed", reason)
-                    v
-                end
-              else
-                v
-              end
-            end)
-          else
-            Keyword.values(bind)
-          end
-
+      defp query("SELECT" <> _s = sql, bind) do
         case DB.query(sql, bind: bind) do
           {:ok, results} ->
             {:ok,
-             if op === "SELECT" do
-               Enum.map(results, fn row ->
-                 Enum.map(row, fn {k, v} ->
-                   if k in @json_columns do
-                     case Jason.decode(v || "null") do
-                       {:ok, val} ->
-                         {k, val}
-
-                       {:error, reason} ->
-                         notify(:warn, "decoding column `#{k}` of `#{@table}` failed", reason)
-                         {k, v}
-                     end
-                   else
-                     {k, v}
-                   end
-                 end)
-                 |> atom_map()
-               end)
-               |> Enum.map(&struct(__MODULE__, &1))
-             else
-               results
-             end}
+             Enum.map(results, fn row ->
+               row
+               |> Enum.map(&maybe_decode/1)
+               |> atom_map()
+               |> (&struct(__MODULE__, &1)).()
+             end)}
 
           {:error, reason} ->
             {:error, reason}
+        end
+      end
+
+      # Execute an UPDATE query.
+      @spec query(String.t(), list) :: {:ok, list} | {:error, term}
+      defp query("UPDATE" <> _s = sql, bind) do
+        bind
+        |> Enum.map(&maybe_encode/1)
+        |> (&DB.query(sql, bind: &1)).()
+      end
+
+      # Execute a DELETE query.
+      @spec query(String.t(), list) :: {:ok, list} | {:error, term}
+      defp query("DELETE" <> _s = sql, bind) do
+        DB.query(sql, bind: bind)
+      end
+
+      # Execute a database query.
+      @spec query(String.t(), keyword | list) :: {:ok, list} | {:error, term}
+      defp query(sql, bind) do
+        [op | words] = String.split(sql, " ")
+        op = String.upcase(op)
+
+        if op in @supported_ops do
+          [op | words]
+          |> Enum.join(" ")
+          |> query(bind)
+        else
+          notify(:warn, "executing unsupported database operation #{op}")
+          DB.query(sql, bind: bind)
+        end
+      end
+
+      @spec query(String.t()) :: {:ok, list} | {:error, term}
+      defp query(sql) do
+        query(sql, [])
+      end
+
+      @spec maybe_encode({atom, term}) :: {atom, term}
+      defp maybe_encode({k, v}) do
+        if k in @json_columns do
+          case Jason.encode(v) do
+            {:ok, encoded} ->
+              encoded
+
+            {:error, reason} ->
+              notify(:warn, "encoding column `#{k}` of `#{@table}` failed", reason)
+              v
+          end
+        else
+          v
+        end
+      end
+
+      # Decode a value if it's JSON.
+      @spec maybe_decode({atom, term}) :: {atom, term}
+      defp maybe_decode({k, v}) do
+        if k in @json_columns do
+          case Jason.decode(v || "null") do
+            {:ok, decoded} ->
+              {k, decoded}
+
+            {:error, reason} ->
+              notify(:warn, "decoding column `#{k}` of `#{@table}` failed", reason)
+              {k, v}
+          end
+        else
+          {k, v}
         end
       end
     end
