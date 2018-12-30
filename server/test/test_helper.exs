@@ -4,4 +4,5 @@ case OAAS.Utils.start_db() do
   {:error, reason} -> throw(reason)
 end
 
+Logger.configure(level: :warn)
 ExUnit.start()

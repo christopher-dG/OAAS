@@ -50,13 +50,18 @@ defmodule OAAS.Job do
   def status(6), do: :deleted
 
   @doc "Defines the job type enum."
+  def type(_)
+
   @spec type(module) :: integer
   def type(Replay), do: 0
+
+  @spec type(integer) :: module
+  def type(0), do: Replay
 
   @doc "Checks whether a job is finished."
   @spec finished(t) :: boolean
   def finished(j) do
-    j.status >= status(:successful)
+    status(j.status) in [:successful, :failed, :deleted]
   end
 
   @doc "Marks a job as deleted, but leaves it in the database."

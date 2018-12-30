@@ -18,7 +18,7 @@ defmodule OAAS.Discord do
     Consumer.start_link(__MODULE__)
   end
 
-  # Add a job via a replay attachment.
+  # Add a replay job via a replay attachment.
   def handle_event(
         {:MESSAGE_CREATE,
          {%{
@@ -64,7 +64,7 @@ defmodule OAAS.Discord do
     |> command(msg)
   end
 
-  # Add a job via a reaction on a Reddit post notification, or confirm a shutdown.
+  # Confirm a shutdown or add a replay job via a reaction on a Reddit post notification.
   def handle_event(
         {:MESSAGE_REACTION_ADD,
          {%{
@@ -73,7 +73,7 @@ defmodule OAAS.Discord do
             message_id: message
           }}, _state}
       ) do
-    notify(:debug, "received +1 reaction on message #{message}")
+    notify(:debug, "received :+1: reaction on message #{message}")
 
     case Api.get_channel_message(@channel, message) do
       {:ok, %{author: %{id: @me}, content: content}} ->
@@ -176,7 +176,7 @@ defmodule OAAS.Discord do
     with {id, ""} <- Integer.parse(id),
          {:ok, j} <- Job.get(id) do
       j
-      |> Replay.describe()
+      |> Job.type(j.type).describe()
       |> send_message()
     else
       :error -> notify(:error, "invalid job id")

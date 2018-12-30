@@ -41,8 +41,13 @@ defmodule OAAS.DB do
   def start_link(_opts) do
     Enum.each(@schema, fn sql ->
       case Sqlitex.Server.query(__MODULE__, sql) do
-        {:ok, _} -> :noop
-        {:error, reason} -> notify(:debug, "schema query failed: #{inspect(reason)}\n#{sql}")
+        {:ok, _} ->
+          :noop
+
+        {:error, reason} ->
+          unless String.starts_with?(sql, "ALTER TABLE") do
+            notify(:debug, "schema query failed: #{inspect(reason)}\n#{sql}")
+          end
       end
     end)
 

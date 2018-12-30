@@ -45,17 +45,16 @@ defmodule OAAS.Web.Plugs do
     else
       case get_req_header(conn, "authorization") do
         [key] ->
-          case Key.get() do
-            {:ok, keys} ->
-              if key in Enum.map(keys, &Map.get(&1, :id)) do
-                conn
-              else
-                notify(:debug, "blocked request with invalid API key `#{key}`")
+          case Key.get(key) do
+            {:ok, _k} ->
+              conn
 
-                conn
-                |> text(400, "invalid API key")
-                |> halt()
-              end
+            {:error, :no_such_entity} ->
+              notify(:debug, "blocked request with invalid API key `#{key}`")
+
+              conn
+              |> text(400, "invalid API key")
+              |> halt()
 
             {:error, reason} ->
               notify(:error, "retrieving keys failed", reason)
