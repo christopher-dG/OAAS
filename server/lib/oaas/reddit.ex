@@ -27,19 +27,19 @@ defmodule OAAS.Reddit do
     case Jason.decode(json) do
       {:ok, p} ->
         %{id: id, title: title, author: author} = atom_map(p)
-        notify(:debug, "processing reddit post https://redd.it/#{id}")
+        notify(:debug, "Processing reddit post https://redd.it/#{id}.")
         Python.call(state, @module, "save_post", [id])
 
         """
-        reddit post: https://redd.it/#{id}
-        title: `#{title}`
-        author: `/u/#{author}`
-        react :+1: if we should record
+        New Reddit post: <https://redd.it/#{id}>
+        Title: `#{title}`
+        Author: `/u/#{author}`
+        React :+1: if we should record.
         """
         |> Discord.send_message()
 
       {:error, reason} ->
-        notify(:warn, "decoding reddit post failed", reason)
+        notify(:warn, "Decoding reddit post failed.", reason)
     end
 
     send(__MODULE__, :post)

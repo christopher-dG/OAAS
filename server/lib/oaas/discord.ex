@@ -12,7 +12,7 @@ defmodule OAAS.Discord do
   @me Application.get_env(:oaas, :discord_user)
   @channel Application.get_env(:oaas, :discord_channel)
   @plusone "👍"
-  @shutdown_message "react #{@plusone} to shut down"
+  @shutdown_message "React #{@plusone} to shut down."
 
   def start_link do
     Consumer.start_link(__MODULE__)
@@ -28,13 +28,13 @@ defmodule OAAS.Discord do
             mentions: [%{id: @me}]
           }}, _state}
       ) do
-    notify(:debug, "received attachment: #{url}")
+    notify(:debug, "Received attachment: #{url}.")
 
     skin =
       case Regex.run(~r/skin:(.+)/i, content, capture: :all_but_first) do
         [skin] ->
           s = String.trim(skin)
-          notify(:debug, "skin override: #{s}")
+          notify(:debug, "Skin override: #{s}.")
           s
 
         nil ->
@@ -42,8 +42,8 @@ defmodule OAAS.Discord do
       end
 
     case Replay.from_osr(url, skin) do
-      {:ok, j} -> notify("created job `#{j.id}`:\n#{Replay.describe(j)}")
-      {:error, reason} -> notify(:error, "creating job failed", reason)
+      {:ok, j} -> notify("Created job `#{j.id}`:\n#{Replay.describe(j)}.")
+      {:error, reason} -> notify(:error, "Creating job failed.", reason)
     end
   end
 
@@ -56,7 +56,7 @@ defmodule OAAS.Discord do
             mentions: [%{id: @me}]
           } = msg}, _state}
       ) do
-    notify(:debug, "received message mention: #{content}")
+    notify(:debug, "Received message mention: #{content}.")
 
     content
     |> String.split()
@@ -73,35 +73,35 @@ defmodule OAAS.Discord do
             message_id: message
           }}, _state}
       ) do
-    notify(:debug, "received :+1: reaction on message #{message}")
+    notify(:debug, "Received :+1: reaction on message #{message}.")
 
     case Api.get_channel_message(@channel, message) do
       {:ok, %{author: %{id: @me}, content: content}} ->
-        notify(:debug, "message contents: #{content}")
+        notify(:debug, "Message contents: '#{content}'.")
 
         case content do
           @shutdown_message ->
-            notify("shutting down")
+            notify("Shutting down.")
             :init.stop()
 
-          "reddit post:" <> rest ->
-            with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(.+)/i, rest, capture: :all_but_first),
-                 [title] <- Regex.run(~r/title: `(.+)`/i, rest, capture: :all_but_first) do
+          "New Reddit post:" <> rest ->
+            with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(\w+)/i, rest, capture: :all_but_first),
+                 [title] <- Regex.run(~r/Title: `(.+)`/i, rest, capture: :all_but_first) do
               case Replay.from_reddit(p_id, title) do
-                {:ok, j} -> notify("created job `#{j.id}`:\n#{Replay.describe(j)}")
-                {:error, reason} -> notify(:error, "creating job failed", reason)
+                {:ok, j} -> notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
+                {:error, reason} -> notify(:error, "Creating job failed.", reason)
               end
             end
 
           _ ->
-            notify(:debug, "not a shutdown command or reddit notification")
+            notify(:debug, "Not a shutdown command or reddit notification.")
         end
 
       {:ok, _msg} ->
         :noop
 
       {:error, reason} ->
-        notify(:warn, "getting message #{message} failed", reason)
+        notify(:warn, "Getting message #{message} failed.", reason)
     end
   end
 
@@ -118,13 +118,15 @@ defmodule OAAS.Discord do
         {:ok, msg}
 
       {:error, reason} ->
-        notify(:debug, "sending message failed", reason)
+        notify(:debug, "Sending message failed.", reason)
         {:error, reason}
     end
   end
 
   # List workers.
   defp command(["list", "workers"], _msg) do
+    notify(:debug, "Listing workers.")
+
     case Worker.get() do
       {:ok, ws} ->
         ws
@@ -133,13 +135,13 @@ defmodule OAAS.Discord do
         |> send_message()
 
       {:error, reason} ->
-        notify(:error, "listing workers failed", reason)
+        notify(:error, "Listing workers failed.", reason)
     end
   end
 
   # List jobs.
   defp command(["list", "jobs"], _msg) do
-    notify(:debug, "listing jobs")
+    notify(:debug, "Listing jobs.")
 
     case Job.get() do
       {:ok, js} ->
@@ -150,13 +152,13 @@ defmodule OAAS.Discord do
         |> send_message()
 
       {:error, reason} ->
-        notify(:error, "listing jobs failed", reason)
+        notify(:error, "Listing jobs failed.", reason)
     end
   end
 
   # Describe a worker.
   defp command(["describe", "worker", id], _msg) do
-    notify(:debug, "describing worker #{id}")
+    notify(:debug, "Describing worker #{id}.")
 
     case Worker.get(id) do
       {:ok, w} ->
@@ -165,13 +167,13 @@ defmodule OAAS.Discord do
         |> send_message()
 
       {:error, reason} ->
-        notify(:error, "looking up worker failed", reason)
+        notify(:error, "Looking up worker failed.", reason)
     end
   end
 
   # Describe a job.
   defp command(["describe", "job", id], _msg) do
-    notify(:debug, "describing job #{id}")
+    notify(:debug, "Describing job #{id}.")
 
     with {id, ""} <- Integer.parse(id),
          {:ok, j} <- Job.get(id) do
@@ -179,52 +181,53 @@ defmodule OAAS.Discord do
       |> Job.type(j.type).describe()
       |> send_message()
     else
-      :error -> notify(:error, "invalid job id")
-      {:error, reason} -> notify(:error, "looking up job failed", reason)
+      :error -> notify(:error, "Invalid job ID `#{id}`.")
+      {:error, reason} -> notify(:error, "Looking up job failed.", reason)
     end
   end
 
   # Delete a job.
   defp command(["delete", "job", id], _msg) do
-    notify(:debug, "deleting job #{id}")
+    notify(:debug, "Deleting job #{id}.")
 
     with {id, ""} <- Integer.parse(id),
          {:ok, j} <- Job.get(id),
          {:ok, j} <- Job.mark_deleted(j) do
-      notify("deleted job `#{j.id}`")
+      notify("Deleted job `#{j.id}`.")
     else
-      :error -> notify(:error, "invalid job id")
-      {:error, reason} -> notify(:error, "deleting job failed", reason)
+      :error -> notify(:error, "Invalid job ID `#{id}`.")
+      {:error, reason} -> notify(:error, "Deleting job failed.", reason)
     end
   end
 
   # Process the queue.
   defp command(["process", "queue"], %{id: id}) do
+    notify(:debug, "Processing queue via request #{id}.")
     send(Queue, :work)
     Api.create_reaction(@channel, id, @plusone)
   end
 
   # Start the shutdown sequence.
   defp command(["shutdown"], _msg) do
-    notify(:debug, "starting shutdown sequence")
+    notify(:debug, "Starting shutdown sequence.")
     send_message(@shutdown_message)
   end
 
   # Fallback command.
   defp command(cmd, _msg) do
-    notify(:debug, "unrecognized command (showing help)")
+    notify(:debug, "Unrecognized command #{Enum.join(cmd, " ")}.")
 
     """
     ```
-    unrecognized command: #{Enum.join(cmd, " ")}
-    usage: <mention> <cmd>
-    commands:
+    Unrecognized command: #{Enum.join(cmd, " ")}.
+    Usage: <mention> <cmd>
+    Commands:
     * list (jobs | workers)
     * describe (job | worker) <id>
     * delete job <id>
     * process queue
     * shutdown
-    or, attach a .osr file to create a new job
+    Or, attach a replay (.osr) file to create a new job.
     ```
     """
     |> send_message()
@@ -233,7 +236,7 @@ defmodule OAAS.Discord do
   # Generate an ascii table from a list of models.
   @spec table([], [atom], [atom]) :: String.t()
   defp table([], _rows, _headers) do
-    "no entries"
+    "No entries."
   end
 
   @spec table([struct], [atom], [atom]) :: String.t()

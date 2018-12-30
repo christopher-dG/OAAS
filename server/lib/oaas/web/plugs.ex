@@ -18,7 +18,7 @@ defmodule OAAS.Web.Plugs do
   @doc "Sends a 500 response."
   @spec error(Conn.t()) :: Conn.t()
   def error(conn) do
-    text(conn, 500, "internal server error")
+    text(conn, 500, "Internal server error.")
   end
 
   @doc "Sends a JSON response."
@@ -31,7 +31,7 @@ defmodule OAAS.Web.Plugs do
         |> send_resp(status, encoded)
 
       {:error, reason} ->
-        notify(:warn, "encoding HTTP response failed", reason)
+        notify(:warn, "Encoding HTTP response failed.", reason)
         error(conn)
     end
   end
@@ -49,14 +49,14 @@ defmodule OAAS.Web.Plugs do
               conn
 
             {:error, :no_such_entity} ->
-              notify(:debug, "blocked request with invalid API key `#{key}`")
+              notify(:debug, "Blocked request with invalid API key '#{key}'.")
 
               conn
-              |> text(400, "invalid API key")
+              |> text(400, "Invalid API key.")
               |> halt()
 
             {:error, reason} ->
-              notify(:error, "retrieving keys failed", reason)
+              notify(:error, "Retrieving keys failed.", reason)
 
               conn
               |> error()
@@ -64,17 +64,17 @@ defmodule OAAS.Web.Plugs do
           end
 
         [] ->
-          notify(:debug, "blocked request with missing API key")
+          notify(:debug, "Blocked request with missing API key.")
 
           conn
-          |> text(400, "missing API key")
+          |> text(400, "Missing API key.")
           |> halt()
 
         _ ->
-          notify("blocked request with invalid API key")
+          notify("Blocked request with invalid API key.")
 
           conn
-          |> text(400, "invalid API key")
+          |> text(400, "Invalid API key.")
           |> halt()
       end
     end
@@ -91,7 +91,7 @@ defmodule OAAS.Web.Plugs do
 
             _ ->
               conn
-              |> text(400, "invalid request body")
+              |> text(400, "Invalid request body.")
               |> halt()
           end
 
@@ -103,7 +103,7 @@ defmodule OAAS.Web.Plugs do
 
             _ ->
               conn
-              |> text(400, "invalid request_body")
+              |> text(400, "Invalid request body.")
               |> halt()
           end
 
@@ -129,7 +129,7 @@ defmodule OAAS.Web.Plugs do
             case Worker.get(w_id) do
               {:ok, w} -> put_private(c, :preloads, Map.put(c.private.preloads, :worker, w))
               {:error, :no_such_entity} -> :noop
-              {:error, reason} -> notify(:warn, "preloading worker `#{w_id}` failed", reason)
+              {:error, reason} -> notify(:warn, "Preloading worker `#{w_id}` failed.", reason)
             end
           end
         end).()
@@ -140,7 +140,7 @@ defmodule OAAS.Web.Plugs do
             case Job.get(j_id) do
               {:ok, j} -> put_private(c, :preloads, Map.put(c.private.preloads, :job, j))
               {:error, :no_such_entity} -> :noop
-              {:error, reason} -> notify(:warn, "preloading job `#{j_id}` failed", reason)
+              {:error, reason} -> notify(:warn, "Preloading job `#{j_id}` failed.", reason)
             end
           end
         end).()

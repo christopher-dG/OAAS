@@ -28,7 +28,7 @@ defmodule OAAS.Web.Router do
         j -> json(conn, 200, j)
       end
     else
-      {:error, reason} -> notify(:warn, "polling response for worker `#{id}` failed", reason)
+      {:error, reason} -> notify(:warn, "Polling response for worker `#{id}` failed.", reason)
     end
   end
 
@@ -42,13 +42,13 @@ defmodule OAAS.Web.Router do
         case Job.update_status(j, w, status, comment) do
           {:ok, j} ->
             notify(
-              "job `#{j.id}` updated to status `#{Job.status(j.status)}` by worker `#{w.id}`"
+              "Job `#{j.id}` updated to status `#{Job.status(j.status)}` by worker `#{w.id}`."
             )
 
             send_resp(conn, 204, "")
 
           {:error, reason} ->
-            notify(:error, "updating status for job `#{j.id}` failed", reason)
+            notify(:error, "Updating status for job `#{j.id}` failed.", reason)
             error(conn)
         end
       else
@@ -56,19 +56,19 @@ defmodule OAAS.Web.Router do
           :warn,
           "Worker `#{w.id}` tried to update job `#{j.id}`, but is assigned job `#{
             w.current_job_id
-          }`"
+          }`."
         )
 
-        text(conn, 400, "worker is not assigned that job")
+        text(conn, 400, "Worker is not assigned that job.")
       end
     else
       :error -> error(conn)
-      nil -> text(conn, 400, "worker or job does not exist")
+      nil -> text(conn, 400, "Worker or job does not exist.")
     end
   end
 
   match _ do
-    text(conn, 404, "not found")
+    text(conn, 404, "Not found.")
   end
 
   # Implementation for Plug.ErrorHandler: Write the generic error response.

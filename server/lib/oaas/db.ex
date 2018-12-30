@@ -46,7 +46,7 @@ defmodule OAAS.DB do
         {:error, reason} ->
           # There's no ADD_COLUMN IF NOT EXISTS so the last query usually fails.
           unless String.starts_with?(sql, "ALTER TABLE") do
-            notify(:debug, "schema query failed: #{inspect(reason)}\n#{sql}")
+            notify(:debug, "Schema query failed: #{inspect(reason)}.\n#{sql}")
           end
       end
     end)
@@ -57,21 +57,21 @@ defmodule OAAS.DB do
   @doc "Wrapper around `Sqlitex.Server.query`."
   @spec query(String.t(), keyword) :: {:ok, list} | {:error, term}
   def query(sql, opts \\ []) do
-    s = "sql: #{sql}"
+    s = "SQL: #{sql}"
     nobind = Keyword.drop(opts, [:bind])
-    s = if(Enum.empty?(nobind), do: s, else: "#{s}\nopts: #{inspect(nobind)}")
+    s = if(Enum.empty?(nobind), do: s, else: "#{s}\nOptions: #{inspect(nobind)}")
     bind = Keyword.get(opts, :bind, [])
     bind_s = inspect(bind, pretty: true, printable_limit: 80)
-    s = if(Enum.empty?(bind), do: s, else: "#{s}\nbind: #{bind_s}")
+    s = if(Enum.empty?(bind), do: s, else: "#{s}\nBindings: #{bind_s}")
     notify(:debug, s)
 
     case Sqlitex.Server.query(__MODULE__, sql, opts) do
       {:ok, results} ->
-        notify(:debug, "query ok: #{length(results)} result(s)")
+        notify(:debug, "Query OK: #{length(results)} result(s).")
         {:ok, results}
 
       {:error, reason} ->
-        notify(:debug, "query error", reason)
+        notify(:debug, "Query error.", reason)
         {:error, reason}
     end
   end
@@ -91,7 +91,7 @@ defmodule OAAS.DB do
             :ok
 
           {:error, reason} ->
-            OAAS.Utils.notify(:error, "transaction #{String.downcase(cmd)} failed", reason)
+            OAAS.Utils.notify(:error, "Transaction #{String.downcase(cmd)} failed.", reason)
             {:error, reason}
         end
       end

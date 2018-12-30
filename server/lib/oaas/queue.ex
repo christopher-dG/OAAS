@@ -43,17 +43,17 @@ defmodule OAAS.Queue do
         Enum.each(js, fn j ->
           status = j.status
 
-          case Job.fail(j, "stalled at status #{Job.status(j.status)}") do
+          case Job.fail(j, "Stalled at status #{Job.status(j.status)}.") do
             {:ok, j} ->
-              notify("job `#{j.id}` failed (stalled at `#{Job.status(status)}`)")
+              notify("Job `#{j.id}` failed (stalled at `#{Job.status(status)}`).")
 
             {:error, reason} ->
-              notify(:error, "failing job `#{j.id}` failed", reason)
+              notify(:error, "Failing job `#{j.id}` failed.", reason)
           end
         end)
 
       {:error, reason} ->
-        notify(:error, "getting stalled jobs failed", reason)
+        notify(:error, "Getting stalled jobs failed.", reason)
     end
   end
 
@@ -71,19 +71,19 @@ defmodule OAAS.Queue do
             {:ok, w} ->
               case Job.assign(j, w) do
                 {:ok, j} ->
-                  notify("assigned job `#{j.id}` to worker `#{w.id}`")
+                  notify("Assigned job `#{j.id}` to worker `#{w.id}`.")
 
                 {:error, reason} ->
-                  notify(:error, "assigning job `#{j.id}` to worker `#{w.id}` failed", reason)
+                  notify(:error, "Assigning job `#{j.id}` to worker `#{w.id}` failed.", reason)
               end
 
             {:error, reason} ->
-              notify(:error, "getting a worker to assign to job `#{j.id}` failed", reason)
+              notify(:error, "Getting a worker to assign to job `#{j.id}` failed.", reason)
           end
         end)
 
       {:error, reason} ->
-        notify(:error, "getting pending jobs failed", reason)
+        notify(:error, "Getting pending jobs failed.", reason)
     end
   end
 
@@ -93,13 +93,13 @@ defmodule OAAS.Queue do
       {:ok, js} ->
         Enum.each(js, fn j ->
           case Job.update(j, status: Job.status(:pending)) do
-            {:ok, j} -> notify("rescheduled job `#{j.id}`")
-            {:error, reason} -> notify(:error, "rescheduling job `#{j.id}` failed", reason)
+            {:ok, j} -> notify("Rescheduled job `#{j.id}`.")
+            {:error, reason} -> notify(:error, "Rescheduling job `#{j.id}` failed.", reason)
           end
         end)
 
       {:error, reason} ->
-        notify(:error, "getting failed jobs failed", reason)
+        notify(:error, "Getting failed jobs failed.", reason)
     end
   end
 end

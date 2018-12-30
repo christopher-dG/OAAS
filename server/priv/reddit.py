@@ -15,31 +15,30 @@ stream = subreddit.stream.submissions()
 title = re.compile(".+\|.+-.+\[.+\]")
 posts = {}
 
+
 def next_post():
     """Return the next post to process."""
     p = next(stream)
     while should_skip(p):
         p = next(stream)
     posts[p.id] = p
-
-    return json.dumps({
-        "id": p.id,
-        "title": p.title,
-        "author": p.author.name if p.author else None,
-    })
+    data = {"id": p.id, "title": p.title, "author": p.author.name if p.author else None}
+    return json.dumps(data)
 
 
 def save_post(id):
     """Save a post by ID."""
-    id = id.decode("utf-8")
-    if id in posts:
-        posts[id].save()
+    p = posts.pop(id.decode("utf-8"), None)
+    if p:
+        p.save()
         return True
     return False
 
 
 def should_skip(p):
     """Determine whether a post should be skipped."""
-    if p.saved: return True
-    if not title.match(p.title): return True
+    if p.saved:
+        return True
+    if not title.match(p.title):
+        return True
     return False

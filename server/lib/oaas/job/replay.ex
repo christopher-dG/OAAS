@@ -24,11 +24,11 @@ defmodule OAAS.Job.Replay do
           reddit_id: String.t() | nil
         }
 
-  @doc "Describes the job."
+  @doc "Describes a job."
   @spec describe(Job.t()) :: String.t()
   def describe(j) do
     player = "#{j.data.player.username} (https://osu.ppy.sh/u/#{j.data.player.user_id})"
-    reddit = if(is_nil(j.data.reddit_id), do: "none", else: "https://redd.it/#{j.data.reddit_id}")
+    reddit = if(is_nil(j.data.reddit_id), do: "None", else: "https://redd.it/#{j.data.reddit_id}")
 
     beatmap =
       "#{j.data.beatmap.artist} - #{j.data.beatmap.title} [#{j.data.beatmap.version}] (https://osu.ppy.sh/b/#{
@@ -37,22 +37,22 @@ defmodule OAAS.Job.Replay do
 
     """
     ```yml
-    id: #{j.id}
-    worker: #{j.worker_id || "none"}
-    status: #{Job.status(j.status)}
-    comment: #{j.comment || "none"}
-    created: #{relative_time(j.created_at)}
-    updated: #{relative_time(j.updated_at)}
-    player: #{player}
-    beatmap: #{beatmap}
-    video: #{j.data.youtube.title}
-    skin: #{(j.data.skin || %{})[:name] || "none"}
-    reddit: #{reddit}
-    replay:
-      mods: #{Osu.mods_to_string(j.data.replay.mods)}
-      combo: #{j.data.replay.combo}
-      score: #{j.data.replay.score}
-      accuracy: #{Osu.accuracy(j.data.replay)}
+    ID: #{j.id}
+    Worker: #{j.worker_id || "None"}
+    Status: #{Job.status(j.status)}
+    Comment: #{j.comment || "None"}
+    Created: #{relative_time(j.created_at)}
+    Updated: #{relative_time(j.updated_at)}
+    Player: #{player}
+    Beatmap: #{beatmap}
+    Video: #{j.data.youtube.title}
+    Skin: #{(j.data.skin || %{})[:name] || "None"}
+    Reddit: #{reddit}
+    Replay:
+      Mods: #{Osu.mods_to_string(j.data.replay.mods)}
+      Combo: #{j.data.replay.combo}
+      Score: #{j.data.replay.score}
+      Accuracy: #{Osu.accuracy(j.data.replay)}
     ```
     """
   end
@@ -124,7 +124,7 @@ defmodule OAAS.Job.Replay do
         :erlang.float_to_binary(pp, decimals: 0) <> "pp"
 
       {:error, reason} ->
-        notify(:warn, "looking up score for pp value failed", reason)
+        notify(:warn, "Looking up score for pp value failed.", reason)
         nil
     end
   end
@@ -184,7 +184,7 @@ defmodule OAAS.Job.Replay do
         beatmap.version
       }] #{extra}"
 
-    notify(:debug, "computed video title: #{title}")
+    notify(:debug, "Computed video title: #{title}.")
     yt_title = if(String.length(title) > @title_limit, do: "Placeholder Title", else: title)
 
     desc = title <> "\n" <> description(player, beatmap)
@@ -201,7 +201,7 @@ defmodule OAAS.Job.Replay do
           |> (&Regex.replace(~r/\(.*?\)/, &1, "")).()
           |> String.trim()
 
-        notify(:debug, "extracted username #{username}")
+        notify(:debug, "Extracted username '#{username}'.")
         {:ok, username}
 
       nil ->
@@ -215,7 +215,7 @@ defmodule OAAS.Job.Replay do
     case Regex.run(~r/\|(.+?)-(.+?)\[(.+?)\]/, title, capture: :all_but_first) do
       [artist, title, diff] ->
         s = "#{String.trim(artist)} - #{String.trim(title)} [#{String.trim(diff)}]"
-        notify(:debug, "extracted map name: #{s}")
+        notify(:debug, "Extracted map name: '#{s}'.")
         {:ok, s}
 
       nil ->
@@ -229,7 +229,7 @@ defmodule OAAS.Job.Replay do
     {:ok,
      case Regex.run(~r/\+ ?([A-Z,]+)/, title, capture: :all_but_first) do
        [mods] ->
-         notify(:debug, "extracted mods: #{mods}")
+         notify(:debug, "Extracted mods: +'#{mods}'.")
          Osu.mods_from_string(mods)
 
        nil ->
@@ -240,7 +240,7 @@ defmodule OAAS.Job.Replay do
   # Look for a beatmap by name in a player's activity.
   @spec search_beatmap(map, binary) :: {:ok, map} | {:error, :beatmap_not_found}
   defp search_beatmap(player, map_name) do
-    notify(:debug, "searching for: #{map_name}")
+    notify(:debug, "Searching for: '#{map_name}'.")
     map_name = String.downcase(map_name)
 
     try do
@@ -262,7 +262,7 @@ defmodule OAAS.Job.Replay do
       {:error, :beatmap_not_found}
     catch
       beatmap ->
-        notify(:debug, "found beatmap #{beatmap.beatmap_id}")
+        notify(:debug, "Found beatmap #{beatmap.beatmap_id}.")
         {:ok, beatmap}
     end
   end

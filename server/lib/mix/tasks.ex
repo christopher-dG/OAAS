@@ -14,7 +14,7 @@ defmodule Mix.Tasks.Key do
         |> IO.puts()
       else
         {:error, reason} ->
-          IO.puts("listing keys failed: #{inspect(reason)}")
+          IO.puts("Listing keys failed: #{inspect(reason)}.")
           exit({:shutdown, 1})
       end
     end
@@ -39,10 +39,10 @@ defmodule Mix.Tasks.Key do
                   end
                 end)
               end) do
-        IO.puts("added #{length(keys)} key(s)")
+        IO.puts("Added #{length(keys)} key(s).")
       else
         {:error, reason} ->
-          IO.puts("adding keys failed: #{inspect(reason)}")
+          IO.puts("Adding keys failed: #{inspect(reason)}.")
           exit({:shutdown, 1})
       end
     end
@@ -66,10 +66,10 @@ defmodule Mix.Tasks.Key do
                   end
                 end)
               end) do
-        IO.puts("deleted #{length(keys)} key(s)")
+        IO.puts("Deleted #{length(keys)} key(s).")
       else
         {:error, reason} ->
-          IO.puts("deleting keys failed: #{inspect(reason)}")
+          IO.puts("Deleting keys failed: #{inspect(reason)}.")
           exit({:shutdown, 1})
       end
     end

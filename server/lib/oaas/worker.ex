@@ -21,18 +21,18 @@ defmodule OAAS.Worker do
 
   use OAAS.Model
 
-  @doc "Describes the worker."
+  @doc "Describes a worker."
   @spec describe(t) :: String.t()
   def describe(w) do
     """
     ```yml
-    id: #{w.id}
-    online: #{online?(w)}
-    job: #{w.current_job_id || "none"}
-    last poll: #{relative_time(w.last_poll)}
-    last job: #{relative_time(w.last_job)}
-    created: #{relative_time(w.created_at)}
-    updated: #{relative_time(w.updated_at)}
+    ID: #{w.id}
+    Online: #{if(online?(w), do: "Yes", else: "No")}
+    Job: #{w.current_job_id || "None"}
+    Last poll: #{relative_time(w.last_poll)}
+    Last job: #{relative_time(w.last_job)}
+    Created: #{relative_time(w.created_at)}
+    Updated: #{relative_time(w.updated_at)}
     ```
     """
   end
@@ -54,7 +54,7 @@ defmodule OAAS.Worker do
     )
   end
 
-  @doc "Gets the worker's currently assigned job."
+  @doc "Gets a worker's currently assigned job."
   @spec get_assigned(t) :: {:ok, Job.t() | nil} | {:error, term}
   def get_assigned(%{current_job_id: nil}) do
     {:ok, nil}
