@@ -1,5 +1,5 @@
 defmodule OAAS.Key do
-  @moduledoc "Keys are API keys used by workers."
+  @moduledoc "An API key used by a worker."
 
   @table "keys"
 

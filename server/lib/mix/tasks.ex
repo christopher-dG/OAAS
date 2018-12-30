@@ -21,8 +21,8 @@ defmodule Mix.Tasks.Key do
   end
 
   defmodule Add do
-    use Mix.Task
     require OAAS.DB
+    use Mix.Task
 
     @shortdoc "Adds API keys (space-delimited) to the database."
     def run(keys) do
@@ -49,8 +49,8 @@ defmodule Mix.Tasks.Key do
   end
 
   defmodule Delete do
-    use Mix.Task
     require OAAS.DB
+    use Mix.Task
 
     @shortdoc "Deletes API keys (space-delimited) from the database."
     def run(keys) do

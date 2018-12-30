@@ -1,12 +1,11 @@
 defmodule OAAS.Web.Plugs do
   @moduledoc "Helper plugs."
 
-  import Plug.Conn
-
-  alias OAAS.Worker
-  alias OAAS.Job
   alias OAAS.Key
+  alias OAAS.Job
+  alias OAAS.Worker
   import OAAS.Utils
+  import Plug.Conn
 
   @doc "Sends a text response."
   @spec text(Conn.t(), integer, String.t()) :: Conn.t()

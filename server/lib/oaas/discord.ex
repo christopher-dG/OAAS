@@ -1,13 +1,13 @@
 defmodule OAAS.Discord do
-  @moduledoc "The Discord bot."
+  @moduledoc "Interacts with Discord for application control."
 
   alias Nostrum.Api
-  use Nostrum.Consumer
-  import OAAS.Utils
   alias OAAS.Job
   alias OAAS.Job.Replay
-  alias OAAS.Worker
   alias OAAS.Queue
+  alias OAAS.Worker
+  import OAAS.Utils
+  use Nostrum.Consumer
 
   @me Application.get_env(:oaas, :discord_user)
   @channel Application.get_env(:oaas, :discord_channel)

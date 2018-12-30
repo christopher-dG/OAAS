@@ -1,5 +1,5 @@
 defmodule OAAS.Worker do
-  @moduledoc "Workers are clients that can complete jobs."
+  @moduledoc "A client that can complete jobs."
 
   alias OAAS.Job
 

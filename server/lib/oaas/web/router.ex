@@ -1,14 +1,13 @@
 defmodule OAAS.Web.Router do
   @moduledoc "The web server."
 
+  alias OAAS.Job
+  alias OAAS.Worker
+  import Plug.Conn
+  import OAAS.Utils
+  import OAAS.Web.Plugs
   use Plug.Router
   use Plug.ErrorHandler
-  import Plug.Conn
-  import OAAS.Web.Plugs
-
-  alias OAAS.Worker
-  alias OAAS.Job
-  import OAAS.Utils
 
   plug(Plug.Logger)
   plug(Plug.Parsers, parsers: [:json], pass: ["*/*"], json_decoder: Jason)

@@ -1,15 +1,12 @@
 defmodule OAAS.Queue do
   @moduledoc "Manages the job queue."
 
+  alias OAAS.Job
+  alias OAAS.Worker
+  import OAAS.Utils
   use GenServer
 
-  alias OAAS.Worker
-  alias OAAS.Job
-  alias OAAS.DB
-  import OAAS.Utils
-  require DB
-
-  @interval 60 * 1000
+  @interval_ms 60_000
 
   def start_link(_args) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -17,7 +14,7 @@ defmodule OAAS.Queue do
 
   @impl true
   def init(state) do
-    schedule(@interval)
+    schedule(@interval_ms)
     {:ok, state}
   end
 
@@ -28,7 +25,7 @@ defmodule OAAS.Queue do
       process_pending()
       reschedule_failed()
     after
-      schedule(@interval)
+      schedule(@interval_ms)
     end
 
     {:noreply, state}

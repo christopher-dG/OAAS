@@ -1,10 +1,10 @@
 defmodule OAAS.Reddit do
   @doc "Manages the Python port which interacts with Reddit."
 
-  use GenServer
-  use Export.Python
-  import OAAS.Utils
   alias OAAS.Discord
+  import OAAS.Utils
+  use Export.Python
+  use GenServer
 
   @pypath "priv"
   @module "reddit"

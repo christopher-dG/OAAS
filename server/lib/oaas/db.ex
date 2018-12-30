@@ -27,7 +27,6 @@ defmodule OAAS.DB do
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )",
-    # This one is going to fail whenver the column already exists but whatever.
     "ALTER TABLE workers ADD COLUMN current_job_id REFERENCES jobs(id) ON DELETE SET NULL"
   ]
 
@@ -45,6 +44,7 @@ defmodule OAAS.DB do
           :noop
 
         {:error, reason} ->
+          # There's no ADD_COLUMN IF NOT EXISTS so the last query usually fails.
           unless String.starts_with?(sql, "ALTER TABLE") do
             notify(:debug, "schema query failed: #{inspect(reason)}\n#{sql}")
           end

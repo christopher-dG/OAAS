@@ -1,9 +1,9 @@
 defmodule OAAS.Job.Replay do
-  @moduledoc "Replay recording/uploading tasks to be completed."
+  @moduledoc "A replay recording/uploading job."
 
-  import OAAS.Utils
   alias OAAS.Osu
   alias OAAS.Job
+  import OAAS.Utils
   use Bitwise, only_operators: true
 
   @derive Jason.Encoder
