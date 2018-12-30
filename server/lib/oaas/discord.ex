@@ -7,6 +7,7 @@ defmodule OAAS.Discord do
   alias OAAS.Job
   alias OAAS.Job.Replay
   alias OAAS.Worker
+  alias OAAS.Queue
 
   @me Application.get_env(:oaas, :discord_user)
   @channel Application.get_env(:oaas, :discord_channel)
@@ -197,8 +198,15 @@ defmodule OAAS.Discord do
     end
   end
 
+  # Process the queue.
+  defp command(["process", "queue"], %{id: id}) do
+    send(Queue, :work)
+    Api.create_reaction(@channel, id, @plusone)
+  end
+
+  # Start the shutdown sequence.
   defp command(["shutdown"], _msg) do
-    notify(:debug, "initalizing shutdown sequence")
+    notify(:debug, "starting shutdown sequence")
     send_message(@shutdown_message)
   end
 
@@ -214,6 +222,7 @@ defmodule OAAS.Discord do
     * list (jobs | workers)
     * describe (job | worker) <id>
     * delete job <id>
+    * process queue
     * shutdown
     or, attach a .osr file to create a new job
     ```

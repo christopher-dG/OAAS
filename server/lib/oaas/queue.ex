@@ -9,10 +9,10 @@ defmodule OAAS.Queue do
   import OAAS.Utils
   require DB
 
-  @interval 10 * 1000
+  @interval 60 * 1000
 
   def start_link(_args) do
-    GenServer.start_link(__MODULE__, %{})
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
   @impl true
@@ -36,7 +36,7 @@ defmodule OAAS.Queue do
 
   # Schedule work to be done after the interval elapses.
   defp schedule(ms) do
-    Process.send_after(self(), :work, ms)
+    Process.send_after(__MODULE__, :work, ms)
   end
 
   # Unassign stalled jobs from workers.
