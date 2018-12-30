@@ -127,7 +127,8 @@ defmodule OAAS.Osu do
            mods: replay.mods
          ) do
       {:ok, [%{pp: pp}]} when is_number(pp) -> {:ok, pp + 0.0}
-      {:ok, _scores} -> {:error, :score_not_found}
+      {:ok, []} -> {:error, :score_not_found}
+      {:ok, [_score]} -> {:error, :no_pp}
       {:error, reason} -> {:error, reason}
     end
   end

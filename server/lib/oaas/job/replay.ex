@@ -37,12 +37,7 @@ defmodule OAAS.Job.Replay do
 
     """
     ```yml
-    ID: #{j.id}
-    Worker: #{j.worker_id || "None"}
-    Status: #{Job.status(j.status)}
-    Comment: #{j.comment || "None"}
-    Created: #{relative_time(j.created_at)}
-    Updated: #{relative_time(j.updated_at)}
+    #{Job.describe(j)}
     Player: #{player}
     Beatmap: #{beatmap}
     Video: #{j.data.youtube.title}
@@ -52,7 +47,7 @@ defmodule OAAS.Job.Replay do
       Mods: #{Osu.mods_to_string(j.data.replay.mods)}
       Combo: #{j.data.replay.combo}
       Score: #{j.data.replay.score}
-      Accuracy: #{Osu.accuracy(j.data.replay)}
+      Accuracy: #{j.data.replay |> Osu.accuracy() |> :erlang.float_to_binary(decimals: 2)}%
     ```
     """
   end
@@ -67,6 +62,8 @@ defmodule OAAS.Job.Replay do
          {:ok, %{} = beatmap} <- search_beatmap(player, map_name),
          {:ok, osr} <- Osu.get_osr(player, beatmap, mods),
          {:ok, replay} <- OsuEx.Parser.osr(osr) do
+      skin = Osu.skin(player.username)
+
       Job.put(
         type: Job.type(__MODULE__),
         status: Job.status(:pending),
@@ -78,8 +75,8 @@ defmodule OAAS.Job.Replay do
               replay_data: Base.encode64(osr),
               length: Osu.map_time(beatmap, replay.mods)
             }),
-          youtube: youtube_data(player, beatmap, replay),
-          skin: Osu.skin(player.username),
+          youtube: youtube_data(player, beatmap, replay, skin),
+          skin: skin,
           reddit_id: id
         }
       )
@@ -96,6 +93,8 @@ defmodule OAAS.Job.Replay do
          {:ok, replay} = OsuEx.Parser.osr(osr),
          {:ok, player} = OsuEx.API.get_user(replay.player),
          {:ok, beatmap} = OsuEx.API.get_beatmap(replay.beatmap_md5) do
+      skin = Osu.skin(skin_override || player.username)
+
       Job.put(
         type: Job.type(__MODULE__),
         status: Job.status(:pending),
@@ -107,8 +106,8 @@ defmodule OAAS.Job.Replay do
               replay_data: Base.encode64(osr),
               length: Osu.map_time(beatmap, replay.mods)
             }),
-          youtube: youtube_data(player, beatmap, replay),
-          skin: Osu.skin(skin_override || player.username)
+          youtube: youtube_data(player, beatmap, replay, skin),
+          skin: skin
         }
       )
     else
@@ -130,26 +129,33 @@ defmodule OAAS.Job.Replay do
   end
 
   # Generate the YouTube description.
-  @spec description(map, map) :: String.t()
-  defp description(%{username: username, user_id: user_id}, %{beatmap_id: beatmap_id}) do
+  @spec description(map, map, map) :: String.t()
+  defp description(%{username: name, user_id: user_id}, %{beatmap_id: beatmap_id}, %{name: skin}) do
+    skin_name =
+      if String.starts_with?(skin, "CirclePeople") do
+        "Default Skin"
+      else
+        "#{name}'s Skin"
+      end
+
     """
-    #{username}'s Profile: https://osu.ppy.sh/u/#{user_id} | #{username}'s Skin: https://circle-people.com/skins | Map: https://osu.ppy.sh/b/#{
-      beatmap_id
-    } | Click "Show more" for an explanation what this video and free to play rhythm game is all about!
+    #{name}'s Profile: https://osu.ppy.sh/u/#{user_id} | #{skin_name}'s Skin: https://circle-people.com/skins
+    Map: https://osu.ppy.sh/b/#{beatmap_id} | Click "Show more" for an explanation what this video and free to play rhythm game is all about!
 
     ------------------------------------------------------
-
-    osu! is the perfect game if you're looking for ftp games as osu! is a free to play online rhythm game, which you can use as a rhythm trainer online with lots of gameplay music!
+    osu! is the perfect game if you're looking for ftp games as
+    osu! is a free to play online rhythm game, which you can use as a rhythm trainer online with lots of gameplay music!
     https://osu.ppy.sh
     osu! has online rankings, multiplayer and boasts a community with over 500,000 active users!
 
     Title explanation:
-    GameMode | PlayerName | Artist - Song [Difficulty] +ModificationOfMap | PlayerAccuracyOnMap% PointsAwardedForThisPlayPP
+    PlayerName | Artist - Song [Difficulty] +ModificationOfMap PlayerAccuracyOnMap% PointsAwardedForThisPlayPP
 
     Want to support what we do? Check out our Patreon!
-    https://www.patreon.com/circlepeople
+    https://patreon.com/CirclePeople
 
-    Join the CirclePeople community! https://discord.gg/CirclePeople
+    Join the CirclePeople community!
+    https://discord.gg/CirclePeople
     Don't want to miss any pro plays? Subscribe or follow us!
     Twitter: https://twitter.com/CirclePeopleYT
     Facebook: https://facebook.com/CirclePeople
@@ -159,15 +165,15 @@ defmodule OAAS.Job.Replay do
 
     #CirclePeople
     #osu
-    ##{username}
+    ##{name}
     """
   end
 
   @title_limit 100
 
   # Get YouTube upload data for a play.
-  @spec youtube_data(map, map, map) :: map
-  defp youtube_data(player, beatmap, replay) do
+  @spec youtube_data(map, map, map, map) :: map
+  defp youtube_data(player, beatmap, replay, skin) do
     mods = Osu.mods_to_string(replay.mods)
     mods = if(mods === "", do: nil, else: mods)
     fc = if(replay.perfect?, do: "FC", else: nil)
@@ -179,23 +185,21 @@ defmodule OAAS.Job.Replay do
       |> Enum.reject(&is_nil/1)
       |> Enum.join(" ")
 
-    title =
-      "#{Osu.mode(replay.mode)} | #{player.username} | #{beatmap.artist} - #{beatmap.title} [#{
-        beatmap.version
-      }] #{extra}"
+    map_name = "#{beatmap.artist} - #{beatmap.title} [#{beatmap.version}]"
+    title = String.trim("#{Osu.mode(replay.mode)} | #{player.username} | #{map_name} #{extra}")
 
     notify(:debug, "Computed video title: #{title}.")
     yt_title = if(String.length(title) > @title_limit, do: "Placeholder Title", else: title)
 
-    desc = title <> "\n" <> description(player, beatmap)
+    desc = title <> "\n" <> description(player, beatmap, skin)
     %{title: yt_title, description: desc}
   end
 
   # Get the player name from a post title.
   @spec extract_username(String.t()) :: {:ok, String.t()} | {:error, :no_player_match}
   defp extract_username(title) do
-    case Regex.run(~r/(.+?)\|/, title, capture: :all_but_first) do
-      [cap] ->
+    case Regex.run(~r/(.+?)\|/, title) do
+      [_, cap] ->
         username =
           cap
           |> (&Regex.replace(~r/\(.*?\)/, &1, "")).()
@@ -212,8 +216,8 @@ defmodule OAAS.Job.Replay do
   # Get the beatmap name from a post title.
   @spec extract_map_name(String.t()) :: {:ok, String.t()} | {:error, :no_map_match}
   defp extract_map_name(title) do
-    case Regex.run(~r/\|(.+?)-(.+?)\[(.+?)\]/, title, capture: :all_but_first) do
-      [artist, title, diff] ->
+    case Regex.run(~r/\|(.+?)-(.+?)\[(.+?)\]/, title) do
+      [_, artist, title, diff] ->
         s = "#{String.trim(artist)} - #{String.trim(title)} [#{String.trim(diff)}]"
         notify(:debug, "Extracted map name: '#{s}'.")
         {:ok, s}
@@ -227,9 +231,9 @@ defmodule OAAS.Job.Replay do
   @spec extract_mods(String.t()) :: {:ok, integer | nil}
   defp extract_mods(title) do
     {:ok,
-     case Regex.run(~r/\+ ?([A-Z,]+)/, title, capture: :all_but_first) do
-       [mods] ->
-         notify(:debug, "Extracted mods: +'#{mods}'.")
+     case Regex.run(~r/\+ ?([A-Z,]+)/, title) do
+       [_, mods] ->
+         notify(:debug, "Extracted mods: '+#{mods}'.")
          Osu.mods_from_string(mods)
 
        nil ->

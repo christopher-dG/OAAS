@@ -58,6 +58,20 @@ defmodule OAAS.Job do
   @spec type(integer) :: module
   def type(0), do: Replay
 
+  @doc "Describes a job."
+  @spec describe(t) :: String.t()
+  def describe(j) do
+    """
+    ID: #{j.id}
+    Worker: #{j.worker_id || "None"}
+    Status: #{j.status |> status() |> to_string() |> String.capitalize()}
+    Comment: #{j.comment || "None"}
+    Created: #{relative_time(j.created_at)}
+    Updated: #{relative_time(j.updated_at)}
+    """
+    |> String.trim()
+  end
+
   @doc "Checks whether a job is finished."
   @spec finished(t) :: boolean
   def finished(j) do

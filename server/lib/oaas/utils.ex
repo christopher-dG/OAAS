@@ -66,7 +66,7 @@ defmodule OAAS.Utils do
   @spec notify(:warn, String.t()) :: true
   def notify(:warn, msg) do
     Logger.warn(msg)
-    Task.start(fn -> Mix.env() === :test || Discord.send_message("Warn: #{msg}") end)
+    Task.start(fn -> Mix.env() === :test || Discord.send_message("Warning: #{msg}") end)
     true
   end
 

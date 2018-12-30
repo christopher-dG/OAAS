@@ -31,8 +31,8 @@ defmodule OAAS.Discord do
     notify(:debug, "Received attachment: #{url}.")
 
     skin =
-      case Regex.run(~r/skin:(.+)/i, content, capture: :all_but_first) do
-        [skin] ->
+      case Regex.run(~r/skin:(.+)/i, content) do
+        [_, skin] ->
           s = String.trim(skin)
           notify(:debug, "Skin override: #{s}.")
           s
@@ -85,8 +85,8 @@ defmodule OAAS.Discord do
             :init.stop()
 
           "New Reddit post:" <> rest ->
-            with [p_id] <- Regex.run(~r/https:\/\/redd.it\/(\w+)/i, rest, capture: :all_but_first),
-                 [title] <- Regex.run(~r/Title: `(.+)`/i, rest, capture: :all_but_first) do
+            with [_, p_id] <- Regex.run(~r/https:\/\/redd.it\/(\w+)/i, rest),
+                 [_, title] <- Regex.run(~r/Title: `(.+)`/i, rest) do
               case Replay.from_reddit(p_id, title) do
                 {:ok, j} -> notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
                 {:error, reason} -> notify(:error, "Creating job failed.", reason)
