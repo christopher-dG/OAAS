@@ -171,18 +171,11 @@ defmodule OAAS.Job.Replay do
     mods = Osu.mods_to_string(replay.mods)
     mods = if(mods === "", do: nil, else: mods)
     fc = if(replay.perfect?, do: "FC", else: nil)
-    percent = Osu.accuracy(replay)
+    percent = :erlang.float_to_binary(Osu.accuracy(replay), decimals: 2) <> "%"
     pp = pp_string(player, beatmap, replay)
 
-    acc_s =
-      if is_nil(percent) do
-        nil
-      else
-        :erlang.float_to_binary(percent, decimals: 2) <> "%"
-      end
-
     extra =
-      [mods, acc_s, fc, pp]
+      [mods, percent, fc, pp]
       |> Enum.reject(&is_nil/1)
       |> Enum.join(" ")
 

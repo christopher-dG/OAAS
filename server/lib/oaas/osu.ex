@@ -71,14 +71,22 @@ defmodule OAAS.Osu do
   end
 
   @doc "Converts a replay into its accuracy, in percent."
-  @spec accuracy(map) :: float | nil
-  def accuracy(%{mode: 0} = replay) do
-    100.0 * (300 * replay.n300 + 100 * replay.n100 + 50 * replay.n50) /
-      (300 * replay.n300 + 300 * replay.n100 + 300 * replay.n50 + 300 * replay.nmiss)
+  @spec accuracy(map) :: float
+  def accuracy(%{mode: 0} = r) do
+    100.0 * (r.n300 + r.n100 / 3 + r.n50 / 6) / (r.n300 + r.n100 + r.n50 + r.nmiss)
   end
 
-  def accuracy(_replay) do
-    nil
+  def accuracy(%{mode: 1} = r) do
+    100.0 * (r.n300 + r.n100 / 2) / (r.n300 + r.n100 + r.nmiss)
+  end
+
+  def accuracy(%{mode: 2} = r) do
+    100.0 * (r.n300 + r.n100 + r.n50) / (r.n300 + r.n100 + r.n50 + r.nkatu + r.nmiss)
+  end
+
+  def accuracy(%{mode: 3} = r) do
+    100.0 * (r.countgeki + r.count300 + 2 * r.nkatu / 3 + r.n100 / 3 + r.n50 / 6) /
+      (r.ngeki + r.n300 + r.nkatu + r.n100 + r.n50 + r.nmiss)
   end
 
   @skins_api "https://circle-people.com/skins-api.php?player="

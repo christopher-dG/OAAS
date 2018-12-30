@@ -96,13 +96,18 @@ defmodule OAAS.Utils do
     "never"
   end
 
-  @spec relative_time(non_neg_integer) :: String.t()
+  @spec relative_time(integer) :: String.t()
   def relative_time(ms) do
-    dt = Timex.from_unix(ms, :millisecond)
-
-    case Timex.Format.DateTime.Formatters.Relative.format(dt, "{relative}") do
-      {:ok, rel} -> rel
-      {:error, _reason} -> to_string(dt)
+    case round((System.system_time(:millisecond) - ms) / 1000) do
+      0 -> "now"
+      1 -> "a second ago"
+      s when s < 60 -> "#{s} seconds ago"
+      60 -> "a minute ago"
+      s when s < 3600 -> "#{round(s / 60)} minutes ago"
+      s when s < 5400 -> "an hour ago"
+      s when s < 86400 -> "#{round(s / 3600)} hours ago"
+      s when s < 129_600 -> "a day ago"
+      s -> "#{round(s / 86400)} days ago"
     end
   end
 end

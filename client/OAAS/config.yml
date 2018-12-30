@@ -1,5 +1,5 @@
-api_url: "http://localhost:1234"
-api_key: "key"
+api_url: http://localhost:1234
+api_key: key
 # Uncomment these only if you don't use the default OBS Websocket settings.
-# obs_port: 4444
-# obs_password: ""
+# obs_port: 1234
+# obs_password: password
