@@ -112,4 +112,10 @@ defmodule OAAS.Utils do
       s -> "#{round(s / 86400)} days ago"
     end
   end
+
+  @doc "Compare two strings leniently."
+  @spec strcmp(String.t(), String.t()) :: boolean
+  def strcmp(s1, s2) do
+    String.jaro_distance(String.downcase(s1), String.downcase(s2)) > 0.9
+  end
 end

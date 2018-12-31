@@ -16,4 +16,6 @@ config :oaas,
   # Discord bot user ID.
   discord_user: (System.get_env("DISCORD_USER") || "0") |> Integer.parse() |> elem(0),
   # Discord channel ID where the bot will post.
-  discord_channel: (System.get_env("DISCORD_CHANNEL") || "0") |> Integer.parse() |> elem(0)
+  discord_channel: (System.get_env("DISCORD_CHANNEL") || "0") |> Integer.parse() |> elem(0),
+  # osusearch.com API key.
+  osusearch_key: System.get_env("OSUSEARCH_API_KEY")

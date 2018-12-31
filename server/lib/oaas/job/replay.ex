@@ -309,7 +309,7 @@ defmodule OAAS.Job.Replay do
     Enum.find_value(scores, {:error, :not_found}, fn %{beatmap_id: map_id} ->
       case OsuEx.API.get_beatmap(map_id) do
         {:ok, %{artist: artist, title: title, version: version} = beatmap} ->
-          if String.downcase("#{artist} - #{title} [#{version}]") === map_name do
+          if strcmp("#{artist} - #{title} [#{version}]", map_name) do
             {:ok, beatmap}
           else
             false
@@ -319,5 +319,26 @@ defmodule OAAS.Job.Replay do
           false
       end
     end)
+  end
+
+  @osusearch_url "https://osusearch.com/api/search"
+  @osusearch_key Application.get_env(:oaas, :osusearch_key)
+
+  @spec search_osusearch(String.t()) :: {:ok, map} | {:error, :not_found}
+  def search_osusearch(map_name) do
+    [_, artist, title, diff] = Regex.run(~r/(.+?) - (.+?) \[(.+?)\]/, map_name)
+    params = URI.encode_query(key: @osusearch_key, artist: artist, title: title, diff_name: diff)
+
+    with {:ok, %{status_code: 200, body: body}} <- HTTPoison.get(@osusearch_url <> "?" <> params),
+         {:ok, %{"beatmaps" => beatmaps}} <- Jason.decode(body) do
+      beatmaps
+      |> atom_map()
+      |> Enum.filter(fn %{artist: a, title: t, difficulty_name: d} ->
+        strcmp("#{a} - #{t} [#{d}]", map_name)
+      end)
+      |> Enum.max_by(&Map.get(&1, :favorites))
+    else
+      _ -> {:error, :not_found}
+    end
   end
 end
