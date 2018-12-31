@@ -1,192 +1,116 @@
 package main
 
 import (
-	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
-	"math"
-	"net/http"
+	"math/rand"
 	"os"
 	"os/user"
 	"path/filepath"
-	"runtime"
-	"strconv"
-	"time"
 
-	obs "github.com/christopher-dG/go-obs-websocket"
-	"github.com/go-vgo/robotgo"
 	yaml "gopkg.in/yaml.v2"
 )
 
-const (
-	// HTTP stuff.
-	routePoll    = "/poll"          // Endpoint for job polling.
-	routeStatus  = "/status"        // Endpoint for status endpoint.
-	pollInterval = time.Second * 10 // Time between requests to routePoll.
-
-	// OBS stuff.
-	obsPort   = 4444   // The default OBS websocket port.
-	obsScene  = "OAAS" // Default OBS scene.
-	obsFormat = ".mp4" // Video format for exports.
-
-	// osu! stuff.
-	replayScaleX = 0.8546875
-	replayScaleY = 0.7555555555555555
-	graphScaleX  = 0.41354166666666664
-	graphScaleY  = 0.8296296296296296
-)
-
 var (
-	// CLI stuff.
-	pathFlag = flag.String("c", "config.yml", "path to configuration file")
+	// Logging
+	LogWriter io.Writer
 
-	// Config stuff.
-	config   ConfigFile
-	workerID string
-	localDir string
+	// State
+	Busy = false
+	Jobs = make(chan Job)
 
-	// State stuff.
-	isWorking = false
+	// Configuration
+	Config = struct {
+		ApiUrl            string `yaml:"api_url"`
+		ApiKey            string `yaml:"api_key"`
+		ObsPort           int    `yaml:"obs_port"`
+		ObsPassword       string `yaml:"obs_password"`
+		SimpleSkinLoading bool   `yaml:"simple_skin_loading"`
+	}{}
 
-	// Job prep stuff.
-	replayDir  string
-	skinDir    string
-	beatmapDir string
+	// ID
+	WorkerId string
 
-	// osu! stuff.
-	osuExe       string
-	startReplayX int
-	startReplayY int
-	showGraphX   int
-	showGraphY   int
-
-	// Logging stuff.
-	pollLogger = log.New(os.Stdout, "[/poll] ", log.LstdFlags)
-
-	// Recording stuff.
-	obsClient obs.Client
-	obsFolder string
+	// Dirs
+	DirOsk   string // Skin zips
+	DirOsr   string // Replays
+	DirSkins string // Skin directories
+	DirSongs string // Map directories
 )
 
 func init() {
-	// Parse/validate CLI arguments.
-	flag.Parse()
-	if *pathFlag == "" {
-		log.Fatal("option -c <config-file> is missing")
-	}
-
-	// Load the config.
-	b, err := ioutil.ReadFile(*pathFlag)
+	// Global: logging
+	file, err := os.OpenFile("log.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Couldn't open log file:", err)
 	}
-	if err = yaml.Unmarshal(b, &config); err != nil {
-		log.Fatal(err)
+	LogWriter = io.MultiWriter(os.Stdout, file)
+	log.SetOutput(LogWriter)
+
+	// Global: configuration
+	b, err := ioutil.ReadFile("config.yml")
+	if err != nil {
+		log.Fatal("Couldn't read config file:", err)
 	}
-	if err = config.Validate(); err != nil {
-		log.Fatal(err)
+	if err = yaml.Unmarshal(b, &Config); err != nil {
+		log.Fatal("Couldn't parse config file:", err)
+	}
+	if Config.ObsPort == 0 {
+		Config.ObsPort = 4444 // Default port.
 	}
 
-	// Read or create the worker ID.
-	path := filepath.Join(localDir, "id.txt")
-	if b, err = ioutil.ReadFile(path); err == nil {
-		workerID = string(b)
+	// Global: ID
+	if b, err = ioutil.ReadFile("id.txt"); err == nil {
+		WorkerId = string(b)
 	} else {
-		// Generate new ID.
+		i := rand.Int31n(9999999)
 		usr, err := user.Current()
 		if err != nil {
-			log.Fatal("couldn't get username;", err)
+			log.Fatal("Couldn't get current user:", err)
 		}
-		token := strconv.Itoa(int(time.Now().UnixNano()))
-		workerID = usr.Username + "-" + token
-		ioutil.WriteFile(path, []byte(workerID), 0400)
+		WorkerId = fmt.Sprintf("%s-%d", usr.Username, i)
+		ioutil.WriteFile("id.txt", []byte(WorkerId), 0644)
 	}
 
-	// Compute the necessary directories.
+	// Global: Dirs
 	cwd, err := filepath.Abs(".")
 	if err != nil {
-		log.Fatal("couldn't get working directory:", err)
+		log.Fatal("Couldn't get current folder:", err)
 	}
-	osuRoot := filepath.Dir(cwd)
-	beatmapDir = filepath.Join(osuRoot, "Songs")
-	replayDir = filepath.Join(cwd, "osr")
-	skinDir = filepath.Join(cwd, "osk")
+	DirOsk = filepath.Join(cwd, "osk")
+	DirOsr = filepath.Join(cwd, "osr")
+	DirSkins = filepath.Join(filepath.Dir(cwd), "Skins")
+	DirSongs = filepath.Join(filepath.Dir(cwd), "Songs")
 
-	// Set up the OBS client, set the scene, and get the recording folder.
-	obsClient = obs.Client{Host: "localhost", Port: config.OBSPort, Password: config.OBSPassword}
-	if err = obsClient.Connect(); err != nil {
-		log.Fatal("couldn't connect to OBS:", err)
+	// Per-module initialization
+	if err := InitObs(); err != nil {
+		log.Fatal("OBS initialization failed:", err)
 	}
-	_, err = obs.NewSetCurrentSceneRequest(obsScene).SendReceive(obsClient)
-	if err != nil {
-		log.Fatal(err)
+	if err := InitOsu(); err != nil {
+		log.Fatal("osu! initialization failed:", err)
 	}
-	resp, err := obs.NewGetRecordingFolderRequest().SendReceive(obsClient)
-	if err != nil {
-		log.Fatal(err)
+	if err := InitJob(); err != nil {
+		log.Fatal("Job initialization failed:", err)
 	}
-	obsFolder = resp.RecFolder
-
-	// Determine the osu! executable.
-	if runtime.GOOS == "windows" {
-		osuExe = filepath.Join(osuRoot, "osu!.exe")
-	} else {
-		osuExe = filepath.Join(osuRoot, "osu!")
-	}
-
-	// Compute the pixel offsets.
-	sizeXi, sizeYi := robotgo.GetScreenSize()
-	sizeX, sizeY := float64(sizeXi), float64(sizeYi)
-	startReplayX = int(math.Round(sizeX * replayScaleX))
-	startReplayY = int(math.Round(sizeY * replayScaleY))
-	showGraphX = int(math.Round(sizeX * graphScaleX))
-	showGraphY = int(math.Round(sizeY * graphScaleY))
 }
 
 func main() {
-	if err := ExecOsu(); err != nil {
-		log.Fatal("couldn't start osu!:", err)
-	}
+	defer cleanup()
 
-	time.Sleep(time.Second * 5)
-	fmt.Println("==============================================================================")
-	fmt.Println("==============================================================================")
-	fmt.Println("if you can still read this message, click on the open osu! window to focus it!")
-	fmt.Println("==============================================================================")
-	fmt.Println("==============================================================================")
-	time.Sleep(time.Second * 5)
-
-	log.Println("Worker ID:", workerID)
-
-	defer obsClient.Disconnect()
-	jobs := make(chan Job)
-
-	go poll(jobs)
+	go Poll()
 	for {
-		j := <-jobs
-		isWorking = true
-		j.Process()
-		isWorking = false
+		j := <-Jobs
+		Busy = true
+		if err := RunJob(j); err != nil {
+			j.Logger().Println("Job failed:", err)
+		}
+		Busy = false
 	}
 }
 
-// oaasHeaders adds the necessary headers for the OAAS API.
-func oaasHeaders(r *http.Request) {
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Authorization", config.ApiKey)
-}
-
-// httpGetBody makes a GET request and returns the body.
-func httpGetBody(url string) ([]byte, error) {
-	log.Println("GET:", url)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("non-200 status code %d", resp.StatusCode)
-	}
-	return ioutil.ReadAll(resp.Body)
+func cleanup() {
+	CleanupObs()
+	CleanupOsu()
 }

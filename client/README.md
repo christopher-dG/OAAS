@@ -8,18 +8,30 @@ Compile the client:
 $ go build
 ```
 
-Create a `config.yml`:
+Put it in `OAAS`:
+
+```sh
+$ cp oaas OAAS
+```
+
+Edit `config.yml` to match your server and system configuration:
 
 ```yaml
 api_url: http://localhost:4000
-api_key: key
-osu_root: /path/to/osu/installation
+api_ley: key
+simple_skin_loading: true
+obs_port: 4444
+obs_password: password
+```
+
+Move the folder to your osu! install directory:
+
+```sh
+$ cp -r OAAS ~/osu!
 ```
 
 Run the client:
 
 ```sh
-$  ./oaas -c config.yml
+$  ./oaas
 ```
-
-If running Windows, you may need to move the DLL files in `dll/` into the working directory.

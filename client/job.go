@@ -1,120 +1,148 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
+
+	"github.com/mitchellh/mapstructure"
 )
 
-// Job is a recording/uploading job to be completed by the worker.
-type Job struct {
-	ID     int `json:"id"` // Job ID.
-	Player struct {
-		Username string `json:"username"`
-		UserID   int    `json:"user_id"`
-	} `json:"player"` // Player data.
-	Beatmap struct {
-		BeatmapID    int    `json:"beatmap_id"`
-		BeatmapsetID int    `json:"beatmapset_id"`
-		Artist       string `json:"artist"`
-		Title        string `json:"title"`
-		Version      string `json:"version"`
-	} `json:"beatmap"` // Beatmap data.
-	Replay struct {
-		ReplayData string  `json:"replay_data"`
-		Length     float64 `json:"length"`
-	} `json:"replay"` // Base64-encoded replay file.
-	YouTube struct {
-		Title       string `json:"title"`       // Video title.
-		Description string `json:"description"` // Video description.
-	} `json:"youtube"` // YouTube video data.
-	Skin *struct {
-		Name string `json:"name"` // Skin name.
-		URL  string `json:"url"`  // Skin download URL.
-	} `json:"skin"` // Skin to use (nil if default).
-}
+const (
+	StatusPreparing  = 2
+	StatusExecuting  = 3
+	StatusCleanup    = 4
+	StatusRecording  = 5
+	StatusUploading  = 6
+	StatusSuccessful = 7
+	StatusFailed     = 8
+)
 
-// Process processes the job from start to finish.
-func (j Job) Process() {
-	log.SetPrefix(fmt.Sprintf("[job %d] ", j.ID))
-	log.Println("starting job")
-
-	if err := j.Prepare(); err != nil {
-		j.fail("preparation failed", err)
-		return
-	}
-
-	if err := j.updateStatus(StatusRecording, nil); err != nil {
-		log.Println("updating status failed:", err)
-	}
-
-	if err := j.Record(); err != nil {
-		j.fail("recording failed", err)
-		return
-	}
-
-	if err := j.updateStatus(StatusUploading, nil); err != nil {
-		log.Println("updating status failed:", err)
-	}
-
-	if err := j.Upload(); err != nil {
-		j.fail("uploading failed", err)
-		return
-	}
-
-	if err := j.updateStatus(StatusSuccessful, nil); err != nil {
-		log.Println("updating status failed:", err)
-	}
-}
-
-// updateStatus updates the job's status.
-func (j Job) updateStatus(status int, comment *string) error {
-	log.Println("updating status ->", StatusMap[status])
-
-	b, err := json.Marshal(map[string]interface{}{
-		"worker":  workerID,
-		"job":     j.ID,
-		"status":  status,
-		"comment": comment,
-	})
-	if err != nil {
+func InitJob() error {
+	if err := InitReplayJob(); err != nil {
 		return err
-	}
-	req, err := http.NewRequest("POST", config.ApiURL+routeStatus, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	oaasHeaders(req)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != 204 {
-		return fmt.Errorf("non-204 status code: %d", resp.StatusCode)
 	}
 	return nil
 }
 
-// fail updates the job status to FAILED.
-func (j Job) fail(context string, err error) {
-	var comment string
-	if context != "" && err != nil {
-		comment = fmt.Sprintf("%s: %v", context, err)
-	} else if context != "" {
-		comment = context
-	} else if err != nil {
-		comment = err.Error()
+// JobBase is common job data.
+type JobBase struct {
+	id     int
+	logger *log.Logger
+}
+
+// Id returns the job's ID.
+func (j JobBase) Id() int {
+	return j.id
+}
+
+// Logger returns the job logger.
+func (j JobBase) Logger() *log.Logger {
+	return j.logger
+}
+
+// Prepare prepares the job.
+func (j JobBase) Prepare() error {
+	j.Logger().Println("Prepare: Nothing to do")
+	return nil
+}
+
+// Execute executes the job.
+func (j JobBase) Execute() error {
+	j.Logger().Println("Execute: Nothing to do")
+	return nil
+}
+
+// Cleanup cleans up the job.
+func (j JobBase) Cleanup() error {
+	j.Logger().Println("Cleanup: Nothing to do")
+	return nil
+}
+
+// Job is a task to be completed by the worker.
+type Job interface {
+	Id() int
+	Logger() *log.Logger
+	Prepare() error
+	Execute() error
+	Cleanup() error
+}
+
+// RunJob runs a job.
+func RunJob(j Job) error {
+	UpdateStatus(j, StatusPreparing, "")
+	if err := j.Prepare(); err != nil {
+		j.Logger().Println("Job preparation failed:", err)
+		UpdateStatus(j, StatusFailed, err.Error())
+		return err
 	}
 
-	if comment != "" {
-		log.Println(comment)
-		j.updateStatus(StatusFailed, &comment)
-	} else {
-		j.updateStatus(StatusFailed, nil)
+	UpdateStatus(j, StatusExecuting, "")
+	if err := j.Execute(); err != nil {
+		j.Logger().Println("Job execution failed:", err)
+		UpdateStatus(j, StatusFailed, err.Error())
+		return err
 	}
+
+	UpdateStatus(j, StatusCleanup, "")
+	if err := j.Cleanup(); err != nil {
+		j.Logger().Println("Job cleanup failed:", err)
+		UpdateStatus(j, StatusFailed, err.Error())
+		return err
+	}
+
+	UpdateStatus(j, StatusSuccessful, "")
+	return nil
+}
+
+// NewJob creates a new job.
+func NewJob(data []byte) (Job, error) {
+	var r struct {
+		Id   int                    `json:"id"`
+		Type int                    `json:"type"`
+		Data map[string]interface{} `json:"data"`
+	}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, err
+	}
+
+	b := JobBase{id: r.Id, logger: newLogger(r.Id)}
+	var j Job
+	switch r.Type {
+	case jobTypeReplay:
+		j = NewReplayJob(b)
+	default:
+		return nil, fmt.Errorf("Unknown job type %d", r.Type)
+	}
+
+	err := mapstructure.Decode(r.Data, &j)
+	return j, err
+}
+
+// UpdateStatus updates a job's status.
+func UpdateStatus(j Job, status int, comment string) {
+	j.Logger().Println("Updating status to", status)
+	body := map[string]interface{}{
+		"worker": WorkerId,
+		"job":    j.Id(),
+		"status": status,
+		"comment": func() interface{} {
+			if comment == "" {
+				return nil
+			} else {
+				return comment
+			}
+		}(),
+	}
+	PostRequest(endpointStatus, body, j.Logger())
+}
+
+const (
+	endpointStatus = "/status"
+	jobTypeReplay  = 0
+)
+
+// newLogger creates a new logger.
+func newLogger(id int) *log.Logger {
+	return log.New(LogWriter, fmt.Sprintf("[Job %d] ", id), log.LstdFlags)
 }
