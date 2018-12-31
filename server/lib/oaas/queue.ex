@@ -22,8 +22,8 @@ defmodule OAAS.Queue do
   def handle_info(:work, state) do
     try do
       clear_stalled()
-      process_pending()
       reschedule_failed()
+      process_pending()
     after
       schedule(@interval_ms)
     end
@@ -43,7 +43,7 @@ defmodule OAAS.Queue do
         Enum.each(js, fn j ->
           status = j.status
 
-          case Job.fail(j, "Stalled at status #{Job.status(j.status)}.") do
+          case Job.fail(j, "Stalled at status #{Job.status(j.status)}") do
             {:ok, j} ->
               notify("Job `#{j.id}` failed (stalled at `#{Job.status(status)}`).")
 
