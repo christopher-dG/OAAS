@@ -42,7 +42,7 @@ defmodule OAAS.Discord do
       end
 
     case Replay.from_osr(url, skin) do
-      {:ok, j} -> notify("Created job `#{j.id}`:\n#{Replay.describe(j)}.")
+      {:ok, j} -> notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
       {:error, reason} -> notify(:error, "Creating job failed.", reason)
     end
   end

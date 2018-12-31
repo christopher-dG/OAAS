@@ -136,16 +136,16 @@ defmodule OAAS.Osu do
   @downloader Application.get_env(:oaas, :osr_downloader) || "fetch.js"
 
   @doc "Downloads a .osr replay file."
-  @spec get_osr(map, map, integer) :: {:ok, binary} | {:error, {:exit_code, integer}}
+  @spec get_osr(map, map, integer) :: {:ok, binary} | {:error, map}
   def get_osr(%{user_id: user}, %{beatmap_id: beatmap}, mods) do
     args =
       (["-k", Application.get_env(:osu_ex, :api_key), "-u", user, "-b", beatmap] ++
          if(is_nil(mods), do: [], else: ["--mods", mods]))
       |> Enum.map(&to_string/1)
 
-    case System.cmd(@downloader, args) do
+    case System.cmd(@downloader, args, stderr_to_stdout: true) do
       {osr, 0} -> {:ok, osr}
-      {_, n} -> {:error, {:exit_code, n}}
+      {output, n} -> {:error, %{exit_code: n, output: output |> String.split("\n") |> hd()}}
     end
   end
 end

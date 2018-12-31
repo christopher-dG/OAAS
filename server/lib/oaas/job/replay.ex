@@ -44,6 +44,7 @@ defmodule OAAS.Job.Replay do
     Skin: #{(j.data.skin || %{})[:name] || "None"}
     Reddit: #{reddit}
     Replay:
+      Date: #{j.data.replay.timestamp}
       Mods: #{Osu.mods_to_string(j.data.replay.mods)}
       Combo: #{j.data.replay.combo}
       Score: #{j.data.replay.score}
