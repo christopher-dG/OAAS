@@ -34,20 +34,27 @@ defmodule OAAS.Job do
   @spec status(atom) :: integer
   def status(:pending), do: 0
   def status(:assigned), do: 1
-  def status(:recording), do: 2
-  def status(:uploading), do: 3
-  def status(:successful), do: 4
-  def status(:failed), do: 5
-  def status(:deleted), do: 6
+  def status(:preparing), do: 2
+  def status(:executing), do: 3
+  def status(:cleanup), do: 4
+  def status(:recording), do: 5
+  def status(:uploading), do: 6
+  # These ones belong here at the end, as we want to skip them when checking for stalls.
+  def status(:successful), do: 7
+  def status(:failed), do: 8
+  def status(:deleted), do: 9
 
   @spec status(integer) :: atom
   def status(0), do: :pending
   def status(1), do: :assigned
-  def status(2), do: :recording
-  def status(3), do: :uploading
-  def status(4), do: :successful
-  def status(5), do: :failed
-  def status(6), do: :deleted
+  def status(2), do: :preparing
+  def status(3), do: :executing
+  def status(4), do: :cleanup
+  def status(5), do: :recording
+  def status(6), do: :uploading
+  def status(7), do: :successful
+  def status(8), do: :failed
+  def status(9), do: :deleted
 
   @doc "Defines the job type enum."
   def type(_)
@@ -100,6 +107,9 @@ defmodule OAAS.Job do
 
   @timeouts %{
     assigned: 90 * 1000,
+    preparing: 120 * 1000,
+    executing: 30 * 60 * 1000,
+    cleanup: 60 * 1000,
     recording: 10 * 60 * 1000,
     uploading: 10 * 60 * 1000
   }

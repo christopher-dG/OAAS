@@ -18,7 +18,7 @@ defmodule OAAS.Web.Plugs do
   @doc "Sends a 500 response."
   @spec error(Conn.t()) :: Conn.t()
   def error(conn) do
-    text(conn, 500, "Internal server error.")
+    text(conn, 500, "Internal server error")
   end
 
   @doc "Sends a JSON response."
@@ -52,7 +52,7 @@ defmodule OAAS.Web.Plugs do
               notify(:debug, "Blocked request with invalid API key '#{key}'.")
 
               conn
-              |> text(400, "Invalid API key.")
+              |> text(400, "Invalid API key")
               |> halt()
 
             {:error, reason} ->
@@ -67,14 +67,14 @@ defmodule OAAS.Web.Plugs do
           notify(:debug, "Blocked request with missing API key.")
 
           conn
-          |> text(400, "Missing API key.")
+          |> text(400, "Missing API key")
           |> halt()
 
         _ ->
           notify("Blocked request with invalid API key.")
 
           conn
-          |> text(400, "Invalid API key.")
+          |> text(400, "Invalid API key")
           |> halt()
       end
     end
@@ -91,7 +91,7 @@ defmodule OAAS.Web.Plugs do
 
             _ ->
               conn
-              |> text(400, "Invalid request body.")
+              |> text(400, "Invalid request body")
               |> halt()
           end
 
@@ -103,7 +103,7 @@ defmodule OAAS.Web.Plugs do
 
             _ ->
               conn
-              |> text(400, "Invalid request body.")
+              |> text(400, "Invalid request body")
               |> halt()
           end
 
@@ -127,9 +127,15 @@ defmodule OAAS.Web.Plugs do
             c
           else
             case Worker.get(w_id) do
-              {:ok, w} -> put_private(c, :preloads, Map.put(c.private.preloads, :worker, w))
-              {:error, :no_such_entity} -> :noop
-              {:error, reason} -> notify(:warn, "Preloading worker `#{w_id}` failed.", reason)
+              {:ok, w} ->
+                put_private(c, :preloads, Map.put(c.private.preloads, :worker, w))
+
+              {:error, :no_such_entity} ->
+                c
+
+              {:error, reason} ->
+                notify(:warn, "Preloading worker `#{w_id}` failed.", reason)
+                c
             end
           end
         end).()
@@ -138,9 +144,15 @@ defmodule OAAS.Web.Plugs do
             c
           else
             case Job.get(j_id) do
-              {:ok, j} -> put_private(c, :preloads, Map.put(c.private.preloads, :job, j))
-              {:error, :no_such_entity} -> :noop
-              {:error, reason} -> notify(:warn, "Preloading job `#{j_id}` failed.", reason)
+              {:ok, j} ->
+                put_private(c, :preloads, Map.put(c.private.preloads, :job, j))
+
+              {:error, :no_such_entity} ->
+                c
+
+              {:error, reason} ->
+                notify(:warn, "Preloading job `#{j_id}` failed.", reason)
+                c
             end
           end
         end).()
