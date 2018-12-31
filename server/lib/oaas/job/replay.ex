@@ -287,7 +287,7 @@ defmodule OAAS.Job.Replay do
   # Search a player's recent plays for a beatmap.
   @spec search_recent(%{user_id: non_neg_integer}, String.t()) :: {:ok, map} | {:error, term}
   defp search_recent(%{user_id: id}, map_name) do
-    case OsuEx.API.get_user_recent(id) do
+    case OsuEx.API.get_user_recent(id, limit: 50) do
       {:ok, scores} -> search_scores(scores, map_name)
       {:error, reason} -> {:error, reason}
     end
