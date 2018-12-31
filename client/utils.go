@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
@@ -34,6 +35,13 @@ func PostRequest(endpoint string, body map[string]interface{}, logger *log.Logge
 	if err != nil {
 		logger.Println("Couldn't send request:", err)
 		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		logger.Println("Bad response code:", resp.StatusCode)
+		b, err = ioutil.ReadAll(resp.Body)
+		if err == nil && len(b) > 0 {
+			logger.Println("Response body:", string(b))
+		}
 	}
 
 	return resp, nil

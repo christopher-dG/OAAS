@@ -9,7 +9,7 @@ import (
 
 // Poll polls for new jobs.
 func Poll() {
-	for {
+	for !Done {
 		pollOnce()
 		time.Sleep(pollInterval)
 	}
@@ -53,8 +53,7 @@ func pollOnce() {
 		pollLogger.Println("Couldn't create job:", err)
 	}
 
-	// If we're busy, assume it's because we're currently doing this job.
-	if !Busy {
-		Jobs <- j
+	if err = RunJob(j); err != nil {
+		j.Logger().Println("Job failed:", err)
 	}
 }

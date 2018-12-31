@@ -1,11 +1,13 @@
+# TODO: Figure out how to run mix tasks with --no-deps-check to make git build-only.
+
 FROM elixir:1.7-alpine
 
 WORKDIR /root/oaas
 
 ENV MIX_ENV="prod" \
     OSR_DOWNLOADER="/root/oaas/priv/osr-dl/fetch.js" \
-    BUILD_PKGS="gcc git musl-dev nodejs-npm py-pip" \
-    PKGS="nodejs python"
+    BUILD_PKGS="gcc musl-dev nodejs-npm py-pip" \
+    PKGS="git nodejs python"
 
 COPY . .
 

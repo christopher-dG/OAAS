@@ -217,7 +217,7 @@ defmodule OAAS.Job.Replay do
   # Get the beatmap name from a post title.
   @spec extract_map_name(String.t()) :: {:ok, String.t()} | {:error, :no_map_match}
   defp extract_map_name(title) do
-    case Regex.run(~r/\|(.+?)-(.+?)\[(.+?)\]/, title) do
+    case Regex.run(~r/\|(.+?)-(.+?)\[(.+)\]/, title) do
       [_, artist, title, diff] ->
         s = "#{String.trim(artist)} - #{String.trim(title)} [#{String.trim(diff)}]"
         notify(:debug, "Extracted map name: '#{s}'.")

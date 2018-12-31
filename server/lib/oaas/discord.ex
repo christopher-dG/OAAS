@@ -42,8 +42,12 @@ defmodule OAAS.Discord do
       end
 
     case Replay.from_osr(url, skin) do
-      {:ok, j} -> notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
-      {:error, reason} -> notify(:error, "Creating job failed.", reason)
+      {:ok, j} ->
+        notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
+        send(Queue, :work)
+
+      {:error, reason} ->
+        notify(:error, "Creating job failed.", reason)
     end
   end
 
@@ -88,8 +92,12 @@ defmodule OAAS.Discord do
             with [_, p_id] <- Regex.run(~r/https:\/\/redd.it\/(\w+)/i, rest),
                  [_, title] <- Regex.run(~r/Title: `(.+)`/i, rest) do
               case Replay.from_reddit(p_id, title) do
-                {:ok, j} -> notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
-                {:error, reason} -> notify(:error, "Creating job failed.", reason)
+                {:ok, j} ->
+                  notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
+                  send(Queue, :work)
+
+                {:error, reason} ->
+                  notify(:error, "Creating job failed.", reason)
               end
             end
 

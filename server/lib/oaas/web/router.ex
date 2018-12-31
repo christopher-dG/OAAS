@@ -36,14 +36,15 @@ defmodule OAAS.Web.Router do
     with %{} = w <- conn.private.preloads[:worker],
          %{} = j <- conn.private.preloads[:job] do
       status = conn.body_params["status"]
-      comment = conn.body_params["comment"] || j.comment
+      comment = conn.body_params["comment"]
 
       if w.current_job_id === j.id do
         case Job.update_status(j, w, status, comment) do
           {:ok, j} ->
-            notify(
-              "Job `#{j.id}` updated to status `#{Job.status(j.status)}` by worker `#{w.id}`."
-            )
+            notify("""
+            Job `#{j.id}` updated to status `#{Job.status(j.status)}` by worker `#{w.id}`.
+            Comment: `#{comment}`
+            """)
 
             send_resp(conn, 204, "")
 

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-
-	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -108,14 +106,14 @@ func NewJob(data []byte) (Job, error) {
 
 	b := JobBase{id: r.Id, logger: newLogger(r.Id)}
 	var j Job
+	var err error
 	switch r.Type {
 	case jobTypeReplay:
-		j = NewReplayJob(b)
+		j, err = NewReplayJob(b, r.Data)
 	default:
 		return nil, fmt.Errorf("Unknown job type %d", r.Type)
 	}
 
-	err := mapstructure.Decode(r.Data, &j)
 	return j, err
 }
 

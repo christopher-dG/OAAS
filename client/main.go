@@ -7,19 +7,18 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
+	"syscall"
 
+	"github.com/go-vgo/robotgo"
 	yaml "gopkg.in/yaml.v2"
 )
 
 var (
 	// Logging
 	LogWriter io.Writer
-
-	// State
-	Busy = false
-	Jobs = make(chan Job)
 
 	// Configuration
 	Config = struct {
@@ -33,18 +32,26 @@ var (
 	// ID
 	WorkerId string
 
-	// Dirs
-	DirOsk   string // Skin zips
-	DirOsr   string // Replays
-	DirSkins string // Skin directories
-	DirSongs string // Map directories
+	// State
+	Done bool
+
+	// Directories
+	DirOsk     string // Skin zips
+	DirOsr     string // Replays
+	DirOsuBase string // osu! base directory
+	DirSkins   string // Skin directories
+	DirSongs   string // Map directories
+
+	// Screen size
+	ScreenX float64
+	ScreenY float64
 )
 
 func init() {
 	// Global: logging
 	file, err := os.OpenFile("log.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatal("Couldn't open log file:", err)
+		log.Fatal("Couldn't open log file: ", err)
 	}
 	LogWriter = io.MultiWriter(os.Stdout, file)
 	log.SetOutput(LogWriter)
@@ -52,10 +59,10 @@ func init() {
 	// Global: configuration
 	b, err := ioutil.ReadFile("config.yml")
 	if err != nil {
-		log.Fatal("Couldn't read config file:", err)
+		log.Fatal("Couldn't read config file: ", err)
 	}
 	if err = yaml.Unmarshal(b, &Config); err != nil {
-		log.Fatal("Couldn't parse config file:", err)
+		log.Fatal("Couldn't parse config file: ", err)
 	}
 	if Config.ObsPort == 0 {
 		Config.ObsPort = 4444 // Default port.
@@ -68,46 +75,48 @@ func init() {
 		i := rand.Int31n(9999999)
 		usr, err := user.Current()
 		if err != nil {
-			log.Fatal("Couldn't get current user:", err)
+			log.Fatal("Couldn't get current user: ", err)
 		}
 		WorkerId = fmt.Sprintf("%s-%d", usr.Username, i)
 		ioutil.WriteFile("id.txt", []byte(WorkerId), 0644)
 	}
 
-	// Global: Dirs
+	// Global: directories
 	cwd, err := filepath.Abs(".")
 	if err != nil {
-		log.Fatal("Couldn't get current folder:", err)
+		log.Fatal("Couldn't get current folder: ", err)
 	}
 	DirOsk = filepath.Join(cwd, "osk")
 	DirOsr = filepath.Join(cwd, "osr")
-	DirSkins = filepath.Join(filepath.Dir(cwd), "Skins")
-	DirSongs = filepath.Join(filepath.Dir(cwd), "Songs")
+	DirOsuBase = filepath.Dir(cwd)
+	DirSkins = filepath.Join(DirOsuBase, "Skins")
+	DirSongs = filepath.Join(DirOsuBase, "Songs")
+
+	// Global: screen size
+	x, y := robotgo.GetScreenSize()
+	ScreenX, ScreenY = float64(x), float64(y)
 
 	// Per-module initialization
 	if err := InitObs(); err != nil {
-		log.Fatal("OBS initialization failed:", err)
+		log.Fatal("OBS initialization failed: ", err)
 	}
 	if err := InitOsu(); err != nil {
-		log.Fatal("osu! initialization failed:", err)
+		log.Fatal("osu! initialization failed: ", err)
 	}
 	if err := InitJob(); err != nil {
-		log.Fatal("Job initialization failed:", err)
+		log.Fatal("Job initialization failed: ", err)
 	}
 }
 
 func main() {
-	defer cleanup()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
 	go Poll()
-	for {
-		j := <-Jobs
-		Busy = true
-		if err := RunJob(j); err != nil {
-			j.Logger().Println("Job failed:", err)
-		}
-		Busy = false
-	}
+
+	<-stop
+	Done = true
+	cleanup()
 }
 
 func cleanup() {

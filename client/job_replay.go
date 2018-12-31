@@ -7,27 +7,20 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-vgo/robotgo"
-	"github.com/mholt/archiver"
+	"github.com/mitchellh/mapstructure"
 )
 
 func InitReplayJob() error {
-	xi, yi := robotgo.GetScreenSize()
-	x, y := float64(xi), float64(yi)
-
-	startReplayX = int(math.Round(x * replayScaleX))
-	startReplayY = int(math.Round(y * replayScaleY))
-	showGraphX = int(math.Round(x * graphScaleX))
-	showGraphY = int(math.Round(y * graphScaleY))
-	focusOsuX = int(math.Round(x * focusScaleX))
-	focusOsuY = int(math.Round(y * focusScaleY))
-
+	startReplayX = int(math.Round(ScreenX * replayScaleX))
+	startReplayY = int(math.Round(ScreenY * replayScaleY))
+	showGraphX = int(math.Round(ScreenX * graphScaleX))
+	showGraphY = int(math.Round(ScreenY * graphScaleY))
 	return nil
 }
 
@@ -35,7 +28,7 @@ func InitReplayJob() error {
 type ReplayJob struct {
 	JobBase
 	Beatmap struct {
-		BeatmapsetID int `mapstructure:"beatmapset_id"`
+		BeatmapsetId int `mapstructure:"beatmapset_id"`
 	} `mapstructure:"beatmap"`
 	Replay struct {
 		ReplayData string  `mapstructure:"replay_data"` // Base64-encoded .osr file
@@ -43,16 +36,19 @@ type ReplayJob struct {
 	} `mapstructure:"replay"`
 	Skin struct {
 		Name string `mapstructure:"name"`
-		URL  string `mapstructure:"url"`
+		Url  string `mapstructure:"url"`
 	} `mapstructure:"skin"`
 }
 
 // NewReplayJob creates a new replay job.
-func NewReplayJob(b JobBase) ReplayJob {
+func NewReplayJob(b JobBase, data map[string]interface{}) (ReplayJob, error) {
 	j := ReplayJob{}
+	if err := mapstructure.Decode(data, &j); err != nil {
+		return ReplayJob{}, err
+	}
 	j.id = b.id
 	j.logger = b.logger
-	return j
+	return j, nil
 }
 
 // Prepare prepares the replay, beatmap, and skin.
@@ -71,9 +67,12 @@ func (j ReplayJob) Prepare() error {
 
 // Execute records and uploads the replay.
 func (j ReplayJob) Execute() error {
+	UpdateStatus(j, StatusRecording, "")
 	if err := j.record(); err != nil {
 		return err
 	}
+
+	UpdateStatus(j, StatusUploading, "")
 	if err := j.upload(); err != nil {
 		return err
 	}
@@ -86,8 +85,6 @@ const (
 	replayScaleY = 0.7555555555555555
 	graphScaleX  = 0.41354166666666664
 	graphScaleY  = 0.8296296296296296
-	focusScaleX  = 0.1
-	focusScaleY  = 0.5
 )
 
 var (
@@ -96,8 +93,6 @@ var (
 	startReplayY int
 	showGraphX   int
 	showGraphY   int
-	focusOsuX    int
-	focusOsuY    int
 )
 
 // saveReplay saves the .osr replay file so that it can be imported.
@@ -107,6 +102,7 @@ func (j ReplayJob) saveReplay() error {
 	if err != nil {
 		return err
 	}
+	j.Logger().Println("Saving replay to", path)
 	if err = ioutil.WriteFile(path, osr, 0644); err != nil {
 		return err
 	}
@@ -115,15 +111,13 @@ func (j ReplayJob) saveReplay() error {
 
 // getBeatmap ensures that the right beatmap is downloaded to play the replay.
 func (j ReplayJob) getBeatmap() error {
+	j.Logger().Println("Searching for beatmap", j.Beatmap.BeatmapsetId, "in", DirSongs)
 	files, err := ioutil.ReadDir(DirSongs)
 	if err != nil {
 		return err
 	}
 	for _, f := range files {
-		if !f.IsDir() {
-			continue
-		}
-		if strings.HasPrefix(f.Name(), fmt.Sprintf("%d ", j.Beatmap.BeatmapsetID)) {
+		if f.IsDir() && strings.HasPrefix(f.Name(), fmt.Sprintf("%d ", j.Beatmap.BeatmapsetId)) {
 			log.Println("Found existing mapset:", f.Name())
 			return nil
 		}
@@ -135,90 +129,17 @@ func (j ReplayJob) getBeatmap() error {
 func (j ReplayJob) setupSkin() error {
 	skinPath := filepath.Join(DirOsk, j.Skin.Name+".osk")
 	if _, err := os.Stat(skinPath); os.IsNotExist(err) {
-		if err = j.downloadSkin(skinPath); err != nil {
+		j.Logger().Println("Downloading skin from:", j.Skin.Url)
+		if err = DownloadSkin(j.Skin.Url, skinPath); err != nil {
 			j.Logger().Println("Couldn't download skin (using current):", err)
 			return nil
 		}
 	}
-
-	var err error
-	if Config.SimpleSkinLoading {
-		err = j.loadSkinWithExec(skinPath)
-	} else {
-		err = j.loadSkinWithRestart(skinPath)
-	}
-	if err != nil {
+	j.Logger().Println("Loading skin:", skinPath)
+	if err := LoadSkin(skinPath); err != nil {
 		return err
 	}
-
 	return nil
-}
-
-// downloadSkin downloads the job's skin and saves it to dest.
-func (j ReplayJob) downloadSkin(dest string) error {
-	resp, err := http.Get(j.Skin.URL)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("Bad status code: %d", resp.StatusCode)
-	}
-
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if err = ioutil.WriteFile(dest, b, 0644); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// loadSkinsWithExec loads a skin the easy way by simply executing a .osk file.
-// However it doesn't always work for some reason.
-func (j ReplayJob) loadSkinWithExec(path string) error {
-	// Copy the skin because executing it deletes it.
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	dest := filepath.Base(path)
-	if err = ioutil.WriteFile(dest, b, 0644); err != nil {
-		return err
-	}
-	time.Sleep(time.Second * 5) // ???
-	return StartOsu(dest)
-}
-
-// loadSkinWithRestart loads a skin the hard way by manually unzipping the skin,
-// and manually reloading (either by shortcut key or restarting osu!).
-func (j ReplayJob) loadSkinWithRestart(path string) error {
-	dest := filepath.Join(DirSkins, strings.TrimSuffix(path, ".osk"))
-	os.RemoveAll(dest)
-	if err := archiver.DefaultZip.Unarchive(path, dest); err != nil {
-		return err
-	}
-
-	if OsuIsRunning() {
-		j.focusOsu()
-		time.Sleep(time.Second)
-		robotgo.KeyTap("S", "control", "alt", "shift") // TODO: Does this work?
-	} else if err := StartOsu(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// focusOsu focuses the osu! window by clicking on it.
-func (j ReplayJob) focusOsu() {
-	robotgo.MoveMouse(focusOsuX, focusOsuY)
-	for i := 0; i <= 10; i++ {
-		robotgo.MouseClick()
-		time.Sleep(time.Second / 10)
-	}
 }
 
 // startRecording starts the replay recording.
@@ -230,19 +151,22 @@ func (j ReplayJob) startRecording() error {
 	if err := StartRecording(); err != nil {
 		return err
 	}
+	j.Logger().Println("Started recording")
 
 	// Sit on the score screen for a bit.
 	time.Sleep(time.Second * 5)
 
 	// Start the replay.
 	robotgo.MouseClick()
+	j.Logger().Println("Started replay")
 
 	go func() {
 		// Skip any intro.
-		for i := 0; i < 50; i++ {
+		for i := 0; i < 10; i++ {
 			robotgo.KeyTap("space")
-			time.Sleep(time.Second / 10)
+			time.Sleep(time.Second / 5)
 		}
+		HideScoreboard()
 		// Move to the performance graph.
 		robotgo.MoveMouse(showGraphX, showGraphY)
 	}()
@@ -267,7 +191,7 @@ func (j ReplayJob) record() error {
 	time.Sleep(time.Second * 5)
 
 	// Ensure the focus is on the osu! window.
-	j.focusOsu()
+	FocusOsu()
 
 	// This is just a safeguard.
 	defer StopRecording()
@@ -284,7 +208,7 @@ func (j ReplayJob) record() error {
 	robotgo.MoveMouse(showGraphX, showGraphY)
 
 	// Wait on the graph. Better to wait too long than too short.
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 20)
 
 	// Stop the recording.
 	if err := StopRecording(); err != nil {
