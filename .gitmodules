@@ -1,0 +1,3 @@
+[submodule "server/priv/osr-dl"]
+	path = server/priv/osr-dl
+	url = https://github.com/omkelderman/osu-replay-downloader

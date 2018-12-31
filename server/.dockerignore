@@ -5,5 +5,6 @@
 !lib/
 !mix.exs
 !mix.lock
+!priv/osr-dl/
 !priv/reddit.py
 !test/
