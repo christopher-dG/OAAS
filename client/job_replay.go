@@ -31,8 +31,8 @@ type ReplayJob struct {
 		BeatmapsetId int `mapstructure:"beatmapset_id"`
 	} `mapstructure:"beatmap"`
 	Replay struct {
-		ReplayData string  `mapstructure:"replay_data"` // Base64-encoded .osr file
-		Length     float64 `mapstructure:"length"`      // Runtime in seconds
+		Osr    string  `mapstructure:"osr"`    // Base64-encoded .osr file
+		Length float64 `mapstructure:"length"` // Runtime in seconds
 	} `mapstructure:"replay"`
 	Skin struct {
 		Name string `mapstructure:"name"`
@@ -98,7 +98,7 @@ var (
 // saveReplay saves the .osr replay file so that it can be imported.
 func (j ReplayJob) saveReplay() error {
 	path := filepath.Join(DirOsr, fmt.Sprintf("%d.osr", j.Id()))
-	osr, err := base64.StdEncoding.DecodeString(j.Replay.ReplayData)
+	osr, err := base64.StdEncoding.DecodeString(j.Replay.Osr)
 	if err != nil {
 		return err
 	}
