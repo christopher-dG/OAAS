@@ -21,12 +21,13 @@ defmodule OAAS.MixProject do
   defp deps do
     [
       {:cowboy, "~> 2.6"},
-      {:export, "~> 0.1"},
+      {:elixirplusreddit, github: "christopher-dG/ElixirPlusReddit"},
       {:httpoison, "~> 1.5", override: true},
       {:jason, "~> 1.1"},
       {:nostrum, github: "Kraigie/nostrum"},
       {:osu_ex, github: "christopher-dG/osu-ex"},
       {:plug_cowboy, "~> 2.0"},
+      {:poison, "~> 4.0", override: true},
       {:sqlitex, "~> 1.4"},
       {:table_rex, "~> 2.0.0"}
     ]

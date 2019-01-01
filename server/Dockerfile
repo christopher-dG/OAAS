@@ -6,8 +6,8 @@ WORKDIR /root/oaas
 
 ENV MIX_ENV="prod" \
     OSR_DOWNLOADER="/root/oaas/priv/osr-dl/fetch.js" \
-    BUILD_PKGS="gcc musl-dev nodejs-npm py-pip" \
-    PKGS="git nodejs python"
+    BUILD_PKGS="gcc musl-dev nodejs-npm" \
+    PKGS="git nodejs"
 
 COPY . .
 
@@ -15,7 +15,6 @@ RUN sed -i s/OSR_DOWNLOADER/_OSR_DOWNLOADER/g .env && \
     . ./.env && \
     apk update && \
     apk add $BUILD_PKGS $PKGS && \
-    pip --disable-pip-version-check install praw && \
     mix do local.hex --force, local.rebar --force, deps.get, compile && \
     (cd /root/oaas/priv/osr-dl && npm install) && \
     apk del $BUILD_PKGS

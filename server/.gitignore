@@ -25,9 +25,5 @@ oaas-*.tar
 # Ignore database files.
 *.sqlite3
 
-# Ignore Python cache.
-__pycache__/
-*.pyc
-
 # Ignore credential files.
 *.env

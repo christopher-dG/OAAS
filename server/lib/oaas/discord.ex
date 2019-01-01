@@ -88,8 +88,8 @@ defmodule OAAS.Discord do
             notify("Shutting down.")
             :init.stop()
 
-          "New Reddit post:" <> rest ->
-            with [_, p_id] <- Regex.run(~r/https:\/\/redd.it\/(\w+)/i, rest),
+          "New Reddit post" <> rest ->
+            with [_, p_id] <- Regex.run(~r/New Reddit post `(.+)`/i, rest),
                  [_, title] <- Regex.run(~r/Title: `(.+)`/i, rest) do
               case Replay.from_reddit(p_id, title) do
                 {:ok, j} ->
