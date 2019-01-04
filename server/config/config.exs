@@ -1,6 +1,10 @@
 use Mix.Config
 
-config :logger, compile_time_purge_matching: [[application: :nostrum, level_lower_than: :warn]]
+config :logger,
+  compile_time_purge_matching: [
+    [application: :nostrum, level_lower_than: :warn],
+    [module: Reddex.Auth, level_lower_than: :warn]
+  ]
 
 # Your Discord application's bot token: https://discordapp.com/developers/applications/me.
 config :nostrum, token: System.get_env("DISCORD_TOKEN")
@@ -9,14 +13,12 @@ config :nostrum, token: System.get_env("DISCORD_TOKEN")
 config :osu_ex, api_key: System.get_env("OSU_API_KEY")
 
 # Your Reddit credentials: https://www.reddit.com/prefs/apps.
-config :elixirplusreddit,
-  user_agent: System.get_env("REDDIT_USER_AGENT"),
-  creds: [
-    username: System.get_env("REDDIT_USERNAME"),
-    password: System.get_env("REDDIT_PASSWORD"),
-    client_id: System.get_env("REDDIT_CLIENT_ID"),
-    client_secret: System.get_env("REDDIT_CLIENT_SECRET")
-  ]
+config :reddex,
+  username: System.get_env("REDDIT_USERNAME"),
+  password: System.get_env("REDDIT_PASSWORD"),
+  client_id: System.get_env("REDDIT_CLIENT_ID"),
+  client_secret: System.get_env("REDDIT_CLIENT_SECRET"),
+  user_agent: System.get_env("REDDIT_USER_AGENT")
 
 config :oaas,
   # Path to this script: https://github.com/omkelderman/osu-replay-downloader/blob/master/fetch.js.

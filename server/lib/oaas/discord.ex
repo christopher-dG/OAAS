@@ -88,9 +88,9 @@ defmodule OAAS.Discord do
             notify("Shutting down.")
             :init.stop()
 
-          "New Reddit post" <> rest ->
-            with [_, p_id] <- Regex.run(~r/New Reddit post `(.+)`/i, rest),
-                 [_, title] <- Regex.run(~r/Title: `(.+)`/i, rest) do
+          "New Reddit post" <> _s = content ->
+            with [_, p_id] <- Regex.run(~r/New Reddit post `(.+)`/i, content),
+                 [_, title] <- Regex.run(~r/Title: `(.+)`/i, content) do
               case Replay.from_reddit(p_id, title) do
                 {:ok, j} ->
                   notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
@@ -99,6 +99,8 @@ defmodule OAAS.Discord do
                 {:error, reason} ->
                   notify(:error, "Creating job failed.", reason)
               end
+            else
+              nil -> notify(:warn, "Reddit post ID or title could not be parsed.")
             end
 
           _ ->

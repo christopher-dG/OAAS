@@ -73,6 +73,7 @@ defmodule OAAS.Job.Replay do
           beatmap: beatmap,
           replay:
             Map.merge(replay, %{
+              replay_data: nil,
               osr: Base.encode64(osr),
               length: Osu.map_time(beatmap, replay.mods)
             }),
