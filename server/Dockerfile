@@ -5,18 +5,15 @@ FROM elixir:1.7-alpine
 WORKDIR /root/oaas
 
 ENV MIX_ENV="prod" \
-    OSR_DOWNLOADER="/root/oaas/priv/osr-dl/fetch.js" \
-    BUILD_PKGS="gcc musl-dev nodejs-npm" \
-    PKGS="git nodejs"
+    BUILD_PKGS="gcc musl-dev" \
+    PKGS="git"
 
 COPY . .
 
-RUN sed -i s/OSR_DOWNLOADER/_OSR_DOWNLOADER/g .env && \
-    . ./.env && \
+RUN . ./.env && \
     apk update && \
     apk add $BUILD_PKGS $PKGS && \
     mix do local.hex --force, local.rebar --force, deps.get, compile && \
-    (cd /root/oaas/priv/osr-dl && npm install) && \
     apk del $BUILD_PKGS
 
 ENTRYPOINT ["/root/oaas/entrypoint.sh"]

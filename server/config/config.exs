@@ -21,8 +21,6 @@ config :reddex,
   user_agent: System.get_env("REDDIT_USER_AGENT")
 
 config :oaas,
-  # Path to this script: https://github.com/omkelderman/osu-replay-downloader/blob/master/fetch.js.
-  osr_downloader: System.get_env("OSR_DOWNLOADER"),
   # Web server port.
   port: (System.get_env("PORT") || "4000") |> Integer.parse() |> elem(0),
   # Discord bot user ID.

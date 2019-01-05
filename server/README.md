@@ -1,6 +1,14 @@
 # OAAS Server
 
-Setup is most simple with Docker.
+## Without Docker
+
+Install [Elixir](https://elixir-lang.org), [Git](https://git-scm.com), and a [C compiler](https://gcc.gnu.org).
+
+Download dependencies:
+
+```sh
+$ mix do local.hex --force, local.rebar --force, deps.get
+```
 
 Create a `.env` file:
 
@@ -18,20 +26,33 @@ export REDDIT_CLIENT_SECRET="secret"
 export REDDIT_SUBREDDIT="sub"
 ```
 
-Build the image:
+Start the application:
+
+```sh
+mix start --no-halt
+```
+
+List, add or delete API keys like so:
+
+```sh
+$ docker exec oaas mix key.list
+$ docker exec oaas mix key.add [keys...]
+$ docker exec oaas mix key.delete [keys...]
+```
+
+## With Docker
+
+Or, you can use Docker.
+
+With the same `.env` file present, build the image, create a container, and start it:
 
 ```sh
 $ docker build -t oaas .
-```
-
-Create and start it:
-
-```sh
 $ docker create --name oaas -p 4000:4000 oaas
 $ docker start oaas
 ```
 
-List, add or delete API keys like so:
+Manage keys with `docker exec`:
 
 ```sh
 $ docker exec oaas mix key.list

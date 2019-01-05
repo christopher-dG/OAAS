@@ -61,8 +61,8 @@ defmodule OAAS.Job.Replay do
          {:ok, mods} <- extract_mods(title),
          {:ok, %{} = player} <- OsuEx.API.get_user(username, event_days: 31),
          {:ok, %{} = beatmap} <- search_beatmap(player, map_name),
-         {:ok, osr} <- Osu.get_osr(player, beatmap, mods),
-         {:ok, replay} <- OsuEx.Parser.osr(osr) do
+         {:ok, osr} <- OsuEx.Osr.download_replay(beatmap.beatmap_id, player.user_id, mods: mods),
+         {:ok, replay} <- OsuEx.Osr.parse(osr) do
       skin = Osu.skin(player.username)
 
       Job.put(
@@ -92,7 +92,7 @@ defmodule OAAS.Job.Replay do
   @spec from_osr(String.t(), String.t() | nil) :: {:ok, Job.t()} | {:error, term}
   def from_osr(url, skin_override \\ nil) do
     with {:ok, %{body: osr}} <- HTTPoison.get(url),
-         {:ok, replay} = OsuEx.Parser.osr(osr),
+         {:ok, replay} = OsuEx.Osr.parse(osr),
          {:ok, player} = OsuEx.API.get_user(replay.player),
          {:ok, beatmap} = OsuEx.API.get_beatmap(replay.beatmap_md5) do
       skin = Osu.skin(skin_override || player.username)
