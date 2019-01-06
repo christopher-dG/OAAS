@@ -4,6 +4,8 @@ defmodule OAAS.Application do
   use Application
 
   def start(_type, _args) do
+    File.mkdir_p("priv")
+
     children = [
       %{
         start: {Sqlitex.Server, :start_link, ["priv/db_#{Mix.env()}.sqlite3", [name: OAAS.DB]]},

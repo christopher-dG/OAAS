@@ -1,9 +1,7 @@
 module oaas
 
 require (
-	github.com/christopher-dG/go-obs-websocket v0.0.0-20181224025342-2efc3605bff5
 	github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 // indirect
-	github.com/go-vgo/robotgo v0.0.0-20181230160429-6550f4af6738
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mitchellh/mapstructure v1.1.2

@@ -1,9 +1,3 @@
-api_url: http://localhost:1234
+api_url: http://localhost:4000
 api_key: key
-
-# Comment this out if loading skins doesn't work.
-simple_skin_loading: true
-
-# Uncomment these if you don't use the default OBS Websocket settings.
-# obs_port: 1234
-# obs_password: password
+obs_out_dir: C:\dir

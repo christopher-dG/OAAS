@@ -8,6 +8,8 @@ defmodule OAAS.Utils do
   @doc "Starts the database."
   @spec start_db :: :ok | {:error, term}
   def start_db do
+    File.mkdir_p("priv")
+
     with {:ok, _} <- Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: OAAS.DB),
          {:ok, _} <- DB.start_link([]) do
       :ok

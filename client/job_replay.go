@@ -8,21 +8,13 @@ import (
 	"log"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"time"
 
-	"github.com/go-vgo/robotgo"
 	"github.com/mitchellh/mapstructure"
 )
-
-func InitReplayJob() error {
-	startReplayX = int(math.Round(ScreenX * replayScaleX))
-	startReplayY = int(math.Round(ScreenY * replayScaleY))
-	showGraphX = int(math.Round(ScreenX * graphScaleX))
-	showGraphY = int(math.Round(ScreenY * graphScaleY))
-	return nil
-}
 
 // ReplayJob is a replay recording/uploading job.
 type ReplayJob struct {
@@ -68,7 +60,11 @@ func (j ReplayJob) Prepare() error {
 // Execute records and uploads the replay.
 func (j ReplayJob) Execute() error {
 	UpdateStatus(j, StatusRecording, "")
-	if err := j.record(); err != nil {
+	if err := exec.Command(
+		"record-replay.exe",
+		filepath.Join(DirOsr, fmt.Sprintf("%d.osr", j.Id())),
+		strconv.Itoa(int(math.Round(j.Replay.Length))),
+	).Run(); err != nil {
 		return err
 	}
 
@@ -78,22 +74,6 @@ func (j ReplayJob) Execute() error {
 	}
 	return nil
 }
-
-const (
-	// Pixel ratios
-	replayScaleX = 0.8546875
-	replayScaleY = 0.7555555555555555
-	graphScaleX  = 0.41354166666666664
-	graphScaleY  = 0.8296296296296296
-)
-
-var (
-	// Pixel coordinates
-	startReplayX int
-	startReplayY int
-	showGraphX   int
-	showGraphY   int
-)
 
 // saveReplay saves the .osr replay file so that it can be imported.
 func (j ReplayJob) saveReplay() error {
@@ -139,82 +119,6 @@ func (j ReplayJob) setupSkin() error {
 	if err := LoadSkin(skinPath); err != nil {
 		return err
 	}
-	return nil
-}
-
-// startRecording starts the replay recording.
-func (j ReplayJob) startRecording() error {
-	// Move to the replay button.
-	robotgo.MoveMouse(startReplayX, startReplayY)
-
-	// Start the recording.
-	if err := StartRecording(); err != nil {
-		return err
-	}
-	j.Logger().Println("Started recording")
-
-	// Sit on the score screen for a bit.
-	time.Sleep(time.Second * 5)
-
-	// Start the replay.
-	robotgo.MouseClick()
-	j.Logger().Println("Started replay")
-
-	go func() {
-		// Skip any intro.
-		for i := 0; i < 10; i++ {
-			robotgo.KeyTap("space")
-			time.Sleep(time.Second / 5)
-		}
-		HideScoreboard()
-		// Move to the performance graph.
-		robotgo.MoveMouse(showGraphX, showGraphY)
-	}()
-
-	return nil
-}
-
-// record records the replay.
-func (j ReplayJob) record() error {
-	// Check that the replay file exists.
-	osr := filepath.Join(DirOsr, fmt.Sprintf("%d.osr", j.Id()))
-	if _, err := os.Stat(osr); os.IsNotExist(err) {
-		return err
-	}
-
-	// Load the replay.
-	if err := StartOsu(osr); err != nil {
-		return err
-	}
-
-	// Give it time to load.
-	time.Sleep(time.Second * 5)
-
-	// Ensure the focus is on the osu! window.
-	FocusOsu()
-
-	// This is just a safeguard.
-	defer StopRecording()
-
-	// Start recording.
-	if err := j.startRecording(); err != nil {
-		return err
-	}
-
-	// Wait for the replay to end.
-	time.Sleep(time.Second * time.Duration(j.Replay.Length))
-
-	// Move the the performance graph (this should already be done, but just in case).
-	robotgo.MoveMouse(showGraphX, showGraphY)
-
-	// Wait on the graph. Better to wait too long than too short.
-	time.Sleep(time.Second * 20)
-
-	// Stop the recording.
-	if err := StopRecording(); err != nil {
-		return err
-	}
-
 	return nil
 }
 

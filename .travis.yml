@@ -3,7 +3,7 @@ matrix:
   include:
     - language: elixir
       elixir: 1.7
-      otp_release: 21.0
+      otp_release: 21.2
       before_install: cd server
       script:
         - mix test --no-start --cover

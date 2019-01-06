@@ -16,13 +16,6 @@ const (
 	StatusFailed     = 8
 )
 
-func InitJob() error {
-	if err := InitReplayJob(); err != nil {
-		return err
-	}
-	return nil
-}
-
 // JobBase is common job data.
 type JobBase struct {
 	id     int

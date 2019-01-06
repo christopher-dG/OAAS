@@ -1,37 +1,33 @@
 # OAAS Client
 
-Install the [Go compiler](https://golang.org), and dependencies for [robotgo](https://github.com/go-vgo/robotgo#requirements).
+The client is Windows-only; these instructions assume that you're cross-compiling from Linux.
+
+Install the [Go compiler](https://golang.org) and [AutoHotkey](https://autohotkey.com) (with [Wine](https://www.winehq.org)).
 
 Compile the client:
 
 ```sh
-$ go build
+$ GOOS=windows go build -o OAAS/oaas.exe
 ```
 
-Put it in `OAAS`:
+Compile any scripts in `ahk/` excluding `base.ahk`:
 
 ```sh
-$ cp oaas OAAS
+$ Ahk2Exe.exe /in ahk/record-replay.ahk /out OAAS/record-replay.exe
 ```
 
-Edit `config.yml` to match your server and system configuration:
+Update `OAAS/config.yml` to match your server configuration:
 
 ```yaml
-api_url: http://localhost:4000
-api_ley: key
-simple_skin_loading: true
-obs_port: 4444
-obs_password: password
+api_url: The server URL.
 ```
 
-Move the folder to your osu! install directory:
+Copy `OAAS/` to the osu! install directories of your client computers.
+On each of them, update `config.yml` again:
 
-```sh
-$ cp -r OAAS ~/osu!
+```yaml
+api_key: An API key created that has been added to the server.
+obs_out_dir: The directory that OBS is configured to output recordings.
 ```
 
-Run the client:
-
-```sh
-$  ./oaas
-```
+Run the client by simply executing it.

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/go-vgo/robotgo"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -22,11 +21,9 @@ var (
 
 	// Configuration
 	Config = struct {
-		ApiUrl            string `yaml:"api_url"`
-		ApiKey            string `yaml:"api_key"`
-		ObsPort           int    `yaml:"obs_port"`
-		ObsPassword       string `yaml:"obs_password"`
-		SimpleSkinLoading bool   `yaml:"simple_skin_loading"`
+		ApiUrl    string `yaml:"api_url"`
+		ApiKey    string `yaml:"api_key"`
+		ObsOutDir string `yaml:"obs_out_dir"`
 	}{}
 
 	// ID
@@ -41,10 +38,6 @@ var (
 	DirOsuBase string // osu! base directory
 	DirSkins   string // Skin directories
 	DirSongs   string // Map directories
-
-	// Screen size
-	ScreenX float64
-	ScreenY float64
 )
 
 func init() {
@@ -63,9 +56,6 @@ func init() {
 	}
 	if err = yaml.Unmarshal(b, &Config); err != nil {
 		log.Fatal("Couldn't parse config file: ", err)
-	}
-	if Config.ObsPort == 0 {
-		Config.ObsPort = 4444 // Default port.
 	}
 
 	// Global: ID
@@ -92,19 +82,8 @@ func init() {
 	DirSkins = filepath.Join(DirOsuBase, "Skins")
 	DirSongs = filepath.Join(DirOsuBase, "Songs")
 
-	// Global: screen size
-	x, y := robotgo.GetScreenSize()
-	ScreenX, ScreenY = float64(x), float64(y)
-
-	// Per-module initialization
-	if err := InitObs(); err != nil {
-		log.Fatal("OBS initialization failed: ", err)
-	}
 	if err := InitOsu(); err != nil {
 		log.Fatal("osu! initialization failed: ", err)
-	}
-	if err := InitJob(); err != nil {
-		log.Fatal("Job initialization failed: ", err)
 	}
 }
 
@@ -120,6 +99,5 @@ func main() {
 }
 
 func cleanup() {
-	CleanupObs()
 	CleanupOsu()
 }

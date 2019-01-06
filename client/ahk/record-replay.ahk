@@ -7,8 +7,7 @@ perfGraphX    := A_ScreenWidth  * 0.40
 perfGraphY    := A_ScreenHeight * 0.85
 
 ; Arguments are the .osr file path, and the replay length in seconds.
-; osr := A_Args[1]
-osr := "replay.osr"
+osr := A_Args[1]
 length := A_Args[2] + 0
 
 ; Load the skin and replay. We have to do this in a weird way because reloading the skin
