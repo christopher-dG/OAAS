@@ -2,33 +2,41 @@
 SendMode, Input
 SetWorkingDir, %A_ScriptDir%
 
-; Run osu! with an optional argument.
-RunOsu(arg := "") {
-    SplitPath, A_ScriptDir,, osuDir
-    cmd := osuDir . "`\osu!.exe " . arg
-    Run, %cmd%
-}
-
 ; Start recording with OBS.
 StartRecording() {
-    Send, ^+!o
+    Send, {Ctrl down}{Alt down}{Shift down}{o down}
+    Sleep, 100
+    Send, {Ctrl up}{Alt up}{Shift up}{o up}
 }
 
 ; Stop recording with OBS.
 StopRecording() {
-    Send, ^+!p
+    Send, {Ctrl down}{Alt down}{Shift down}{p down}
+    Sleep, 100
+    Send, {Ctrl up}{Alt up}{Shift up}{p up}
 }
 
 ; Reload the current skin.
 ReloadSkin() {
+    EnsureOsuStarted()
     WinActivate, osu!
     Send, {Ctrl down}{Alt down}{Shift down}{s down}
     Sleep, 100
     Send, {Ctrl up}{Alt up}{Shift up}{s up}
 }
 
+; Make sure that osu! is running.
+EnsureOsuStarted() {
+    if !WinExist("osu!") {
+        SplitPath, A_ScriptDir,, osuDir
+        cmd := osuDir . "`\osu!.exe "
+        Run, %cmd%
+        Sleep, 5000
+    }
+}
+
 ; Get the ahk_class of the osu! window.
 OsuAhkClass() {
     WinGetClass, class, osu!.exe
-    Return, "ahk_class" . class
+    Return, "ahk_class " . class
 }

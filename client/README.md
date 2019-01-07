@@ -30,4 +30,8 @@ api_key: An API key created that has been added to the server.
 obs_out_dir: The directory that OBS is configured to output recordings.
 ```
 
+OBS must be configured manually, no settings are changed by the client.
+Keyboard shortcuts must also be set up to start and stop recording.
+Start is `CTRL + ALT + SHIFT + O`, and stop is the same but with `P`.
+
 Run the client by simply executing it.

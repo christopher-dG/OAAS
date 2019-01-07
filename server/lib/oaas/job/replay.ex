@@ -69,7 +69,7 @@ defmodule OAAS.Job.Replay do
         type: Job.type(__MODULE__),
         status: Job.status(:pending),
         data: %__MODULE__{
-          player: Map.drop(player, [:events]),
+          player: Map.delete(player, :events),
           beatmap: beatmap,
           replay:
             Map.merge(replay, %{
@@ -101,10 +101,11 @@ defmodule OAAS.Job.Replay do
         type: Job.type(__MODULE__),
         status: Job.status(:pending),
         data: %__MODULE__{
-          player: Map.drop(player, [:events]),
+          player: Map.delete(player, :events),
           beatmap: beatmap,
           replay:
             Map.merge(replay, %{
+              replay_data: nil,
               osr: Base.encode64(osr),
               length: Osu.map_time(beatmap, replay.mods)
             }),

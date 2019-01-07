@@ -6,11 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
-
-	"github.com/mholt/archiver"
 )
 
 func InitOsu() error {
@@ -38,8 +35,6 @@ func InitOsu() error {
 	if err = ioutil.WriteFile(osuCfg, append(b, cfgEdits...), 0644); err != nil {
 		return err
 	}
-
-	os.Mkdir(filepath.Join(DirSkins, scratchSkin), os.ModePerm)
 
 	return nil
 }
@@ -75,19 +70,6 @@ func DownloadSkin(url, dest string) error {
 	return nil
 }
 
-// LoadSkin prepares a skin to be reloaded with the osu! keyboard shortcut.
-func LoadSkin(path string) error {
-	dest := filepath.Join(DirSkins, scratchSkin)
-	os.RemoveAll(dest)
-	if err := archiver.DefaultZip.Unarchive(path, dest); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-const scratchSkin = "OAAS Scratch Skin"
-
 var (
 	osuCfg   string
 	cfgRegex = regexp.MustCompile(`^osu!\..+\.cfg$`)
@@ -99,7 +81,9 @@ Fullscreen = 1
 DimLevel = 100
 FpsCounter =
 FrameTimeDisplay =
+IgnoreBeatmapSamples = 1
 IgnoreBeatmapSkins = 1
 ShowReplayComments =
-Skin = ` + scratchSkin + "\n")
+KeyOverlay = 1
+`)
 )

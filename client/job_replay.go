@@ -30,39 +30,44 @@ type ReplayJob struct {
 		Name string `mapstructure:"name"`
 		Url  string `mapstructure:"url"`
 	} `mapstructure:"skin"`
+	runtime struct {
+		Osk string // Path to the skin on disk
+		Osr string // Path to the replay on disk
+	}
 }
 
 // NewReplayJob creates a new replay job.
-func NewReplayJob(b JobBase, data map[string]interface{}) (ReplayJob, error) {
+func NewReplayJob(b JobBase, data map[string]interface{}) (*ReplayJob, error) {
 	j := ReplayJob{}
 	if err := mapstructure.Decode(data, &j); err != nil {
-		return ReplayJob{}, err
+		return nil, err
 	}
 	j.id = b.id
 	j.logger = b.logger
-	return j, nil
+	return &j, nil
 }
 
 // Prepare prepares the replay, beatmap, and skin.
-func (j ReplayJob) Prepare() error {
+func (j *ReplayJob) Prepare() error {
 	if err := j.saveReplay(); err != nil {
 		return err
 	}
 	if err := j.getBeatmap(); err != nil {
 		return err
 	}
-	if err := j.setupSkin(); err != nil {
+	if err := j.downloadSkin(); err != nil {
 		return err
 	}
 	return nil
 }
 
 // Execute records and uploads the replay.
-func (j ReplayJob) Execute() error {
+func (j *ReplayJob) Execute() error {
 	UpdateStatus(j, StatusRecording, "")
 	if err := exec.Command(
 		"record-replay.exe",
-		filepath.Join(DirOsr, fmt.Sprintf("%d.osr", j.Id())),
+		j.runtime.Osk,
+		j.runtime.Osr,
 		strconv.Itoa(int(math.Round(j.Replay.Length))),
 	).Run(); err != nil {
 		return err
@@ -76,7 +81,7 @@ func (j ReplayJob) Execute() error {
 }
 
 // saveReplay saves the .osr replay file so that it can be imported.
-func (j ReplayJob) saveReplay() error {
+func (j *ReplayJob) saveReplay() error {
 	path := filepath.Join(DirOsr, fmt.Sprintf("%d.osr", j.Id()))
 	osr, err := base64.StdEncoding.DecodeString(j.Replay.Osr)
 	if err != nil {
@@ -86,11 +91,12 @@ func (j ReplayJob) saveReplay() error {
 	if err = ioutil.WriteFile(path, osr, 0644); err != nil {
 		return err
 	}
+	j.runtime.Osr = path
 	return nil
 }
 
 // getBeatmap ensures that the right beatmap is downloaded to play the replay.
-func (j ReplayJob) getBeatmap() error {
+func (j *ReplayJob) getBeatmap() error {
 	j.Logger().Println("Searching for beatmap", j.Beatmap.BeatmapsetId, "in", DirSongs)
 	files, err := ioutil.ReadDir(DirSongs)
 	if err != nil {
@@ -105,8 +111,8 @@ func (j ReplayJob) getBeatmap() error {
 	return errors.New("Mapset not found or downloaded")
 }
 
-// setupSkin installs the player's skin.
-func (j ReplayJob) setupSkin() error {
+// downloadSkin downloads the player's skin.
+func (j *ReplayJob) downloadSkin() error {
 	skinPath := filepath.Join(DirOsk, j.Skin.Name+".osk")
 	if _, err := os.Stat(skinPath); os.IsNotExist(err) {
 		j.Logger().Println("Downloading skin from:", j.Skin.Url)
@@ -115,14 +121,11 @@ func (j ReplayJob) setupSkin() error {
 			return nil
 		}
 	}
-	j.Logger().Println("Loading skin:", skinPath)
-	if err := LoadSkin(skinPath); err != nil {
-		return err
-	}
+	j.runtime.Osk = skinPath
 	return nil
 }
 
 // upload uploads a newly recorded video.
-func (j ReplayJob) upload() error {
+func (j *ReplayJob) upload() error {
 	return nil
 }
