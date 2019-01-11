@@ -10,7 +10,11 @@ defmodule OAAS.Reddit do
   @subreddit Application.get_env(:oaas, :reddit_subreddit)
 
   def start_link(_args) do
-    Task.start_link(&process_posts/0)
+    if Mix.env() === :test do
+      {:ok, self()}
+    else
+      Task.start_link(&process_posts/0)
+    end
   end
 
   def child_spec(opts) do
