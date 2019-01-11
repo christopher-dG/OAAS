@@ -128,10 +128,10 @@ defmodule OAAS.Osu do
 
   @doc "Gets the milliseconds from beginning of first object to end of last."
   @spec replay_length(map, integer) :: integer
-  def replay_length(%{beatmap_id: beatmap, total_length: total_length}, mods \\ 0) do
+  def replay_length(%{beatmap_id: beatmap_id, total_length: total_length}, mods \\ 0) do
     len =
       try do
-        %{status_code: 200, body: osu} = HTTPoison.get!("https://osu.ppy.sh/osu/#{beatmap}")
+        %{status_code: 200, body: osu} = HTTPoison.get!("https://osu.ppy.sh/osu/#{beatmap_id}")
 
         lines =
           osu
@@ -172,7 +172,7 @@ defmodule OAAS.Osu do
                     {:halt, acc}
                   else
                     case first_match_float!(~r/(.*?),/, tp) do
-                      n when n > last_start -> {:halt, IO.inspect(acc)}
+                      n when n > last_start -> {:halt, acc}
                       _ -> {:cont, tp}
                     end
                   end
@@ -184,7 +184,7 @@ defmodule OAAS.Osu do
                   n -> base_duration * abs(n) / 100
                 end
 
-              pixel_length = first_match_float!(~r/(?:.*?,){7}(.*?),/, last_ho)
+              pixel_length = first_match_float!(~r/(?:.*?,){7}([^,]+)/, last_ho)
 
               slider_multiplier =
                 case Regex.run(~r/SliderMultiplier:(.*)/, osu) do
@@ -202,9 +202,9 @@ defmodule OAAS.Osu do
         last_end - start_ms
       rescue
         reason ->
-          notify(:warn, "Getting exact beatmap length failed", reason)
+          notify(:warn, "Getting exact beatmap length failed.", reason)
           total_length * 1000
-    end
+      end
 
     len =
       cond do
