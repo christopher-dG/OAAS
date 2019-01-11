@@ -1,6 +1,7 @@
 defmodule OAAS.Osu do
   @moduledoc "osu!-related utility functions."
 
+  import OAAS.Utils
   use Bitwise, only_operators: true
 
   @doc "Defines the game mode enum."
@@ -55,19 +56,6 @@ defmodule OAAS.Osu do
     |> Enum.reduce(0, fn mod, acc ->
       acc + Keyword.get(@mods, String.to_atom(mod), 0)
     end)
-  end
-
-  @doc "Computes the actual runtime of a beatmap, given its mods."
-  @spec map_time(map, integer) :: float
-  def map_time(%{total_length: len}, mods) do
-    dt = Keyword.get(@mods, :DT)
-    ht = Keyword.get(@mods, :HT)
-
-    cond do
-      (mods &&& dt) === dt -> len / 1.5
-      (mods &&& ht) === ht -> len * 1.5
-      true -> len + 0.0
-    end
   end
 
   @doc "Converts a replay into its accuracy, in percent."
@@ -131,5 +119,120 @@ defmodule OAAS.Osu do
       {:ok, [_score]} -> {:error, :no_pp}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  @ho_time_type_re ~r/.*?,.*?,(.*?),(.*?),/
+  @tp_duration_re ~r/.*?,(.*?),/
+  @dt Keyword.get(@mods, :DT)
+  @ht Keyword.get(@mods, :HT)
+
+  @doc "Gets the milliseconds from beginning of first object to end of last."
+  @spec replay_length(map, integer) :: integer
+  def replay_length(%{beatmap_id: beatmap, total_length: total_length}, mods \\ 0) do
+    len =
+      try do
+        %{status_code: 200, body: osu} = HTTPoison.get!("https://osu.ppy.sh/osu/#{beatmap}")
+
+        lines =
+          osu
+          |> String.split("\n")
+          |> Enum.reject(&(String.trim(&1) == ""))
+
+        hos_start = Enum.find_index(lines, &String.contains?(&1, "[HitObjects]")) + 1
+        hos = Enum.slice(lines, hos_start..length(lines))
+        hos_end = (Enum.find_index(hos, &String.contains?(&1, "[")) || length(hos)) - 1
+        first_ho = hd(hos)
+        last_ho = Enum.at(hos, hos_end)
+        start_ms = first_match_float!(@ho_time_type_re, first_ho)
+
+        [_, last_start, last_type] = Regex.run(@ho_time_type_re, last_ho)
+        last_start = parse_float!(last_start)
+
+        last_type =
+          last_type
+          |> parse_float!()
+          |> round()
+
+        last_end =
+          cond do
+            (last_type &&& 1) == 1 ->
+              # Circle: Ends when it starts.
+              last_start
+
+            (last_type &&& 2) == 2 ->
+              # Slider: Depends on a few beatmap variables, timing points, and the slider length.
+              tps_start = Enum.find_index(lines, &String.contains?(&1, "[TimingPoints]")) + 1
+              first_tp = Enum.at(lines, tps_start)
+              base_duration = first_match_float!(@tp_duration_re, first_tp)
+              tps = Enum.slice(lines, tps_start..length(lines))
+
+              last_tp =
+                Enum.reduce_while(tps, first_tp, fn tp, acc ->
+                  if String.contains?(tp, "[") do
+                    {:halt, acc}
+                  else
+                    case first_match_float!(~r/(.*?),/, tp) do
+                      n when n > last_start -> {:halt, IO.inspect(acc)}
+                      _ -> {:cont, tp}
+                    end
+                  end
+                end)
+
+              last_duration =
+                case first_match_float!(~r/.*?,(.*?),/, last_tp) do
+                  n when n >= 0 -> n
+                  n -> base_duration * abs(n) / 100
+                end
+
+              pixel_length = first_match_float!(~r/(?:.*?,){7}(.*?),/, last_ho)
+
+              slider_multiplier =
+                case Regex.run(~r/SliderMultiplier:(.*)/, osu) do
+                  [_, n] -> parse_float!(n)
+                  nil -> 1.4
+                end
+
+              last_start + pixel_length / (100 * slider_multiplier) * last_duration
+
+            (last_type &&& 8) == 8 ->
+              # Spinner: Has an end time component.
+              first_match_float!(~r/(?:.*?,){5}([^,]+)/, last_ho)
+          end
+
+        last_end - start_ms
+      rescue
+        reason ->
+          notify(:warn, "Getting exact beatmap length failed", reason)
+          total_length * 1000
+    end
+
+    len =
+      cond do
+        (mods &&& @dt) === @dt -> len / 1.5
+        (mods &&& @ht) === @ht -> len * 1.5
+        true -> len
+      end
+
+    round(len)
+  end
+
+  # Parse a float that is known to be valid.
+  @spec parse_float!(String.t()) :: float
+  defp parse_float!(s) do
+    {n, ""} =
+      s
+      |> String.trim()
+      |> Float.parse()
+
+    n
+  end
+
+  # Extract a float with a regex.
+  @spec first_match_float!(Regex.t(), String.t()) :: float
+  defp first_match_float!(regex, string) do
+    regex
+    |> Regex.run(string)
+    |> Enum.at(1)
+    |> parse_float!()
   end
 end

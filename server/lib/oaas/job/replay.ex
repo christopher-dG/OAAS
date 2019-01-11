@@ -18,7 +18,7 @@ defmodule OAAS.Job.Replay do
             title: String.t(),
             version: String.t()
           },
-          replay: %{osr: String.t(), length: float},
+          replay: %{osr: String.t(), length: integer},
           youtube: %{title: String.t(), description: String.t()},
           skin: %{name: String.t(), url: String.t()},
           reddit_id: String.t() | nil
@@ -75,7 +75,7 @@ defmodule OAAS.Job.Replay do
             Map.merge(replay, %{
               replay_data: nil,
               osr: Base.encode64(osr),
-              length: Osu.map_time(beatmap, replay.mods)
+              length: Osu.replay_length(beatmap, replay.mods)
             }),
           youtube: youtube_data(player, beatmap, replay, skin),
           skin: skin,
@@ -107,7 +107,7 @@ defmodule OAAS.Job.Replay do
             Map.merge(replay, %{
               replay_data: nil,
               osr: Base.encode64(osr),
-              length: Osu.map_time(beatmap, replay.mods)
+              length: Osu.replay_length(beatmap, replay.mods)
             }),
           youtube: youtube_data(player, beatmap, replay, skin),
           skin: skin

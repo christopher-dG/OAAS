@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,8 +22,8 @@ type ReplayJob struct {
 		BeatmapsetId int `mapstructure:"beatmapset_id"`
 	} `mapstructure:"beatmap"`
 	Replay struct {
-		Osr    string  `mapstructure:"osr"`    // Base64-encoded .osr file
-		Length float64 `mapstructure:"length"` // Runtime in seconds
+		Osr    string `mapstructure:"osr"`    // Base64-encoded .osr file
+		Length int    `mapstructure:"length"` // Runtime in seconds
 	} `mapstructure:"replay"`
 	Skin struct {
 		Name string `mapstructure:"name"`
@@ -68,7 +67,7 @@ func (j *ReplayJob) Execute() error {
 		"record-replay.exe",
 		j.runtime.Osk,
 		j.runtime.Osr,
-		strconv.Itoa(int(math.Round(j.Replay.Length))),
+		strconv.Itoa(j.Replay.Length),
 	).Run(); err != nil {
 		return err
 	}
