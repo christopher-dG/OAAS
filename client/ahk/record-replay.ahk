@@ -6,7 +6,7 @@ replayButtonY := Round(A_ScreenHeight * 0.75)
 perfGraphX    := Round(A_ScreenWidth  * 0.40)
 perfGraphY    := Round(A_ScreenHeight * 0.85)
 
-; Arguments are the .osk skin path, the .osr file path, and the replay length in seconds.
+; Arguments are the .osk skin path, the .osr file path, and the replay length in ms.
 osk := A_Args[1]
 osr := A_Args[2]
 length := A_Args[3] + 0

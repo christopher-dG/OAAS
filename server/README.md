@@ -35,9 +35,9 @@ mix start --no-halt
 List, add or delete API keys like so:
 
 ```sh
-$ docker exec oaas mix key.list
-$ docker exec oaas mix key.add [keys...]
-$ docker exec oaas mix key.delete [keys...]
+$ oaas mix key.list
+$ mix key.add [keys...]
+$ mix key.delete [keys...]
 ```
 
 ## With Docker
