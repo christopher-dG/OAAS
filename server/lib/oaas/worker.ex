@@ -41,8 +41,14 @@ defmodule OAAS.Worker do
 
   @doc "Determines whether a worker is online."
   @spec online?(t) :: boolean
-  def online?(w) do
+  def online?(%{current_job_id: nil} = w) do
     System.system_time(:millisecond) - (w.last_poll || 0) <= @online_threshold
+  end
+
+  def online?(_w) do
+    # Since workers don't poll while doing a job, we assume that any worker with a job is online.
+    # If they go offline mid job, they'll eventually be unassigned from the job.
+    true
   end
 
   @doc "Gets all available workers (online + not busy)."
