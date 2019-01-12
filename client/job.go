@@ -18,34 +18,45 @@ const (
 
 // JobBase is common job data.
 type JobBase struct {
-	id     int
-	logger *log.Logger
+	id      int
+	logger  *log.Logger
+	comment string
 }
 
 // Id returns the job's ID.
-func (j JobBase) Id() int {
+func (j *JobBase) Id() int {
 	return j.id
 }
 
 // Logger returns the job logger.
-func (j JobBase) Logger() *log.Logger {
+func (j *JobBase) Logger() *log.Logger {
 	return j.logger
 }
 
+// Comment gets the job's comment.
+func (j *JobBase) Comment() string {
+	return j.comment
+}
+
+// SetComment sets the job's comment.
+func (j *JobBase) SetComment(s string) {
+	j.comment = s
+}
+
 // Prepare prepares the job.
-func (j JobBase) Prepare() error {
+func (j *JobBase) Prepare() error {
 	j.Logger().Println("Prepare: Nothing to do")
 	return nil
 }
 
 // Execute executes the job.
-func (j JobBase) Execute() error {
+func (j *JobBase) Execute() error {
 	j.Logger().Println("Execute: Nothing to do")
 	return nil
 }
 
 // Cleanup cleans up the job.
-func (j JobBase) Cleanup() error {
+func (j *JobBase) Cleanup() error {
 	j.Logger().Println("Cleanup: Nothing to do")
 	return nil
 }
@@ -54,6 +65,8 @@ func (j JobBase) Cleanup() error {
 type Job interface {
 	Id() int
 	Logger() *log.Logger
+	Comment() string
+	SetComment(string)
 	Prepare() error
 	Execute() error
 	Cleanup() error
@@ -61,28 +74,31 @@ type Job interface {
 
 // RunJob runs a job.
 func RunJob(j Job) error {
-	UpdateStatus(j, StatusPreparing, "")
+	UpdateStatus(j, StatusPreparing)
 	if err := j.Prepare(); err != nil {
 		j.Logger().Println("Job preparation failed:", err)
-		UpdateStatus(j, StatusFailed, err.Error())
+		j.SetComment(err.Error())
+		UpdateStatus(j, StatusFailed)
 		return err
 	}
 
-	UpdateStatus(j, StatusExecuting, "")
+	UpdateStatus(j, StatusExecuting)
 	if err := j.Execute(); err != nil {
 		j.Logger().Println("Job execution failed:", err)
-		UpdateStatus(j, StatusFailed, err.Error())
+		j.SetComment(err.Error())
+		UpdateStatus(j, StatusFailed)
 		return err
 	}
 
-	UpdateStatus(j, StatusCleanup, "")
+	UpdateStatus(j, StatusCleanup)
 	if err := j.Cleanup(); err != nil {
 		j.Logger().Println("Job cleanup failed:", err)
-		UpdateStatus(j, StatusFailed, err.Error())
+		j.SetComment(err.Error())
+		UpdateStatus(j, StatusFailed)
 		return err
 	}
 
-	UpdateStatus(j, StatusSuccessful, "")
+	UpdateStatus(j, StatusSuccessful)
 	return nil
 }
 
@@ -111,19 +127,17 @@ func NewJob(data []byte) (Job, error) {
 }
 
 // UpdateStatus updates a job's status.
-func UpdateStatus(j Job, status int, comment string) {
+func UpdateStatus(j Job, status int) {
 	j.Logger().Println("Updating status to", status)
 	body := map[string]interface{}{
 		"worker": WorkerId,
 		"job":    j.Id(),
 		"status": status,
-		"comment": func() interface{} {
-			if comment == "" {
-				return nil
-			} else {
-				return comment
-			}
-		}(),
+	}
+	if j.Comment() == "" {
+		body["comment"] = nil
+	} else {
+		body["comment"] = j.Comment()
 	}
 	PostRequest(endpointStatus, body, j.Logger())
 }

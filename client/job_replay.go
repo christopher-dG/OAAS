@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -38,7 +37,6 @@ type ReplayJob struct {
 	runtime struct {
 		Osk string // Path to the skin on disk
 		Osr string // Path to the replay on disk
-		Mp4 string // Path to the recorded video file on disk.
 	}
 }
 
@@ -69,7 +67,7 @@ func (j *ReplayJob) Prepare() error {
 
 // Execute records and uploads the replay.
 func (j *ReplayJob) Execute() error {
-	UpdateStatus(j, StatusRecording, "")
+	UpdateStatus(j, StatusRecording)
 	if err := exec.Command(
 		"record-replay.exe",
 		j.runtime.Osk,
@@ -79,7 +77,7 @@ func (j *ReplayJob) Execute() error {
 		return err
 	}
 
-	UpdateStatus(j, StatusUploading, "")
+	UpdateStatus(j, StatusUploading)
 	if err := j.upload(); err != nil {
 		return err
 	}
@@ -133,53 +131,14 @@ func (j *ReplayJob) downloadSkin() error {
 
 // upload uploads a newly recorded video.
 func (j *ReplayJob) upload() error {
-	mp4, err := j.mostRecentVideo()
+	mp4, err := MostRecentVideo()
 	if err != nil {
 		return err
 	}
-	j.runtime.Mp4 = mp4
-	switch Config.Uploader {
-	case "youtube":
-		return j.uploadYouTube()
-	default:
-		return errors.New("No uploader is configured")
-	}
-}
-
-// uploadYouTube uploads a video to YouTube.
-func (j *ReplayJob) uploadYouTube() error {
-	cmd := exec.Command(
-		"youtube-uploader.exe",
-		"-filename", j.runtime.Mp4,
-		"-categoryId", "20", // Gaming category.
-		"-title", j.Upload.Title,
-		"-description", j.Upload.Description,
-		"-tags", strings.Join(j.Upload.Tags, ","),
-	)
-	b, err := cmd.CombinedOutput()
-	fmt.Println(string(b))
-	return err
-}
-
-// mostRecentVideo finds the newest video file in the OBS output directory.
-func (j *ReplayJob) mostRecentVideo() (string, error) {
-	fs, err := ioutil.ReadDir(Config.ObsOutDir)
+	url, err := Upload(mp4, j.Upload.Title, j.Upload.Description, j.Upload.Tags)
 	if err != nil {
-		return "", err
+		return err
 	}
-	fn := ""
-	newest := time.Time{}
-	for _, f := range fs {
-		if strings.HasSuffix(f.Name(), ".mp4") && !f.IsDir() && f.ModTime().After(newest) {
-			fn = f.Name()
-			newest = f.ModTime()
-		}
-	}
-	if fn == "" {
-		return "", errors.New("Didn't find any video files")
-	}
-	if time.Since(newest) > time.Minute {
-		return "", errors.New("A video file was found, but it was too old")
-	}
-	return filepath.Join(Config.ObsOutDir, fn), nil
+	j.SetComment("Video URL: " + url)
+	return nil
 }
