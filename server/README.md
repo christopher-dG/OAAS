@@ -41,6 +41,12 @@ $ MIX_ENV=prod mix key.add [keys...]
 $ MIX_ENV=prod mix key.delete [keys...]
 ```
 
+Back up the database by copying it:
+
+```sh
+$ cp priv/db_prod.sqlite3 db_backup.sqlite3
+```
+
 ## With Docker
 
 Or, you can use Docker.
@@ -59,6 +65,12 @@ Manage keys with `docker exec`:
 $ docker exec oaas mix key.list
 $ docker exec oaas mix key.add [keys...]
 $ docker exec oaas mix key.delete [keys...]
+```
+
+Back up the database with `docker cp`:
+
+```sh
+$ docker cp oaas:/root/oaas/priv/db_prod.sqlite3 ./db_backup.sqlite3
 ```
 
 Note: Don't share the built image, as it contains your `.env` file.
