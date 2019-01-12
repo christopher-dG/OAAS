@@ -174,7 +174,7 @@ defmodule OAAS.Job.Replay do
 
   # Generate the upload tags.
   @spec upload_tags(map, map) :: [String.t()]
-  defp upload_tags(player, beatmap) do
+  defp upload_tags(_player, _beatmap) do
     # TODO
     []
   end

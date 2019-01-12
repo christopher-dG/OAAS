@@ -29,15 +29,15 @@ export REDDIT_SUBREDDIT="sub"
 Start the application:
 
 ```sh
-mix start --no-halt
+$ MIX_ENV=prod mix start --no-halt
 ```
 
 List, add or delete API keys like so:
 
 ```sh
-$ oaas mix key.list
-$ mix key.add [keys...]
-$ mix key.delete [keys...]
+$ MIX_ENV=prod mix key.list
+$ MIX_ENV=prod mix key.add [keys...]
+$ MIX_ENV=prod mix key.delete [keys...]
 ```
 
 ## With Docker

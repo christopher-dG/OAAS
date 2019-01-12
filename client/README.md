@@ -54,6 +54,6 @@ Start is `CTRL + ALT + SHIFT + O`, and stop is the same but with `P`.
 
 If `uploader` was set to "youtube", then follow the instructions [here](https://github.com/porjo/youtubeuploader#youtube-api) to create YouTube credentials.
 Next, update `client_secrets.json` with your client ID and secret.
-Then, execute `youtube-auth.ps1` and follow the prompts.
+Then, execute `youtube-auth.ps1` by right clicking and selecting "Run with PowerShell", and follow the prompts.
 
 Finally, run the client by simply executing it.

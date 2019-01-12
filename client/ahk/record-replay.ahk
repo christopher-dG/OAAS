@@ -18,9 +18,12 @@ Run, %osk%
 Sleep, 10000
 Run, %osr%
 Sleep, 10000
+WinActivate, osu!
+Sleep, 10000
 
 ; Place the mouse over the replay start button.
 MouseMove, %replayButtonX%, %replayButtonY%
+Sleep, 1000
 
 ; Start recording, wait a bit, then start the replay.
 StartRecording()

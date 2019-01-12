@@ -31,7 +31,7 @@ EnsureOsuStarted() {
         SplitPath, A_ScriptDir,, osuDir
         cmd := osuDir . "`\osu!.exe "
         Run, %cmd%
-        Sleep, 5000
+        Sleep, 10000
     }
 }
 
