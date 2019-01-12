@@ -11,6 +11,7 @@ defmodule OAAS.Discord do
 
   @me Application.get_env(:oaas, :discord_user)
   @channel Application.get_env(:oaas, :discord_channel)
+  @admin Application.get_env(:oaas, :admin_discord)
   @plusone "👍"
   @shutdown_message "React #{@plusone} to shut down."
 
@@ -223,6 +224,25 @@ defmodule OAAS.Discord do
     send_message(@shutdown_message)
   end
 
+  # Evaluate some code.
+  defp command(["eval" | _t], %{author: %{id: @admin}, content: content}) do
+    case Regex.run(~r/```.*?\n(.*)\n```/s, content) do
+      nil ->
+        notify(:warn, "Invalid eval input.")
+
+      [_, code] ->
+        try do
+          Code.eval_string(code)
+        rescue
+          reason -> notify(:warn, "Eval failed (exception).", reason)
+        catch
+          reason -> notify(:warn, "Eval failed (throw).", reason)
+        else
+          {result, _} -> send_message("```elixir\n#{inspect(result)}\n```")
+        end
+    end
+  end
+
   # Fallback command.
   defp command(cmd, _msg) do
     notify(:debug, "Unrecognized command #{Enum.join(cmd, " ")}.")
@@ -237,6 +257,7 @@ defmodule OAAS.Discord do
     * delete job <id>
     * process queue
     * shutdown
+    * eval (admin only)
     Or, attach a replay (.osr) file to create a new job.
     ```
     """

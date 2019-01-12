@@ -24,6 +24,7 @@ export REDDIT_PASSWORD="password"
 export REDDIT_CLIENT_ID="id"
 export REDDIT_CLIENT_SECRET="secret"
 export REDDIT_SUBREDDIT="sub"
+export ADMIN_DISCORD_ID="id"
 ```
 
 Start the application:

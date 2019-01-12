@@ -29,5 +29,7 @@ config :oaas,
   discord_channel: (System.get_env("DISCORD_CHANNEL") || "0") |> Integer.parse() |> elem(0),
   # osusearch.com API key.
   osusearch_key: System.get_env("OSUSEARCH_API_KEY"),
-  # Reddit subreddit to pol.
-  reddit_subreddit: System.get_env("REDDIT_SUBREDDIT")
+  # Reddit subreddit to poll.
+  reddit_subreddit: System.get_env("REDDIT_SUBREDDIT"),
+  # Admininstrator's Discord ID (probably yours).
+  admin_discord: (System.get_env("ADMIN_DISCORD_ID") || "0") |> Integer.parse() |> elem(0)
