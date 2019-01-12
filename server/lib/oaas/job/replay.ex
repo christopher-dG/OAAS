@@ -19,7 +19,7 @@ defmodule OAAS.Job.Replay do
             version: String.t()
           },
           replay: %{osr: String.t(), length: integer},
-          youtube: %{title: String.t(), description: String.t()},
+          youtube: %{title: String.t(), description: String.t(), tags: [String.t()]},
           skin: %{name: String.t(), url: String.t()},
           reddit_id: String.t() | nil
         }
@@ -172,6 +172,13 @@ defmodule OAAS.Job.Replay do
     """
   end
 
+  # Generate the YouTube tags.
+  @spec youtube_tags(map, map) :: [String.t()]
+  defp youtube_tags(player, beatmap) do
+    # TODO
+    []
+  end
+
   @title_limit 100
 
   # Get YouTube upload data for a play.
@@ -190,12 +197,13 @@ defmodule OAAS.Job.Replay do
 
     map_name = "#{beatmap.artist} - #{beatmap.title} [#{beatmap.version}]"
     title = String.trim("#{Osu.mode(replay.mode)} | #{player.username} | #{map_name} #{extra}")
-
     notify(:debug, "Computed video title: #{title}.")
-    yt_title = if(String.length(title) > @title_limit, do: "Placeholder Title", else: title)
 
+    yt_title = if(String.length(title) > @title_limit, do: "Placeholder Title", else: title)
     desc = title <> "\n" <> description(player, beatmap, skin)
-    %{title: yt_title, description: desc}
+    tags = youtube_tags(player, beatmap)
+
+    %{title: yt_title, description: desc, tags: tags}
   end
 
   # Get the player name from a post title.

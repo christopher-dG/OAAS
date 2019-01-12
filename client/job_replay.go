@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -29,9 +30,15 @@ type ReplayJob struct {
 		Name string `mapstructure:"name"`
 		Url  string `mapstructure:"url"`
 	} `mapstructure:"skin"`
+	YouTube struct {
+		Title       string   `mapstructure:"title"`
+		Description string   `mapstructure:"description"`
+		Tags        []string `mapstructure:"tags"`
+	}
 	runtime struct {
 		Osk string // Path to the skin on disk
 		Osr string // Path to the replay on disk
+		Mp4 string // Path to the recorded video file on disk.
 	}
 }
 
@@ -126,5 +133,53 @@ func (j *ReplayJob) downloadSkin() error {
 
 // upload uploads a newly recorded video.
 func (j *ReplayJob) upload() error {
-	return nil
+	mp4, err := j.mostRecentVideo()
+	if err != nil {
+		return err
+	}
+	j.runtime.Mp4 = mp4
+	switch Config.Uploader {
+	case "youtube":
+		return j.uploadYouTube()
+	default:
+		return errors.New("No uploader is configured")
+	}
+}
+
+// uploadYouTube uploads a video to YouTube.
+func (j *ReplayJob) uploadYouTube() error {
+	cmd := exec.Command(
+		"youtube-uploader.exe",
+		"-filename", j.runtime.Mp4,
+		"-categoryId", "20", // Gaming category.
+		"-title", j.YouTube.Title,
+		"-description", j.YouTube.Description,
+		"-tags", strings.Join(j.YouTube.Tags, ","),
+	)
+	b, err := cmd.CombinedOutput()
+	fmt.Println(string(b))
+	return err
+}
+
+// mostRecentVideo finds the newest video file in the OBS output directory.
+func (j *ReplayJob) mostRecentVideo() (string, error) {
+	fs, err := ioutil.ReadDir(Config.ObsOutDir)
+	if err != nil {
+		return "", err
+	}
+	fn := ""
+	newest := time.Time{}
+	for _, f := range fs {
+		if strings.HasSuffix(f.Name(), ".mp4") && !f.IsDir() && f.ModTime().After(newest) {
+			fn = f.Name()
+			newest = f.ModTime()
+		}
+	}
+	if fn == "" {
+		return "", errors.New("Didn't find any video files")
+	}
+	if time.Since(newest) > time.Minute {
+		return "", errors.New("A video file was found, but it was too old")
+	}
+	return filepath.Join(Config.ObsOutDir, fn), nil
 }

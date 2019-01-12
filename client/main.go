@@ -24,6 +24,7 @@ var (
 		ApiUrl    string `yaml:"api_url"`
 		ApiKey    string `yaml:"api_key"`
 		ObsOutDir string `yaml:"obs_out_dir"`
+		Uploader  string `yaml:"uploader"`
 	}{}
 
 	// ID
