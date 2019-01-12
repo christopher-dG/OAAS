@@ -7,7 +7,7 @@ defmodule OAAS.Job.Replay do
   use Bitwise, only_operators: true
 
   @derive Jason.Encoder
-  @enforce_keys [:player, :beatmap, :replay, :youtube, :skin]
+  @enforce_keys [:player, :beatmap, :replay, :upload, :skin]
   defstruct @enforce_keys ++ [:reddit_id]
 
   @type t :: %__MODULE__{
@@ -19,7 +19,7 @@ defmodule OAAS.Job.Replay do
             version: String.t()
           },
           replay: %{osr: String.t(), length: integer},
-          youtube: %{title: String.t(), description: String.t(), tags: [String.t()]},
+          upload: %{title: String.t(), description: String.t(), tags: [String.t()]},
           skin: %{name: String.t(), url: String.t()},
           reddit_id: String.t() | nil
         }
@@ -40,7 +40,7 @@ defmodule OAAS.Job.Replay do
     #{Job.describe(j)}
     Player: #{player}
     Beatmap: #{beatmap}
-    Video: #{j.data.youtube.title}
+    Video: #{j.data.upload.title}
     Skin: #{(j.data.skin || %{})[:name] || "None"}
     Reddit: #{reddit}
     Replay:
@@ -77,7 +77,7 @@ defmodule OAAS.Job.Replay do
               osr: Base.encode64(osr),
               length: Osu.replay_length(beatmap, replay.mods)
             }),
-          youtube: youtube_data(player, beatmap, replay, skin),
+          upload: upload_data(player, beatmap, replay, skin),
           skin: skin,
           reddit_id: id
         }
@@ -109,7 +109,7 @@ defmodule OAAS.Job.Replay do
               osr: Base.encode64(osr),
               length: Osu.replay_length(beatmap, replay.mods)
             }),
-          youtube: youtube_data(player, beatmap, replay, skin),
+          upload: upload_data(player, beatmap, replay, skin),
           skin: skin
         }
       )
@@ -131,7 +131,7 @@ defmodule OAAS.Job.Replay do
     end
   end
 
-  # Generate the YouTube description.
+  # Generate the upload description.
   @spec description(map, map, map) :: String.t()
   defp description(%{username: name, user_id: user_id}, %{beatmap_id: beatmap_id}, %{name: skin}) do
     skin_name =
@@ -172,18 +172,18 @@ defmodule OAAS.Job.Replay do
     """
   end
 
-  # Generate the YouTube tags.
-  @spec youtube_tags(map, map) :: [String.t()]
-  defp youtube_tags(player, beatmap) do
+  # Generate the upload tags.
+  @spec upload_tags(map, map) :: [String.t()]
+  defp upload_tags(player, beatmap) do
     # TODO
     []
   end
 
   @title_limit 100
 
-  # Get YouTube upload data for a play.
-  @spec youtube_data(map, map, map, map) :: map
-  defp youtube_data(player, beatmap, replay, skin) do
+  # Get upload data for a play.
+  @spec upload_data(map, map, map, map) :: map
+  defp upload_data(player, beatmap, replay, skin) do
     mods = Osu.mods_to_string(replay.mods)
     mods = if(mods === "", do: nil, else: mods)
     fc = if(replay.perfect?, do: "FC", else: nil)
@@ -201,7 +201,7 @@ defmodule OAAS.Job.Replay do
 
     yt_title = if(String.length(title) > @title_limit, do: "Placeholder Title", else: title)
     desc = title <> "\n" <> description(player, beatmap, skin)
-    tags = youtube_tags(player, beatmap)
+    tags = upload_tags(player, beatmap)
 
     %{title: yt_title, description: desc, tags: tags}
   end

@@ -30,7 +30,7 @@ type ReplayJob struct {
 		Name string `mapstructure:"name"`
 		Url  string `mapstructure:"url"`
 	} `mapstructure:"skin"`
-	YouTube struct {
+	Upload struct {
 		Title       string   `mapstructure:"title"`
 		Description string   `mapstructure:"description"`
 		Tags        []string `mapstructure:"tags"`
@@ -152,9 +152,9 @@ func (j *ReplayJob) uploadYouTube() error {
 		"youtube-uploader.exe",
 		"-filename", j.runtime.Mp4,
 		"-categoryId", "20", // Gaming category.
-		"-title", j.YouTube.Title,
-		"-description", j.YouTube.Description,
-		"-tags", strings.Join(j.YouTube.Tags, ","),
+		"-title", j.Upload.Title,
+		"-description", j.Upload.Description,
+		"-tags", strings.Join(j.Upload.Tags, ","),
 	)
 	b, err := cmd.CombinedOutput()
 	fmt.Println(string(b))
