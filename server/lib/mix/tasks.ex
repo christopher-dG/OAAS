@@ -30,15 +30,15 @@ defmodule Mix.Tasks.Key do
 
       with :ok <- OAAS.Utils.start_db(),
            {:ok, _} <-
-             (OAAS.DB.transaction do
-                Enum.each(keys, fn k ->
-                  case OAAS.Key.put(id: k) do
-                    {:ok, _} -> :noop
-                    {:error, {:constraint, 'UNIQUE constraint failed: keys.id'}} -> :noop
-                    {:error, reason} -> throw(reason)
-                  end
-                end)
-              end) do
+             OAAS.DB.transaction(fn ->
+               Enum.each(keys, fn k ->
+                 case OAAS.Key.put(id: k) do
+                   {:ok, _} -> :noop
+                   {:error, {:constraint, 'UNIQUE constraint failed: keys.id'}} -> :noop
+                   {:error, reason} -> throw(reason)
+                 end
+               end)
+             end) do
         IO.puts("Added #{length(keys)} key(s).")
       else
         {:error, reason} ->
@@ -58,14 +58,14 @@ defmodule Mix.Tasks.Key do
 
       with :ok <- OAAS.Utils.start_db(),
            {:ok, _} <-
-             (OAAS.DB.transaction do
-                Enum.each(keys, fn k ->
-                  case OAAS.Key.delete(k) do
-                    :ok -> :noop
-                    {:error, reason} -> throw(reason)
-                  end
-                end)
-              end) do
+             OAAS.DB.transaction(fn ->
+               Enum.each(keys, fn k ->
+                 case OAAS.Key.delete(k) do
+                   :ok -> :noop
+                   {:error, reason} -> throw(reason)
+                 end
+               end)
+             end) do
         IO.puts("Deleted #{length(keys)} key(s).")
       else
         {:error, reason} ->

@@ -82,43 +82,43 @@ defmodule OAAS.DB do
   The return value is either `{:ok, return}` where `return` is the return value of the block,
   or `{:error, reason}` where `reason` was thrown or raised.
   """
-  @spec transaction(term) :: {:ok, term} | {:error, term}
-  defmacro transaction(do: expr) do
-    quote do
-      tx_cmd = fn cmd ->
-        case OAAS.DB.query(String.upcase(cmd)) do
-          {:ok, _} ->
-            :ok
-
-          {:error, reason} ->
-            OAAS.Utils.notify(:error, "Transaction #{String.downcase(cmd)} failed.", reason)
-            {:error, reason}
-        end
+  @spec transaction((() -> term)) :: {:ok, term} | {:error, term}
+  def transaction(fun) do
+    try do
+      case tx_cmd("begin") do
+        :ok -> :noop
+        {:error, reason} -> throw(reason)
       end
 
-      try do
-        case tx_cmd.("begin") do
-          :ok -> :noop
-          {:error, reason} -> throw(reason)
-        end
+      results = fun.()
 
-        results = unquote(expr)
-
-        case tx_cmd.("commit") do
-          :ok -> :noop
-          {:error, reason} -> throw(reason)
-        end
-
-        {:ok, results}
-      rescue
-        reason ->
-          tx_cmd.("rollback")
-          {:error, reason}
-      catch
-        reason ->
-          tx_cmd.("rollback")
-          {:error, reason}
+      case tx_cmd("commit") do
+        :ok -> :noop
+        {:error, reason} -> throw(reason)
       end
+
+      {:ok, results}
+    rescue
+      reason ->
+        tx_cmd("rollback")
+        {:error, reason}
+    catch
+      reason ->
+        tx_cmd("rollback")
+        {:error, reason}
+    end
+  end
+
+  # Run a transaction comment like `COMMIT` or `ROLLBACK`.
+  @spec tx_cmd(String.t()) :: :ok | {:error, term}
+  defp tx_cmd(cmd) do
+    case OAAS.DB.query(String.upcase(cmd)) do
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        notify(:error, "Transaction `#{cmd}` failed.", reason)
+        {:error, reason}
     end
   end
 end

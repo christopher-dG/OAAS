@@ -37,32 +37,29 @@ defmodule DBTest do
 
   test "transaction/1" do
     assert {:error, _reason} =
-             (DB.transaction do
-                with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
-                     {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2, 3)") do
-                  nil
-                else
-                  {:error, reason} -> throw(reason)
-                end
-              end)
+             DB.transaction(fn ->
+               with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
+                    {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2, 3)") do
+                 nil
+               else
+                 {:error, reason} -> throw(reason)
+               end
+             end)
 
     assert {:ok, []} = query("SELECT * FROM #{@table}")
 
     assert {:ok, nil} =
-             (DB.transaction do
-                with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
-                     {:ok, _} <- query("INSERT INTO #{@table} VALUES (2, 3)") do
-                  nil
-                else
-                  {:error, reason} -> throw(reason)
-                end
-              end)
+             DB.transaction(fn ->
+               with {:ok, _} <- query("INSERT INTO #{@table} VALUES (1, 2)"),
+                    {:ok, _} <- query("INSERT INTO #{@table} VALUES (2, 3)") do
+                 nil
+               else
+                 {:error, reason} -> throw(reason)
+               end
+             end)
 
     assert {:ok, [[id: 1, foo: 2], [id: 2, foo: 3]]} = query("SELECT * FROM #{@table}")
 
-    assert {:error, :foo} =
-             (DB.transaction do
-                throw(:foo)
-              end)
+    assert {:error, :foo} = DB.transaction(fn -> throw(:foo) end)
   end
 end

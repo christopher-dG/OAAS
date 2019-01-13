@@ -88,7 +88,7 @@ defmodule OAAS.Job do
   @doc "Marks a job as deleted, but leaves it in the database."
   @spec mark_deleted(t) :: {:ok, t} | {:error, term}
   def mark_deleted(j) do
-    DB.transaction do
+    DB.transaction(fn ->
       unless is_nil(j.worker_id) do
         with {:ok, w} <- Worker.get(j.worker_id),
              {:ok, _} <- Worker.update(w, current_job_id: nil) do
@@ -102,7 +102,7 @@ defmodule OAAS.Job do
         {:ok, j} -> j
         {:error, reason} -> throw(reason)
       end
-    end
+    end)
   end
 
   @timeouts %{
@@ -146,7 +146,7 @@ defmodule OAAS.Job do
   @doc "Assigns a job to a worker."
   @spec assign(t, Worker.t()) :: {:ok, t} | {:error, term}
   def assign(j, w) do
-    DB.transaction do
+    DB.transaction(fn ->
       with {:ok, _} <-
              Worker.update(w, current_job_id: j.id, last_job: System.system_time(:millisecond)),
            {:ok, j} <- update(j, worker_id: w.id, status: status(:assigned)) do
@@ -154,13 +154,13 @@ defmodule OAAS.Job do
       else
         {:error, reason} -> throw(reason)
       end
-    end
+    end)
   end
 
   @doc "Updates a job's status."
   @spec update_status(t, Worker.t(), integer, String.t()) :: {:ok, t} | {:error, term}
   def update_status(j, w, stat, comment) do
-    DB.transaction do
+    DB.transaction(fn ->
       case update(j, status: stat, comment: comment) do
         {:ok, j} ->
           if finished(j) do
@@ -175,13 +175,13 @@ defmodule OAAS.Job do
         {:error, reason} ->
           throw(reason)
       end
-    end
+    end)
   end
 
   @doc "Fails a job."
   @spec fail(t, String.t()) :: {:ok, t} | {:error, term}
   def fail(j, comment \\ "") do
-    DB.transaction do
+    DB.transaction(fn ->
       with {:ok, w} <- Worker.get(j.worker_id),
            {:ok, _w} <- Worker.update(w, current_job_id: nil),
            {:ok, j} <- update(j, worker_id: nil, status: status(:failed), comment: comment) do
@@ -189,6 +189,6 @@ defmodule OAAS.Job do
       else
         {:error, reason} -> throw(reason)
       end
-    end
+    end)
   end
 end
