@@ -1,4 +1,22 @@
 defmodule Mix.Tasks.Oaas do
+  defmodule Db.Dump do
+    use Mix.Task
+
+    @shortdoc "Outputs the database file (Unix only)."
+    def run(_arg) do
+      Logger.configure(level: :warn)
+
+      case File.cp("priv/db_#{Mix.env()}.sqlite3", "/dev/stdout") do
+        :ok ->
+          :noop
+
+        {:error, reason} ->
+          IO.puts(:stderr, "Dumping database failed: #{inspect(reason)}.")
+          exit({:shutdown, 1})
+      end
+    end
+  end
+
   defmodule Key do
     defmodule List do
       use Mix.Task

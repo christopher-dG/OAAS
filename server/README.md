@@ -41,10 +41,10 @@ $ MIX_ENV=prod mix oaas.key.add [keys...]
 $ MIX_ENV=prod mix oaas.key.delete [keys...]
 ```
 
-Back up the database by copying it:
+Back up the database with another Mix task:
 
 ```sh
-$ cp priv/db_prod.sqlite3 db_backup.sqlite3
+$ MIX_ENV=prod mix oaas.db.dump > db_backup.sqlite3
 ```
 
 ## With Docker
@@ -59,18 +59,13 @@ $ docker create --name oaas -p 4000:4000 oaas
 $ docker start oaas
 ```
 
-Manage keys with `docker exec`:
+Run Mix tasks with `docker exec`:
 
 ```sh
 $ docker exec oaas mix oaas.key.list
 $ docker exec oaas mix oaas.key.add [keys...]
 $ docker exec oaas mix oaas.key.delete [keys...]
-```
-
-Back up the database with `docker cp`:
-
-```sh
-$ docker cp oaas:/root/oaas/priv/db_prod.sqlite3 ./db_backup.sqlite3
+$ docker exec oaas mix oaas.db.dump > db_backup.sqlite3
 ```
 
 Note: Don't share the built image, as it contains your `.env` file.
