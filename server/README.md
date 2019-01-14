@@ -36,9 +36,9 @@ $ MIX_ENV=prod mix start --no-halt
 List, add or delete API keys like so:
 
 ```sh
-$ MIX_ENV=prod mix key.list
-$ MIX_ENV=prod mix key.add [keys...]
-$ MIX_ENV=prod mix key.delete [keys...]
+$ MIX_ENV=prod mix oaas.key.list
+$ MIX_ENV=prod mix oaas.key.add [keys...]
+$ MIX_ENV=prod mix oaas.key.delete [keys...]
 ```
 
 Back up the database by copying it:
@@ -62,9 +62,9 @@ $ docker start oaas
 Manage keys with `docker exec`:
 
 ```sh
-$ docker exec oaas mix key.list
-$ docker exec oaas mix key.add [keys...]
-$ docker exec oaas mix key.delete [keys...]
+$ docker exec oaas mix oaas.key.list
+$ docker exec oaas mix oaas.key.add [keys...]
+$ docker exec oaas mix oaas.key.delete [keys...]
 ```
 
 Back up the database with `docker cp`:
