@@ -3,7 +3,7 @@ notifications: {email: false}
 matrix:
   include:
     - language: elixir
-      elixir: 1.7
+      elixir: 1.8
       otp_release: 21.2
       before_install: cd server
       script: mix test --no-start

@@ -1,6 +1,6 @@
 # TODO: Figure out how to run mix tasks with --no-deps-check to make git build-only.
 
-FROM elixir:1.7-alpine
+FROM elixir:1.8-alpine
 
 WORKDIR /root/oaas
 
