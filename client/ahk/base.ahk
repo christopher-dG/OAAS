@@ -1,6 +1,14 @@
 #NoEnv
 SendMode, Input
 SetWorkingDir, %A_ScriptDir%
+CoordMode, Mouse
+
+FileRead, txt, coords.txt
+nums := StrSplit(txt, " ")
+replayButtonX := nums[1]
+replayButtonY := nums[2]
+perfGraphX := nums[3]
+perfGraphY := nums[4]
 
 ; Start recording with OBS.
 StartRecording() {

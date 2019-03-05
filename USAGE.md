@@ -72,6 +72,16 @@ Next, you'll have to do a bit of OBS configuration:
 * Set a keyboard shortcut to stop recording: `CTRL + ALT + SHIFT + P`
 * Set the scene to the one you want to record with
 
+Next, configure your prompt to avoid freezing:
+
+* Run Command Prompt
+* Click on the top left of the window, then "Defaults"
+* In the options menu, untick the "Quick Edit Mode" option
+
+This will be enabled by default on Windows 10, but if you can find it on other versions do make sure it's unticked.
+
+Finally, run the `get-coords.exe` application by double clicking, and follow the prompts.
+
 ### Running
 
 Make sure OBS is running.

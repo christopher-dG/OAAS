@@ -13,6 +13,7 @@ $ GOOS=windows go build -o OAAS/oaas.exe
 Compile any scripts in `ahk/` excluding `base.ahk`:
 
 ```sh
+$ Ahk2Exe.exe /in ahk/get-coords.ahk /out OAAS/get-coords.exe
 $ Ahk2Exe.exe /in ahk/record-replay.ahk /out OAAS/record-replay.exe
 ```
 
