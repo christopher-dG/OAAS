@@ -11,7 +11,7 @@ defmodule OAAS.Discord do
 
   @me Application.get_env(:oaas, :discord_user)
   @channel Application.get_env(:oaas, :discord_channel)
-  @admin Application.get_env(:oaas, :admin_discord)
+  @admin Application.get_env(:oaas, :discord_admin)
   @plusone "👍"
   @shutdown_message "React #{@plusone} to shut down."
 

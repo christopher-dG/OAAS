@@ -32,4 +32,4 @@ config :oaas,
   # Reddit subreddit to poll.
   reddit_subreddit: System.get_env("REDDIT_SUBREDDIT"),
   # Admininstrator's Discord ID (probably yours).
-  admin_discord: (System.get_env("ADMIN_DISCORD_ID") || "0") |> Integer.parse() |> elem(0)
+  discord_admin: (System.get_env("DISCORD_ADMIN_ID") || "0") |> Integer.parse() |> elem(0)

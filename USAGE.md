@@ -86,4 +86,3 @@ Finally, run the `get-coords.exe` application by double clicking, and follow the
 
 Make sure OBS is running.
 Then, double click the app to start it.
-When it's running, avoid clicking on the black window that was opened, as it can freeze the app.
