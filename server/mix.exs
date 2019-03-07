@@ -23,7 +23,7 @@ defmodule OAAS.MixProject do
       {:cowboy, "~> 2.6"},
       {:httpoison, "~> 1.5", override: true},
       {:jason, "~> 1.1"},
-      {:nostrum, github: "Kraigie/nostrum"},
+      {:nostrum, "~> 0.3"},
       {:osu_ex, github: "christopher-dG/osu-ex"},
       {:plug_cowboy, "~> 2.0"},
       {:reddex, github: "christopher-dG/reddex"},

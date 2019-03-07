@@ -2,19 +2,6 @@ version: 2
 jobs:
   server:
     docker: [image: circleci/elixir:1.8]
-    environment:
-      DISCORD_ADMIN_ID: 123
-      DISCORD_CHANNEL: 123
-      DISCORD_TOKEN: token
-      DISCORD_USER: 123
-      OSUSEARCH_API_KEY: key
-      OSU_API_KEY: key
-      REDDIT_CLIENT_ID: id
-      REDDIT_CLIENT_SECRET: secret
-      REDDIT_PASSWORD: pass
-      REDDIT_SUBREDDIT: sub
-      REDDIT_USERNAME: user
-      REDDIT_USER_AGENT: agent
     steps:
       - checkout
       - run: |

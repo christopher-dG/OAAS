@@ -15,16 +15,17 @@ Create a `.env` file:
 ```sh
 export PORT="4000"
 export OSU_API_KEY="key"
+export OSUSEARCH_API_KEY="key"
 export DISCORD_TOKEN="token"
 export DISCORD_CHANNEL="123"
 export DISCORD_USER="321"
+export DISCORD_ADMIN_ID="123"
 export REDDIT_USER_AGENT="agent"
 export REDDIT_USERNAME="user"
 export REDDIT_PASSWORD="password"
 export REDDIT_CLIENT_ID="id"
 export REDDIT_CLIENT_SECRET="secret"
 export REDDIT_SUBREDDIT="sub"
-export ADMIN_DISCORD_ID="id"
 ```
 
 Start the application:
