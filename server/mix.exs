@@ -21,12 +21,12 @@ defmodule OAAS.MixProject do
   defp deps do
     [
       {:cowboy, "~> 2.6"},
-      {:httpoison, "~> 1.5", override: true},
+      {:httpoison, "~> 1.5"},
       {:jason, "~> 1.1"},
       {:nostrum, "~> 0.3"},
-      {:osu_ex, github: "christopher-dG/osu-ex"},
+      {:osu_ex, "~> 0.2"},
       {:plug_cowboy, "~> 2.0"},
-      {:reddex, github: "christopher-dG/reddex"},
+      {:reddex, "~> 0.1"},
       {:sqlitex, "~> 1.4"},
       {:table_rex, "~> 2.0.0"}
     ]

@@ -1,12 +1,10 @@
-# TODO: Figure out how to run mix tasks with --no-deps-check to make git build-only.
-
 FROM elixir:1.8-alpine
 
 WORKDIR /root/oaas
 
 ENV MIX_ENV="prod" \
-    BUILD_PKGS="gcc musl-dev" \
-    PKGS="git"
+    BUILD_PKGS="gcc git musl-dev" \
+    PKGS=""
 
 COPY . .
 
