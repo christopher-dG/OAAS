@@ -39,10 +39,10 @@ defmodule OAAS.Osu do
       |> Enum.filter(fn {_m, v} -> (mods &&& v) === v end)
       |> Keyword.keys()
 
-    mods = if(:NC in mods, do: List.delete(mods, :DT), else: mods)
-    mods = if(:PF in mods, do: List.delete(mods, :SD), else: mods)
+    mods = if :NC in mods, do: List.delete(mods, :DT), else: mods
+    mods = if :PF in mods, do: List.delete(mods, :SD), else: mods
 
-    if(Enum.empty?(mods), do: "", else: "+" <> Enum.join(mods, ","))
+    if Enum.empty?(mods), do: "", else: "+" <> Enum.join(mods, ",")
   end
 
   @doc "Converts a mod string into its numeric value."
@@ -90,7 +90,7 @@ defmodule OAAS.Osu do
     case HTTPoison.get(@skins_api <> username) do
       {:ok, %{body: body}} ->
         if body === "" do
-          if(username === "Default Skins", do: @default_skin, else: skin("Default Skins"))
+          if username === "Default Skins", do: @default_skin, else: skin("Default Skins")
         else
           name =
             body
@@ -102,7 +102,7 @@ defmodule OAAS.Osu do
         end
 
       {:error, _reason} ->
-        if(username === "Default Skins", do: @default_skin, else: skin("Default Skins"))
+        if username === "Default Skins", do: @default_skin, else: skin("Default Skins")
     end
   end
 

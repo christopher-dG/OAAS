@@ -28,7 +28,7 @@ defmodule OAAS.Job.Replay do
   @spec describe(Job.t()) :: String.t()
   def describe(j) do
     player = "#{j.data.player.username} (https://osu.ppy.sh/u/#{j.data.player.user_id})"
-    reddit = if(is_nil(j.data.reddit_id), do: "None", else: "https://redd.it/#{j.data.reddit_id}")
+    reddit = if is_nil(j.data.reddit_id), do: "None", else: "https://redd.it/#{j.data.reddit_id}"
 
     beatmap =
       "#{j.data.beatmap.artist} - #{j.data.beatmap.title} [#{j.data.beatmap.version}] (https://osu.ppy.sh/b/#{
@@ -185,8 +185,8 @@ defmodule OAAS.Job.Replay do
   @spec upload_data(map, map, map, map) :: map
   defp upload_data(player, beatmap, replay, skin) do
     mods = Osu.mods_to_string(replay.mods)
-    mods = if(mods === "", do: nil, else: mods)
-    fc = if(replay.perfect?, do: "FC", else: nil)
+    mods = if mods === "", do: nil, else: mods
+    fc = if replay.perfect?, do: "FC", else: nil
     percent = :erlang.float_to_binary(Osu.accuracy(replay), decimals: 2) <> "%"
     pp = pp_string(player, beatmap, replay)
 
@@ -199,7 +199,7 @@ defmodule OAAS.Job.Replay do
     title = String.trim("#{Osu.mode(replay.mode)} | #{player.username} | #{map_name} #{extra}")
     notify(:debug, "Computed video title: #{title}.")
 
-    yt_title = if(String.length(title) > @title_limit, do: "Placeholder Title", else: title)
+    yt_title = if String.length(title) > @title_limit, do: "Placeholder Title", else: title
     desc = title <> "\n" <> description(player, beatmap, skin)
     tags = upload_tags(player, beatmap)
 

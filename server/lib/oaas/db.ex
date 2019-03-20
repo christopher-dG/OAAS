@@ -59,10 +59,10 @@ defmodule OAAS.DB do
   def query(sql, opts \\ []) do
     s = "SQL: #{sql}"
     nobind = Keyword.drop(opts, [:bind])
-    s = if(Enum.empty?(nobind), do: s, else: "#{s}\nOptions: #{inspect(nobind)}")
+    s = if Enum.empty?(nobind), do: s, else: "#{s}\nOptions: #{inspect(nobind)}"
     bind = Keyword.get(opts, :bind, [])
     bind_s = inspect(bind, pretty: true, printable_limit: 80)
-    s = if(Enum.empty?(bind), do: s, else: "#{s}\nBindings: #{bind_s}")
+    s = if Enum.empty?(bind), do: s, else: "#{s}\nBindings: #{bind_s}"
     notify(:debug, s)
 
     case Sqlitex.Server.query(__MODULE__, sql, opts) do

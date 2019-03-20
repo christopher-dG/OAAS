@@ -42,7 +42,7 @@ defmodule OAAS.Web.Router do
         case Job.update_status(j, w, status, comment) do
           {:ok, j} ->
             s = "Job `#{j.id}` updated to status `#{Job.status(j.status)}` by worker `#{w.id}`."
-            s = if(is_nil(comment), do: s, else: s <> "\nComment: `#{comment}`")
+            s = if is_nil(comment), do: s, else: s <> "\nComment: `#{comment}`"
             notify(s)
             send_resp(conn, 204, "")
 

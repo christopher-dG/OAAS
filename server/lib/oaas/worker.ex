@@ -27,7 +27,7 @@ defmodule OAAS.Worker do
     """
     ```yml
     ID: #{w.id}
-    Online: #{if(online?(w), do: "Yes", else: "No")}
+    Online: #{if online?(w), do: "Yes", else: "No"}
     Job: #{w.current_job_id || "None"}
     Last poll: #{relative_time(w.last_poll)}
     Last job: #{relative_time(w.last_job)}
