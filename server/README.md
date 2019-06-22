@@ -3,6 +3,7 @@
 ## Without Docker
 
 Install [Elixir](https://elixir-lang.org), [Git](https://git-scm.com), and a [C compiler](https://gcc.gnu.org).
+You need Elixir 1.8 and OTP 21.2.
 
 Download dependencies:
 
