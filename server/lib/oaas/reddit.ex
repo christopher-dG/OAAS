@@ -1,5 +1,5 @@
 defmodule OAAS.Reddit do
-  @doc "Receives Reddit post notifications and forwards some to Discord."
+  @moduledoc "Receives Reddit post notifications and forwards some to Discord."
 
   alias OAAS.Discord
   alias Reddex.Stream
@@ -7,7 +7,8 @@ defmodule OAAS.Reddit do
   alias Reddex.API.Subreddit
   import OAAS.Utils
 
-  @subreddit Application.get_env(:oaas, :reddit_subreddit)
+  @spec subreddit :: String.t()
+  defp subreddit, do: Application.get_env(:oaas, :reddit_subreddit)
 
   def start_link(_args) do
     if Mix.env() === :test do
@@ -25,7 +26,7 @@ defmodule OAAS.Reddit do
   end
 
   def process_posts do
-    Stream.create(&Subreddit.new/2, @subreddit)
+    Stream.create(&Subreddit.new/2, subreddit())
     |> Enum.each(fn p ->
       cond do
         p.saved ->

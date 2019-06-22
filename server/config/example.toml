@@ -1,0 +1,20 @@
+[oaas]
+discord_admin = 1234  # ID of a user with bot admin prvileges.
+discord_channel = 1234  # ID of the channel that the bot should operate in.
+discord_user = 1234  # ID of the bot user.
+osusearch_key = "osusearch_key"
+port = 1234  # Webserver port.
+reddit_subreddit = "reddit_subreddit"  # Subreddit to poll for scoreposts.
+
+[nostrum]
+token = "token"  # Discord API bot token.
+
+[osu_ex]
+api_key = "api_key"  # osu! API key.
+
+[reddex]  # Credentials for the Reddit bot.
+client_id = "client_id"
+client_secret = "client_secret"
+password = "password"
+user_agent = "user_agent"
+username = "username"

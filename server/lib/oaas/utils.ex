@@ -14,6 +14,7 @@ defmodule OAAS.Utils do
          {:ok, _} <- DB.start_link([]) do
       :ok
     else
+      {:error, {:already_started, _pid}} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end

@@ -27,3 +27,4 @@ oaas-*.tar
 
 # Ignore credential files.
 *.env
+config.toml

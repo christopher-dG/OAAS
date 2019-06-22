@@ -21,6 +21,7 @@ defmodule OAAS.MixProject do
   defp deps do
     [
       {:cowboy, "~> 2.6"},
+      {:distillery, "~> 2.0"},
       {:httpoison, "~> 1.5"},
       {:jason, "~> 1.1"},
       {:nostrum, "~> 0.3"},
@@ -28,7 +29,8 @@ defmodule OAAS.MixProject do
       {:plug_cowboy, "~> 2.0"},
       {:reddex, "~> 0.1"},
       {:sqlitex, "~> 1.4"},
-      {:table_rex, "~> 2.0.0"}
+      {:table_rex, "~> 2.0"},
+      {:toml, "~> 0.5"}
     ]
   end
 end

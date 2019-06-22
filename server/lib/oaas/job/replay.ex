@@ -334,12 +334,14 @@ defmodule OAAS.Job.Replay do
   end
 
   @osusearch_url "https://osusearch.com/api/search"
-  @osusearch_key Application.get_env(:oaas, :osusearch_key)
+
+  @spec osusearch_key :: String.t()
+  defp osusearch_key, do: Application.get_env(:oaas, :osusearch_key)
 
   @spec search_osusearch(String.t()) :: {:ok, map} | {:error, :not_found}
   def search_osusearch(map_name) do
     [_, artist, title, diff] = Regex.run(~r/(.+?) - (.+?) \[(.+?)\]/, map_name)
-    params = URI.encode_query(key: @osusearch_key, artist: artist, title: title, diff_name: diff)
+    params = URI.encode_query(key: osusearch_key(), artist: artist, title: title, diff_name: diff)
 
     with {:ok, %{status_code: 200, body: body}} <- HTTPoison.get(@osusearch_url <> "?" <> params),
          {:ok, %{"beatmaps" => [_h | _t] = beatmaps}} <- Jason.decode(body) do

@@ -1,7 +1,8 @@
 version: 2
 jobs:
   server:
-    docker: [image: circleci/elixir:1.8]
+    docker:
+      - image: circleci/elixir:1.8
     steps:
       - checkout
       - run: |
@@ -10,8 +11,10 @@ jobs:
           mix local.hex --force
           mix deps.get
           mix test --no-start
+          env COOKIE=cookie MIX_ENV=prod mix release
   client:
-    docker: [image: circleci/golang:1.12]
+    docker:
+      - image: circleci/golang:1.12
     steps:
       - checkout
       - run: |

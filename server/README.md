@@ -1,73 +1,51 @@
 # OAAS Server
 
-## Without Docker
+Install [Elixir](https://elixir-lang.org) and a [C compiler](https://gcc.gnu.org).
+You'll need Elixir 1.8 and OTP 21.2 ([`asdf`](https://asdf-vm.com) can help with this).
 
-Install [Elixir](https://elixir-lang.org), [Git](https://git-scm.com), and a [C compiler](https://gcc.gnu.org).
-You need Elixir 1.8 and OTP 21.2.
-
-Download dependencies:
-
-```sh
-$ mix do local.hex --force, local.rebar --force, deps.get
-```
-
-Create a `.env` file:
+Generate a cookie, and save it somewhere.
+You'll, need this environment variable set whenever you want to interact with the running application.
 
 ```sh
-export PORT="4000"
-export OSU_API_KEY="key"
-export OSUSEARCH_API_KEY="key"
-export DISCORD_TOKEN="token"
-export DISCORD_CHANNEL="123"
-export DISCORD_USER="321"
-export DISCORD_ADMIN_ID="123"
-export REDDIT_USER_AGENT="agent"
-export REDDIT_USERNAME="user"
-export REDDIT_PASSWORD="password"
-export REDDIT_CLIENT_ID="id"
-export REDDIT_CLIENT_SECRET="secret"
-export REDDIT_SUBREDDIT="sub"
+$ export COOKIE=$(head -c100 /dev/urandom | sha256sum | cut -d' ' -f1)
 ```
 
-Start the application:
+Download dependencies, and create a release:
 
 ```sh
-$ MIX_ENV=prod mix start --no-halt
+$ export MIX_ENV=prod
+$ mix do local.hex --force, local.rebar --force, deps.get, release
 ```
 
-List, add or delete API keys like so:
+You should now have a directory `_build/prod/rel/oaas`.
+Copy this to `$DEST` where `$DEST` is wherever you want the application to reside.
+Add the management script to your path:
 
 ```sh
-$ MIX_ENV=prod mix oaas.key.list
-$ MIX_ENV=prod mix oaas.key.add [keys...]
-$ MIX_ENV=prod mix oaas.key.delete [keys...]
+$ export DEST="$HOME/oaas"
+$ cp -r _build/prod/rel/oaas "$DEST"
+$ export PATH="$PATH:$DEST/bin"
 ```
 
-Back up the database with another Mix task:
+Next, copy the [example configuration file](config/example.toml) to `$DEST` and update it appropriately:
 
 ```sh
-$ MIX_ENV=prod mix oaas.db.dump > db_backup.sqlite3
+$ cp config/example.toml "$DEST/config.toml"
+$ nano "$DEST/config.toml"  # Make your changes.
 ```
 
-## With Docker
+Manage the application with the `oaas` script.
+Here are some common arguments:
 
-Or, you can use Docker.
+- `start`: Run in the background.
+- `remote_console`: Connect a console to running background session.
+- `stop`: Stop the running application.
+- `console`: Run a console in the foreground.
 
-With the same `.env` file present, build the image, create a container, and start it:
+To manage API keys (these require the `sqlite3` executable:
 
-```sh
-$ docker build -t oaas .
-$ docker create --name oaas -p 4000:4000 oaas
-$ docker start oaas
-```
+- `list_keys`: Print out existing API keys.
+- `add_key <key>`: Add an API key.
+- `delete_key <key>`: Delete an API key.
 
-Run Mix tasks with `docker exec`:
-
-```sh
-$ docker exec oaas mix oaas.key.list
-$ docker exec oaas mix oaas.key.add [keys...]
-$ docker exec oaas mix oaas.key.delete [keys...]
-$ docker exec oaas mix oaas.db.dump > db_backup.sqlite3
-```
-
-Note: Don't share the built image, as it contains your `.env` file.
+You might also want to use systemd, in which case see [here](https://hexdocs.pm/distillery/guides/systemd.html).

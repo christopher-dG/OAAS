@@ -9,9 +9,6 @@ defmodule OAAS.Discord do
   import OAAS.Utils
   use Nostrum.Consumer
 
-  @me Application.get_env(:oaas, :discord_user)
-  @channel Application.get_env(:oaas, :discord_channel)
-  @admin Application.get_env(:oaas, :discord_admin)
   @plusone "👍"
   @shutdown_message "React #{@plusone} to shut down."
 
@@ -19,100 +16,117 @@ defmodule OAAS.Discord do
     Consumer.start_link(__MODULE__)
   end
 
-  # Add a replay job via a replay attachment.
-  def handle_event(
-        {:MESSAGE_CREATE,
-         {%{
-            attachments: [%{url: url}],
-            channel_id: @channel,
-            content: content,
-            mentions: [%{id: @me}]
-          }}, _state}
-      ) do
-    notify(:debug, "Received attachment: #{url}.")
+  @spec me :: integer
+  defp me, do: Application.get_env(:oaas, :discord_user)
 
-    skin =
-      case Regex.run(~r/skin:(.+)/i, content) do
-        [_, skin] ->
-          s = String.trim(skin)
-          notify(:debug, "Skin override: #{s}.")
-          s
+  @spec channel :: integer
+  defp channel, do: Application.get_env(:oaas, :discord_channel)
 
-        nil ->
-          nil
-      end
+  @spec admin :: integer
+  defp admin, do: Application.get_env(:oaas, :discord_admin)
 
-    case Replay.from_osr(url, skin) do
-      {:ok, j} ->
-        notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
-        send(Queue, :work)
+  def handle_event({:MESSAGE_CREATE, {%{} = message}, _state}) do
+    me = me()
+    channel = channel()
 
-      {:error, reason} ->
-        notify(:error, "Creating job failed.", reason)
+    case message do
+      # Replay job via replay attachment.
+      %{
+        attachments: [%{url: url}],
+        channel_id: ^channel,
+        content: content,
+        mentions: [%{id: ^me}]
+      } ->
+        notify(:debug, "Received attachment: #{url}.")
+
+        skin =
+          case Regex.run(~r/skin:(.+)/i, content) do
+            [_, skin] ->
+              s = String.trim(skin)
+              notify(:debug, "Skin override: #{s}.")
+              s
+
+            nil ->
+              nil
+          end
+
+        case Replay.from_osr(url, skin) do
+          {:ok, j} ->
+            notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
+            send(Queue, :work)
+
+          {:error, reason} ->
+            notify(:error, "Creating job failed.", reason)
+        end
+
+      # Command entrypoint.
+      %{
+        content: content,
+        channel_id: ^channel,
+        mentions: [%{id: ^me}]
+      } ->
+        notify(:debug, "Received message mention: #{content}.")
+
+        content
+        |> String.split()
+        |> tl()
+        |> command(message)
+
+      _message ->
+        :noop
     end
   end
 
-  # Command entrypoint.
-  def handle_event(
-        {:MESSAGE_CREATE,
-         {%{
-            content: content,
-            channel_id: @channel,
-            mentions: [%{id: @me}]
-          } = msg}, _state}
-      ) do
-    notify(:debug, "Received message mention: #{content}.")
+  def handle_event({:MESSAGE_REACTION_ADD, {%{} = reaction}, _state}) do
+    channel = channel()
 
-    content
-    |> String.split()
-    |> tl()
-    |> command(msg)
-  end
+    case reaction do
+      # Confirm a shutdown or add a replay job via a reaction on a Reddit post notification.
+      %{
+        channel_id: ^channel,
+        emoji: %{name: @plusone},
+        message_id: message
+      } ->
+        notify(:debug, "Received :+1: reaction on message #{message}.")
+        me = me()
 
-  # Confirm a shutdown or add a replay job via a reaction on a Reddit post notification.
-  def handle_event(
-        {:MESSAGE_REACTION_ADD,
-         {%{
-            channel_id: @channel,
-            emoji: %{name: @plusone},
-            message_id: message
-          }}, _state}
-      ) do
-    notify(:debug, "Received :+1: reaction on message #{message}.")
+        case Api.get_channel_message(channel(), message) do
+          {:ok, %{author: %{id: ^me}, content: content}} ->
+            notify(:debug, "Message contents: '#{content}'.")
 
-    case Api.get_channel_message(@channel, message) do
-      {:ok, %{author: %{id: @me}, content: content}} ->
-        notify(:debug, "Message contents: '#{content}'.")
+            case content do
+              @shutdown_message ->
+                notify("Shutting down.")
+                :init.stop()
 
-        case content do
-          @shutdown_message ->
-            notify("Shutting down.")
-            :init.stop()
+              "New Reddit post" <> _s = content ->
+                with [_, p_id] <- Regex.run(~r/New Reddit post `(.+)`/i, content),
+                     [_, title] <- Regex.run(~r/Title: `(.+)`/i, content) do
+                  case Replay.from_reddit(p_id, title) do
+                    {:ok, j} ->
+                      notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
+                      send(Queue, :work)
 
-          "New Reddit post" <> _s = content ->
-            with [_, p_id] <- Regex.run(~r/New Reddit post `(.+)`/i, content),
-                 [_, title] <- Regex.run(~r/Title: `(.+)`/i, content) do
-              case Replay.from_reddit(p_id, title) do
-                {:ok, j} ->
-                  notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
-                  send(Queue, :work)
+                    {:error, reason} ->
+                      notify(:error, "Creating job failed.", reason)
+                  end
+                else
+                  nil -> notify(:warn, "Reddit post ID or title could not be parsed.")
+                end
 
-                {:error, reason} ->
-                  notify(:error, "Creating job failed.", reason)
-              end
-            else
-              nil -> notify(:warn, "Reddit post ID or title could not be parsed.")
+              _ ->
+                notify(:debug, "Not a shutdown command or reddit notification.")
             end
 
-          _ ->
-            notify(:debug, "Not a shutdown command or reddit notification.")
+          {:ok, _msg} ->
+            :noop
+
+          {:error, reason} ->
+            notify(:warn, "Getting message #{message} failed.", reason)
         end
 
-      {:ok, _msg} ->
+      _reaction ->
         :noop
-
-      {:error, reason} ->
-        notify(:warn, "Getting message #{message} failed.", reason)
     end
   end
 
@@ -124,7 +138,7 @@ defmodule OAAS.Discord do
   @doc "Sends a Discord message."
   @spec send_message(String.t()) :: {:ok, Nostrum.Struct.Message.t()} | {:error, term}
   def send_message(content) do
-    case Api.create_message(@channel, content) do
+    case Api.create_message(channel(), content) do
       {:ok, msg} ->
         {:ok, msg}
 
@@ -215,7 +229,7 @@ defmodule OAAS.Discord do
   defp command(["process", "queue"], %{id: id}) do
     notify(:debug, "Processing queue via request #{id}.")
     send(Queue, :work)
-    Api.create_reaction(@channel, id, @plusone)
+    Api.create_reaction(channel(), id, @plusone)
   end
 
   # Start the shutdown sequence.
@@ -225,21 +239,23 @@ defmodule OAAS.Discord do
   end
 
   # Evaluate some code.
-  defp command(["eval" | _t], %{author: %{id: @admin}, content: content}) do
-    case Regex.run(~r/```.*?\n(.*)\n```/s, content) do
-      nil ->
-        notify(:warn, "Invalid eval input.")
+  defp command(["eval" | _t], %{author: %{id: id}, content: content}) do
+    if id == admin() do
+      case Regex.run(~r/```.*?\n(.*)\n```/s, content) do
+        nil ->
+          notify(:warn, "Invalid eval input.")
 
-      [_, code] ->
-        try do
-          Code.eval_string(code)
-        rescue
-          reason -> notify(:warn, "Eval failed (exception).", reason)
-        catch
-          reason -> notify(:warn, "Eval failed (throw).", reason)
-        else
-          {result, _} -> send_message("```elixir\n#{inspect(result)}\n```")
-        end
+        [_, code] ->
+          try do
+            Code.eval_string(code)
+          rescue
+            reason -> notify(:warn, "Eval failed (exception).", reason)
+          catch
+            reason -> notify(:warn, "Eval failed (throw).", reason)
+          else
+            {result, _} -> send_message("```elixir\n#{inspect(result)}\n```")
+          end
+      end
     end
   end
 
