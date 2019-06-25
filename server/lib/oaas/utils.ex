@@ -5,12 +5,30 @@ defmodule OAAS.Utils do
   alias OAAS.Discord
   require Logger
 
+  @doc "Get the current environment (dev, prod, etc.)"
+  @spec env :: atom
+  def env do
+    if function_exported?(Mix, :env, 0) do
+      Mix.env()
+    else
+      "RELEASE_NAME"
+      |> System.get_env("dev")
+      |> String.to_atom()
+    end
+  end
+
+  @doc "Get the current time as a Unix millisecond timestamp."
+  @spec now :: pos_integer
+  def now, do: System.system_time(:millisecond)
+
   @doc "Starts the database."
   @spec start_db :: :ok | {:error, term}
   def start_db do
-    File.mkdir_p("priv")
+    db = DB.db_path()
+    dir = Path.dirname(db)
+    File.mkdir_p(dir)
 
-    with {:ok, _} <- Sqlitex.Server.start_link("priv/db_#{Mix.env()}.sqlite3", name: OAAS.DB),
+    with {:ok, _} <- Sqlitex.Server.start_link(db, name: OAAS.DB),
          {:ok, _} <- DB.start_link([]) do
       :ok
     else
@@ -62,21 +80,21 @@ defmodule OAAS.Utils do
   @spec notify(:info, String.t()) :: true
   def notify(:info, msg) do
     Logger.info(msg)
-    Task.start(fn -> Mix.env() === :test || Discord.send_message("Info: #{msg}") end)
+    Task.start(fn -> Discord.send_message("Info: #{msg}") end)
     true
   end
 
   @spec notify(:warn, String.t()) :: true
   def notify(:warn, msg) do
     Logger.warn(msg)
-    Task.start(fn -> Mix.env() === :test || Discord.send_message("Warning: #{msg}") end)
+    Task.start(fn -> Discord.send_message("Warning: #{msg}") end)
     true
   end
 
   @spec notify(:error, String.t()) :: true
   def notify(:error, msg) do
     Logger.error(msg)
-    Task.start(fn -> Mix.env() === :test || Discord.send_message("Error: #{msg}") end)
+    Task.start(fn -> Discord.send_message("Error: #{msg}") end)
     true
   end
 
@@ -103,7 +121,7 @@ defmodule OAAS.Utils do
 
   @spec relative_time(integer) :: String.t()
   def relative_time(ms) do
-    case round((System.system_time(:millisecond) - ms) / 1000) do
+    case round((now() - ms) / 1000) do
       0 -> "Now"
       1 -> "A second ago"
       s when s < 60 -> "#{s} seconds ago"

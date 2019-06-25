@@ -1,6 +1,7 @@
 version: 2
 jobs:
   server:
+    # TODO: This will fail until a 1.9 image is available.
     docker:
       - image: circleci/elixir:1.8
     steps:
@@ -11,7 +12,7 @@ jobs:
           mix local.hex --force
           mix deps.get
           mix test --no-start
-          env COOKIE=cookie MIX_ENV=prod mix release
+          env MIX_ENV=prod mix release prod
   client:
     docker:
       - image: circleci/golang:1.12

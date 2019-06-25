@@ -33,7 +33,7 @@ defmodule OAAS.Model do
       @doc "Insert a new #{@model}."
       @spec put(keyword) :: {:ok, t} | {:error, term}
       def put(cols) do
-        now = System.system_time(:millisecond)
+        now = now()
         cols = Keyword.merge([created_at: now, updated_at: now], cols)
 
         # Construct a SQL query: "INSERT INTO t (x, y, z) VALUES (?1, ?2, ?3)".
@@ -64,7 +64,7 @@ defmodule OAAS.Model do
       @doc "Updates a #{@model}."
       @spec update(t, keyword) :: {:ok, t} | {:error, term}
       def update(m, cols) do
-        cols = Keyword.put_new(cols, :updated_at, System.system_time(:millisecond))
+        cols = Keyword.put_new(cols, :updated_at, now())
 
         # Construct a SQL query: "UPDATE t SET x = ?1, y = ?2, z = ?3 WHERE id = ?4".
         sql =

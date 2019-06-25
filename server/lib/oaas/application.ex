@@ -1,14 +1,17 @@
 defmodule OAAS.Application do
   @moduledoc false
 
+  alias OAAS.DB
   use Application
 
   def start(_type, _args) do
-    File.mkdir_p("priv")
+    db = DB.db_path()
+    dir = Path.dirname(db)
+    File.mkdir_p(dir)
 
     children = [
       %{
-        start: {Sqlitex.Server, :start_link, ["priv/db_#{Mix.env()}.sqlite3", [name: OAAS.DB]]},
+        start: {Sqlitex.Server, :start_link, [db, [name: OAAS.DB]]},
         id: Sqlitex.Server
       },
       OAAS.DB,
@@ -18,7 +21,7 @@ defmodule OAAS.Application do
       Plug.Cowboy.child_spec(
         scheme: :http,
         plug: OAAS.Web.Router,
-        options: [port: Application.get_env(:oaas, :port)]
+        options: [port: Application.fetch_env!(:oaas, :port)]
       )
     ]
 

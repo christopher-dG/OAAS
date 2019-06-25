@@ -2,6 +2,7 @@ defmodule OAAS.Worker do
   @moduledoc "A client that can complete jobs."
 
   alias OAAS.Job
+  import OAAS.Utils
 
   @table "workers"
 
@@ -42,7 +43,7 @@ defmodule OAAS.Worker do
   @doc "Determines whether a worker is online."
   @spec online?(t) :: boolean
   def online?(%{current_job_id: nil} = w) do
-    System.system_time(:millisecond) - (w.last_poll || 0) <= @online_threshold
+    now() - (w.last_poll || 0) <= @online_threshold
   end
 
   def online?(_w) do
@@ -56,7 +57,7 @@ defmodule OAAS.Worker do
   def get_available do
     query(
       "SELECT * FROM #{@table} WHERE current_job_id IS NULL AND ?1 - last_poll <= ?2",
-      [System.system_time(:millisecond), @online_threshold]
+      [now(), @online_threshold]
     )
   end
 

@@ -336,7 +336,7 @@ defmodule OAAS.Job.Replay do
   @osusearch_url "https://osusearch.com/api/search"
 
   @spec osusearch_key :: String.t()
-  defp osusearch_key, do: Application.get_env(:oaas, :osusearch_key)
+  defp osusearch_key, do: Application.fetch_env!(:oaas, :osusearch_key)
 
   @spec search_osusearch(String.t()) :: {:ok, map} | {:error, :not_found}
   def search_osusearch(map_name) do

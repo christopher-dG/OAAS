@@ -17,13 +17,13 @@ defmodule OAAS.Discord do
   end
 
   @spec me :: integer
-  defp me, do: Application.get_env(:oaas, :discord_user)
+  defp me, do: Application.fetch_env!(:oaas, :discord_user)
 
   @spec channel :: integer
-  defp channel, do: Application.get_env(:oaas, :discord_channel)
+  defp channel, do: Application.fetch_env!(:oaas, :discord_channel)
 
   @spec admin :: integer
-  defp admin, do: Application.get_env(:oaas, :discord_admin)
+  defp admin, do: Application.fetch_env!(:oaas, :discord_admin)
 
   def handle_event({:MESSAGE_CREATE, {%{} = message}, _state}) do
     me = me()
@@ -138,13 +138,15 @@ defmodule OAAS.Discord do
   @doc "Sends a Discord message."
   @spec send_message(String.t()) :: {:ok, Nostrum.Struct.Message.t()} | {:error, term}
   def send_message(content) do
-    case Api.create_message(channel(), content) do
-      {:ok, msg} ->
-        {:ok, msg}
+    unless env() === :test do
+      case Api.create_message(channel(), content) do
+        {:ok, msg} ->
+          {:ok, msg}
 
-      {:error, reason} ->
-        notify(:debug, "Sending message failed.", reason)
-        {:error, reason}
+        {:error, reason} ->
+          notify(:debug, "Sending message failed.", reason)
+          {:error, reason}
+      end
     end
   end
 

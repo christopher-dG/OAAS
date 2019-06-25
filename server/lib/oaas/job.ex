@@ -117,14 +117,12 @@ defmodule OAAS.Job do
   @doc "Gets all jobs which are running but stalled."
   @spec get_stalled :: {:ok, [t]} | {:error, term}
   def get_stalled do
-    now = System.system_time(:millisecond)
-
     case query("SELECT * FROM #{@table} WHERE status BETWEEN ?1 AND ?2", [
            status(:assigned),
            status(:uploading)
          ]) do
       {:ok, js} ->
-        {:ok, Enum.filter(js, fn j -> abs(now - j.updated_at) > @timeouts[status(j.status)] end)}
+        {:ok, Enum.filter(js, fn j -> abs(now() - j.updated_at) > @timeouts[status(j.status)] end)}
 
       {:error, reason} ->
         {:error, reason}
@@ -147,8 +145,7 @@ defmodule OAAS.Job do
   @spec assign(t, Worker.t()) :: {:ok, t} | {:error, term}
   def assign(j, w) do
     DB.transaction(fn ->
-      with {:ok, _} <-
-             Worker.update(w, current_job_id: j.id, last_job: System.system_time(:millisecond)),
+      with {:ok, _} <- Worker.update(w, current_job_id: j.id, last_job: now()),
            {:ok, j} <- update(j, worker_id: w.id, status: status(:assigned)) do
         j
       else

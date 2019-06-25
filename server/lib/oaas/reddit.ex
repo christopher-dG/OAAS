@@ -8,15 +8,9 @@ defmodule OAAS.Reddit do
   import OAAS.Utils
 
   @spec subreddit :: String.t()
-  defp subreddit, do: Application.get_env(:oaas, :reddit_subreddit)
+  defp subreddit, do: Application.fetch_env!(:oaas, :reddit_subreddit)
 
-  def start_link(_args) do
-    if Mix.env() === :test do
-      {:ok, self()}
-    else
-      Task.start_link(&process_posts/0)
-    end
-  end
+  def start_link(_args), do: Task.start_link(&process_posts/0)
 
   def child_spec(opts) do
     %{

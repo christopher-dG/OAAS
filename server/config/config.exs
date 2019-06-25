@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 config :logger,
   compile_time_purge_matching: [
@@ -6,30 +6,45 @@ config :logger,
     [module: Reddex.Auth, level_lower_than: :warn]
   ]
 
-# Your Discord application's bot token: https://discordapp.com/developers/applications/me.
-config :nostrum, token: System.get_env("DISCORD_TOKEN")
+unless match?(["release", _], System.argv()) do
+  fetch = fn k ->
+    case System.get_env(k) do
+      nil ->
+        IO.puts("Missing environment variable '#{k}'")
+        ""
 
-# Your osu! API key: https://osu.ppy.sh/p/api.
-config :osu_ex, api_key: System.get_env("OSU_API_KEY")
+      v ->
+        v
+    end
+  end
 
-# Your Reddit credentials: https://www.reddit.com/prefs/apps.
-config :reddex,
-  username: System.get_env("REDDIT_USERNAME"),
-  password: System.get_env("REDDIT_PASSWORD"),
-  client_id: System.get_env("REDDIT_CLIENT_ID"),
-  client_secret: System.get_env("REDDIT_CLIENT_SECRET"),
-  user_agent: System.get_env("REDDIT_USER_AGENT")
+  fetch_int = fn k ->
+    with v when v != "" <- fetch.(k),
+         {n, ""} <- Integer.parse(v) do
+      n
+    else
+      e ->
+        if e === :error, do: IO.puts("Invalid integer environment variable '#{k}'")
+        0
+    end
+  end
 
-config :oaas,
-  # Web server port.
-  port: (System.get_env("PORT") || "4000") |> Integer.parse() |> elem(0),
-  # Discord bot user ID.
-  discord_user: (System.get_env("DISCORD_USER") || "0") |> Integer.parse() |> elem(0),
-  # Discord channel ID where the bot will post.
-  discord_channel: (System.get_env("DISCORD_CHANNEL") || "0") |> Integer.parse() |> elem(0),
-  # osusearch.com API key.
-  osusearch_key: System.get_env("OSUSEARCH_API_KEY"),
-  # Reddit subreddit to poll.
-  reddit_subreddit: System.get_env("REDDIT_SUBREDDIT"),
-  # Admininstrator's Discord ID (probably yours).
-  discord_admin: (System.get_env("DISCORD_ADMIN_ID") || "0") |> Integer.parse() |> elem(0)
+  config :nostrum, token: fetch.("DISCORD_API_TOKEN")
+
+  config :osu_ex, api_key: fetch.("OSU_API_KEY")
+
+  config :reddex,
+    client_id: fetch.("REDDIT_CLIENT_ID"),
+    client_secret: fetch.("REDDIT_CLIENT_SECRET"),
+    password: fetch.("REDDIT_PASSWORD"),
+    user_agent: fetch.("REDDIT_USER_AGENT"),
+    username: fetch.("REDDIT_USERNAME")
+
+  config :oaas,
+    discord_admin: fetch_int.("DISCORD_ADMIN_ID"),
+    discord_channel: fetch_int.("DISCORD_CHANNEL_ID"),
+    discord_user: fetch_int.("DISCORD_USER_ID"),
+    osusearch_key: fetch.("OSUSEARCH_API_KEY"),
+    port: fetch_int.("PORT"),
+    reddit_subreddit: fetch.("REDDIT_SUBREDDIT")
+end

@@ -9,7 +9,7 @@ defmodule OAAS.Web.Router do
   use Plug.Router
   use Plug.ErrorHandler
 
-  plug(Plug.Logger)
+  plug(Plug.Logger, log: :debug)
   plug(Plug.Parsers, parsers: [:json], pass: ["*/*"], json_decoder: Jason)
   plug(:match)
   plug(:authenticate)
@@ -21,7 +21,7 @@ defmodule OAAS.Web.Router do
     id = conn.body_params["worker"]
 
     with {:ok, w} <- Worker.get_or_put(id),
-         {:ok, w} <- Worker.update(w, last_poll: System.system_time(:millisecond)),
+         {:ok, w} <- Worker.update(w, last_poll: now()),
          {:ok, j} <- Worker.get_assigned(w) do
       case j do
         nil -> send_resp(conn, 204, "")

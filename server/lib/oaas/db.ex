@@ -54,6 +54,17 @@ defmodule OAAS.DB do
     {:ok, self()}
   end
 
+  @doc "Gets the path to the database file."
+  @spec db_path :: String.t()
+  def db_path do
+    file = "db_#{env()}.sqlite3"
+
+    case System.get_env("RELEASE_NAME") do
+      nil -> "priv/#{file}"
+      v -> "#{v}/priv/#{file}"
+    end
+  end
+
   @doc "Wrapper around `Sqlitex.Server.query`."
   @spec query(String.t(), keyword) :: {:ok, list} | {:error, term}
   def query(sql, opts \\ []) do

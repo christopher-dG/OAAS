@@ -1,3 +1,0 @@
-#!/usr/bin/env sh
-
-sqlite3 -batch -noheader "$RELEASE_ROOT_DIR/priv/db_prod.sqlite3" "SELECT id FROM keys"

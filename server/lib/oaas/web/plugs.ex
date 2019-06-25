@@ -38,7 +38,7 @@ defmodule OAAS.Web.Plugs do
 
   @doc "Authenticates a request with an API key."
   def authenticate(conn, _opts) do
-    if Mix.env() === :dev do
+    if env() === :dev do
       # Don't worry about auth for development.
       conn
     else
