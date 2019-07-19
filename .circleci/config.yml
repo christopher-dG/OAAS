@@ -1,9 +1,8 @@
 version: 2
 jobs:
   server:
-    # TODO: This will fail until a 1.9 image is available.
     docker:
-      - image: circleci/elixir:1.8
+      - image: circleci/elixir:1.9
     steps:
       - checkout
       - run: |
