@@ -1,0 +1,4 @@
+api_url: http://example.com
+uploader: youtube
+api_key: api-key-here
+obs_out_dir: C:\Path\To\OBS\Output

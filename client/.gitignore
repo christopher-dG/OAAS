@@ -1,4 +1,7 @@
-oaas
 *.exe
 *.txt
+*.zip
+client_secrets.json
+config.yml
+oaas
 request.token

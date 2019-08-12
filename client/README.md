@@ -22,16 +22,15 @@ If your workers will be uploading to YouTube, follow the instructions [here](htt
 Download a compiled copy of [YouTube Uploader](https://github.com/porjo/youtubeuploader) and generate OAuth2 credentials:
 
 ```sh
-$ curl -L https://github.com/porjo/youtubeuploader/releases/download/18.15/youtubeuploader_linux_amd64.tar.gz | tar zx
-$ touch x
-$ ./youtubeuploader_linux_amd64 -filename x -secrets OAAS/client_secrets.json
+$ curl -L https://github.com/porjo/youtubeuploader/releases/download/19.02/youtubeuploader_linux_amd64.tar.gz | tar zx
+$ echo x | ./youtubeuploader_linux_amd64 -filename - -secrets OAAS/client_secrets.json
 $ mv request.token OAAS
-$ rm x youtubeuploader_linux_amd64
+$ rm youtubeuploader_linux_amd64
 ```
 Also download a copy for the workers:
 
 ```sh
-$ curl -L https://github.com/porjo/youtubeuploader/releases/download/18.15/youtubeuploader_windows_amd64.zip -o uploader.zip
+$ curl -L https://github.com/porjo/youtubeuploader/releases/download/19.02/youtubeuploader_windows_amd64.zip -o uploader.zip
 $ unzip uploader.zip
 $ mv youtubeuploader_windows_amd64.exe OAAS/youtube-uploader.exe
 $ rm uploader.zip
