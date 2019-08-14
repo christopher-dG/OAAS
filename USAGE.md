@@ -85,4 +85,4 @@ Finally, run the `get-coords.exe` application by double clicking, and follow the
 ### Running
 
 Make sure OBS is running.
-Then, double click the app to start it.
+Then, double click `OAAS.exe` to start it.
