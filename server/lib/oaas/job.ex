@@ -122,7 +122,8 @@ defmodule OAAS.Job do
            status(:uploading)
          ]) do
       {:ok, js} ->
-        {:ok, Enum.filter(js, fn j -> abs(now() - j.updated_at) > @timeouts[status(j.status)] end)}
+        {:ok,
+         Enum.filter(js, fn j -> abs(now() - j.updated_at) > @timeouts[status(j.status)] end)}
 
       {:error, reason} ->
         {:error, reason}

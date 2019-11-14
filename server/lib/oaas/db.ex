@@ -59,9 +59,11 @@ defmodule OAAS.DB do
   def db_path do
     file = "db_#{env()}.sqlite3"
 
-    case System.get_env("RELEASE_NAME") do
+    with name when not is_nil(name) <- System.get_env("RELEASE_NAME"),
+         root when not is_nil(root) <- System.get_env("RELEASE_ROOT") do
+      "#{root}/#{name}/priv/#{file}"
+    else
       nil -> "priv/#{file}"
-      v -> "#{v}/priv/#{file}"
     end
   end
 
