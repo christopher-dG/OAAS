@@ -2,8 +2,8 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -60,7 +60,7 @@ func uploadYouTube(path, title, description string, tags []string) (string, erro
 		"-tags", strings.Join(tags, ","),
 	)
 	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
+	log.Println("upload-youtube output:\n", string(out))
 	if err != nil {
 		return "", err
 	}
