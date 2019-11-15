@@ -49,6 +49,7 @@ defmodule OAAS.Job.Replay do
       Combo: #{j.data.replay.combo}
       Score: #{j.data.replay.score}
       Accuracy: #{j.data.replay |> Osu.accuracy() |> :erlang.float_to_binary(decimals: 2)}%
+      Length: #{display_time(j.data.replay.length)}
     ```
     """
   end

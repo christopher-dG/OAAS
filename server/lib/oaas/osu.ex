@@ -208,9 +208,17 @@ defmodule OAAS.Osu do
 
     len =
       cond do
-        (mods &&& @dt) === @dt -> len / 1.5
-        (mods &&& @ht) === @ht -> len * 1.5
-        true -> len
+        (mods &&& @dt) === @dt ->
+          notify(:debug, "Applied DT length reduction.")
+          len / 1.5
+
+        (mods &&& @ht) === @ht ->
+          notify(:debug, "Applied HT length increase.")
+          len * 1.5
+
+        true ->
+          notify(:debug, "No length-modifying mods.")
+          len
       end
 
     round(len)

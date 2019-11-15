@@ -134,6 +134,15 @@ defmodule OAAS.Utils do
     end
   end
 
+  @doc "Displays a millisecond count as text."
+  @spec display_time(integer) :: String.t()
+  def display_time(ms) do
+    total_s = round(ms / 1000)
+    m = floor(total_s / 60)
+    s = Integer.mod(total_s, 60)
+    "#{m}m#{s}s"
+  end
+
   @doc "Compare two strings leniently."
   @spec strcmp(String.t(), String.t()) :: boolean
   def strcmp(s1, s2) do
