@@ -33,10 +33,8 @@ defmodule OAAS.Reddit do
           notify(:debug, "Processing Reddit post https://redd.it/#{p.id}.")
 
           """
-          New Reddit post `#{p.id}`.
-          URL: https://reddit.com#{p.permalink}
-          Title: `#{p.title}`
-          Author: `/u/#{p.author}`
+          New score post: https://redd.it/#{p.id}
+          Post: `#{p.title}` (by `/u/#{p.author}`)
           React :+1: if we should record.
           """
           |> Discord.send_message()
