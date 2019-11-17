@@ -32,16 +32,17 @@ defmodule OAAS.MixProject do
 
   defp deps do
     [
-      {:cowboy, "~> 2.6"},
-      {:httpoison, "~> 1.5"},
+      {:cowboy, "~> 2.7"},
+      {:cowlib, "~> 2.8", override: true},
+      {:httpoison, "~> 1.6"},
       {:jason, "~> 1.1"},
-      {:nostrum, "~> 0.3"},
+      {:nostrum, "~> 0.4"},
       {:osu_ex, "~> 0.2"},
-      {:plug_cowboy, "~> 2.0"},
+      {:plug_cowboy, "~> 2.1"},
       {:reddex, "~> 0.1"},
       {:sqlitex, "~> 1.7"},
       {:table_rex, "~> 2.0"},
-      {:toml, "~> 0.5"}
+      {:toml, "~> 0.6"}
     ]
   end
 end
