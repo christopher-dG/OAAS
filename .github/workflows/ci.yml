@@ -1,0 +1,27 @@
+name: CI
+on:
+  - push
+  - pull_request
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-elixir@v1.0.0
+        with:
+          otp-version: 22.x
+          elixir-version: 1.9.x
+      - run: sudo apt-get -y install libsqlite3-dev
+      - run: mix deps.get
+        working-directory: server
+      - run: mix test --no-start
+        working-directory: server
+  client:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13.x
+      - run: go test ./...
+        working-directory: client

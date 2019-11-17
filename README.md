@@ -1,4 +1,4 @@
-# OAAS: osu! as a service [![CircleCI](https://circleci.com/gh/christopher-dG/OAAS.svg?style=svg)](https://circleci.com/gh/christopher-dG/OAAS)
+# OAAS: osu! as a service
 
 Welcome to oss.
 Er, oaas.
