@@ -25,7 +25,7 @@ defmodule OAAS.Discord do
   @spec admin :: integer
   defp admin, do: Application.fetch_env!(:oaas, :discord_admin)
 
-  def handle_event({:MESSAGE_CREATE, {%{} = message}, _state}) do
+  def handle_event({:MESSAGE_CREATE, %{} = message, _state}) do
     me = me()
     channel = channel()
 
@@ -77,7 +77,7 @@ defmodule OAAS.Discord do
     end
   end
 
-  def handle_event({:MESSAGE_REACTION_ADD, {%{} = reaction}, _state}) do
+  def handle_event({:MESSAGE_REACTION_ADD, %{} = reaction, _state}) do
     channel = channel()
 
     case reaction do
