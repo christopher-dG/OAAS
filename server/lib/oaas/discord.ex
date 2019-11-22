@@ -99,9 +99,9 @@ defmodule OAAS.Discord do
                 notify("Shutting down.")
                 :init.stop()
 
-              "New Reddit post" <> _s = content ->
-                with [_, p_id] <- Regex.run(~r/New Reddit post `(.+)`/i, content),
-                     [_, title] <- Regex.run(~r/Title: `(.+)`/i, content) do
+              "New score post" <> _s = content ->
+                with [_, p_id] <- Regex.run(~r|redd\.it/(.+)|, content),
+                     [_, title] <- Regex.run(~r|Post: `(.+?)`|, content) do
                   case Replay.from_reddit(p_id, title) do
                     {:ok, j} ->
                       notify("Created job `#{j.id}`.\n#{Replay.describe(j)}")
