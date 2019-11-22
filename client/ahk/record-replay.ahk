@@ -49,3 +49,6 @@ MouseMove, %perfGraphX%, %perfGraphY%
 ; Wait for some time on the results screen.
 Sleep, 10000
 StopRecording()
+
+; Wait for encoding and stuff.
+Sleep, 10000
