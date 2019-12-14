@@ -43,6 +43,16 @@ EnsureOsuStarted() {
     }
 }
 
+; Press space bar a few times to skip any intro or outro.
+MashSpace() {
+    Loop, 5 {
+        Send, {Space down}
+        Sleep, 100
+        Send, {Space up}
+        Sleep, 400
+    }
+}
+
 ; Get the ahk_class of the osu! window.
 OsuAhkClass() {
     WinGetClass, class, osu!.exe

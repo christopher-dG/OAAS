@@ -24,13 +24,8 @@ StartRecording()
 Sleep, 3000
 MouseClick
 
-; Press space bar a few times to skip any intro.
-Loop, 5 {
-    Send, {Space down}
-    Sleep, 100
-    Send, {Space up}
-    Sleep, 400
-}
+; Skip any intro.
+MashSpace()
 
 ;; Hide the leaderboard.
 Send, {Tab down}
@@ -46,8 +41,11 @@ Sleep, %length%
 ; Move the mouse again, just in case it got jostled.
 MouseMove, %perfGraphX%, %perfGraphY%
 
+; Skip any outro.
+MashSpace()
+
 ; Wait for some time on the results screen.
-Sleep, 10000
+Sleep, 7500
 StopRecording()
 
 ; Wait for encoding and stuff.
