@@ -1,0 +1,19 @@
+name: Run Tests
+on:
+  - push
+  - pull_request
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - run: pip install poetry
+      - run: poetry install
+      - run: |
+          sudo echo a >> /usr/share/dict/words
+          sudo echo b >> /usr/share/dict/words
+          sudo echo c >> /usr/share/dict/words
+      - run: poetry run pytest

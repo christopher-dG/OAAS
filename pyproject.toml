@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "oaas"
+version = "0.1.0"
+description = ""
+authors = ["Chris de Graaf <chrisadegraaf@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+APScheduler = "^3.6.3"
+Flask = "^1.1.1"
+Flask-SQLAlchemy = "^2.4.1"
+Flask-SocketIO = "^4.2.1"
+google-cloud-storage = "^1.26.0"
+osrparse = "^3.0.0"
+osuapi = "^0.0.41"
+praw = "^6.5.1"
+psycopg2 = "^2.8.4"
+
+[tool.poetry.dev-dependencies]
+black = "^19.10b0"
+flake8 = "^3.7.9"
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
