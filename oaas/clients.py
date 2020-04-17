@@ -31,7 +31,7 @@ class Client(db.Model):
         db.String(64), unique=True, nullable=False, index=True, default=_make_key
     )
     status = db.Column(
-        db.Integer, nullable=False, index=True, default=ClientStatus.OFFLINE.value
+        db.Enum(ClientStatus), nullable=False, index=True, default=ClientStatus.OFFLINE
     )
     job = db.Column(db.Integer, db.ForeignKey("job.id"))
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -60,6 +60,7 @@ class Client(db.Model):
         db.session.add(job)
         if commit:
             db.session.commit()
+        job.before()
         ws.emit("new_job", {"job": job.as_dict()}, room=self.id)
 
     def unassign(self, job: Job, status: JobStatus, commit: bool = True) -> None:
